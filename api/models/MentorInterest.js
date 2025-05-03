@@ -40,19 +40,6 @@ const mentorInterestSchema = new mongoose.Schema(
       type: String,
       enum: ['Starting Points to Success', 'Profile & Presentation', 'Financial Fluency', 'The Future of Work'],
     }],
-    topics: {
-      type: String,
-      trim: true,
-    },
-    privacyPreferences: [{
-      type: String,
-      enum: ['First Name', 'Job Title', 'Industry', 'Career Stage', 'None'],
-    }],
-    consent: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
     comments: {
       type: String,
       trim: true,

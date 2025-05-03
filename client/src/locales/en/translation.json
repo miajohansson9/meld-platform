@@ -692,7 +692,7 @@
   "com_ui_input": "Input",
   "com_ui_instructions": "Instructions",
   "com_ui_late_night": "Happy late night",
-  "com_ui_latest_footer": "Every AI for Everyone.",
+  "com_ui_latest_footer": "Mentoring More Meaningfully",
   "com_ui_latest_production_version": "Latest production version",
   "com_ui_latest_version": "Latest version",
   "com_ui_librechat_code_api_key": "Get your LibreChat Code Interpreter API key",
@@ -869,5 +869,6 @@
   "com_ui_yes": "Yes",
   "com_ui_zoom": "Zoom",
   "com_user_message": "You",
-  "com_warning_resubmit_unsupported": "Resubmitting the AI message is not supported for this endpoint."
+  "com_warning_resubmit_unsupported": "Resubmitting the AI message is not supported for this endpoint.",
+  "com_auth_mentor_sign_up": "Mentor Sign Up"
 }

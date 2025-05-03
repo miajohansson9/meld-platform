@@ -1,5 +1,5 @@
 const express = require('express');
-const { submitMentorInterest } = require('../controllers/MentorInterestController');
+const { submitMentorInterest, getMentorInterests, getMentorQuestions, addMentorQuestion, updateMentorQuestion } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
 
@@ -10,4 +10,32 @@ const router = express.Router();
  */
 router.post('/', submitMentorInterest);
 
-module.exports = router; 
+/**
+ * @route GET /api/mentor-interest
+ * @desc Get all mentor interest responses
+ * @access Admin (for now, public)
+ */
+router.get('/', getMentorInterests);
+
+/**
+ * @route GET /api/mentor-interest/questions
+ * @desc Get all mentor questions
+ * @access Admin (for now, public)
+ */
+router.get('/questions', getMentorQuestions);
+
+/**
+ * @route POST /api/mentor-interest/questions
+ * @desc Add a new mentor question
+ * @access Admin (for now, public)
+ */
+router.post('/questions', addMentorQuestion);
+
+/**
+ * @route PUT /api/mentor-interest/questions/:id
+ * @desc Update an existing mentor question
+ * @access Admin (for now, public)
+ */
+router.put('/questions/:id', updateMentorQuestion);
+
+module.exports = router;

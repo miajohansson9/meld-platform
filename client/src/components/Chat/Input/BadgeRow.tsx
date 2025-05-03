@@ -352,12 +352,6 @@ function BadgeRow({
           />
         </div>
       )}
-      {showEphemeralBadges === true && (
-        <>
-          <CodeInterpreter conversationId={conversationId} />
-          <MCPSelect conversationId={conversationId} />
-        </>
-      )}
       {ghostBadge && (
         <div
           className="ghost-badge h-full"

@@ -160,7 +160,7 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
                   return (
                     <TableHead
                       key={header.id}
-                      className="whitespace-nowrap bg-surface-secondary px-2 py-2 text-left text-sm font-medium text-text-secondary sm:px-4"
+                      className="whitespace-nowrap bg-surface-secondary px-1 py-1 text-left text-sm font-medium text-text-secondary"
                       style={{ ...style }}
                     >
                       {header.isPlaceholder

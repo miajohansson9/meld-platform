@@ -81,6 +81,7 @@ interface DataTableProps<TData, TValue> {
   onFilterChange?: (value: string) => void;
   filterValue?: string;
   isLoading?: boolean;
+  onRowClick?: (row: TData) => void;
 }
 
 const TableRowComponent = <TData, TValue>({
@@ -89,12 +90,14 @@ const TableRowComponent = <TData, TValue>({
   onSelectionChange,
   index,
   isSearching,
+  onRowClick,
 }: {
   row: Row<TData>;
   isSmallScreen: boolean;
   onSelectionChange?: (rowId: string, selected: boolean) => void;
   index: number;
   isSearching: boolean;
+  onRowClick?: (row: TData) => void;
 }) => {
   const handleSelection = useCallback(
     (value: boolean) => {
@@ -107,17 +110,18 @@ const TableRowComponent = <TData, TValue>({
   return (
     <TableRow
       data-state={row.getIsSelected() ? 'selected' : undefined}
-      className="motion-safe:animate-fadeIn border-b border-border-light transition-all duration-300 ease-out hover:bg-surface-secondary"
+      className="border-b border-border-light cursor-pointer"
       style={{
         animationDelay: `${index * 20}ms`,
         transform: `translateY(${isSearching ? '4px' : '0'})`,
         opacity: isSearching ? 0.5 : 1,
       }}
+      onClick={() => onRowClick?.(row.original)}
     >
       {row.getVisibleCells().map((cell) => {
         if (cell.column.id === 'select') {
           return (
-            <TableCell key={cell.id} className="px-2 py-1 transition-all duration-300">
+            <TableCell key={cell.id} className="p-0">
               <SelectionCheckbox
                 checked={row.getIsSelected()}
                 onChange={handleSelection}
@@ -130,7 +134,7 @@ const TableRowComponent = <TData, TValue>({
         return (
           <TableCell
             key={cell.id}
-            className="w-0 max-w-0 px-2 py-1 align-middle text-xs transition-all duration-300 sm:px-4 sm:py-2 sm:text-sm"
+            className="min-w-[100px] align-middle text-xs transition-all duration-300"
             style={getColumnStyle(
               cell.column.columnDef as TableColumn<TData, TValue>,
               isSmallScreen,
@@ -211,6 +215,7 @@ export default function DataTable<TData, TValue>({
   onFilterChange,
   filterValue,
   isLoading,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const localize = useLocalize();
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
@@ -349,7 +354,7 @@ export default function DataTable<TData, TValue>({
           const isFirstDataColumn = columnIndex === firstDataColumnIndex;
 
           return (
-            <TableCell key={column.id} className="px-2 py-1 sm:px-4 sm:py-2" style={style}>
+            <TableCell key={column.id} style={style}>
               <Skeleton
                 className="h-6"
                 style={isFirstDataColumn ? { width: `${randomWidth}px` } : { width: '100%' }}
@@ -396,14 +401,14 @@ export default function DataTable<TData, TValue>({
           className,
         )}
       >
-        <Table className="w-full min-w-[300px] table-fixed border-separate border-spacing-0">
+        <Table className="w-full min-w-[300px] border-separate border-spacing-0">
           <TableHeader className="sticky top-0 z-50 bg-surface-secondary">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-b border-border-light">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="whitespace-nowrap bg-surface-secondary px-2 py-2 text-left text-sm font-medium text-text-secondary sm:px-4"
+                    className="whitespace-nowrap bg-surface-secondary px-1 py-1 text-left text-sm font-medium text-text-secondary sm:px-2"
                     style={getColumnStyle(
                       header.column.columnDef as TableColumn<TData, TValue>,
                       isSmallScreen,
@@ -441,13 +446,14 @@ export default function DataTable<TData, TValue>({
                   isSmallScreen={isSmallScreen}
                   index={virtualRow.index}
                   isSearching={isSearching}
+                  onRowClick={onRowClick}
                 />
               );
             })}
 
             {!virtualRows.length && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columns.length} className="p-4 text-center">
+              <TableRow>
+                <TableCell colSpan={columns.length} className="p-0 text-center">
                   {localize('com_ui_no_data')}
                 </TableCell>
               </TableRow>
@@ -461,8 +467,8 @@ export default function DataTable<TData, TValue>({
 
             {/* Loading indicator */}
             {(isFetchingNextPage || hasNextPage) && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columns.length} className="p-4">
+              <TableRow>
+                <TableCell colSpan={columns.length} className="p-0">
                   <div className="flex h-full items-center justify-center">
                     {isFetchingNextPage ? (
                       <Spinner className="size-4" />

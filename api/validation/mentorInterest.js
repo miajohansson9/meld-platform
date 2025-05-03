@@ -31,19 +31,7 @@ const mentorInterestSchema = z.object({
     'Profile & Presentation',
     'Financial Fluency',
     'The Future of Work'
-  ])).min(1, 'At least one pillar must be selected'),
-  topics: z.string().trim().optional(),
-  privacyPreferences: z.array(z.enum([
-    'First Name',
-    'Job Title',
-    'Industry',
-    'Career Stage',
-    'None'
-  ])).min(1, 'At least one privacy preference must be selected'),
-  consent: z.boolean().refine((val) => val === true, {
-    message: 'Consent is required to proceed'
-  }),
-  comments: z.string().trim().optional()
+  ])).min(1, 'At least one pillar must be selected')
 });
 
 module.exports = {

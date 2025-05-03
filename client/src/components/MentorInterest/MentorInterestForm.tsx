@@ -41,7 +41,6 @@ export default function MentorInterestForm() {
     resolver: zodResolver(mentorInterestSchema),
     defaultValues: {
       pillars: [],
-      consent: false,
     },
   });
 
@@ -99,13 +98,12 @@ export default function MentorInterestForm() {
 
   return (
     <div className="max-w-md mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4 text-text-primary">Mentor Interest Form</h1>
       {submitStatus === 'success' ? (
         <div className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200" role="alert">
-          Thank you for your interest! We will analyze your submission and get back to you soon with personalized questions to answer.
+          Thank you signing up! We will analyze your submission and get back to you soon with personalized questions to answer.
         </div>
       ) : (
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6" aria-label="Mentor Interest Form" method="POST">
+        <form onSubmit={handleSubmit(onSubmit)} aria-label="Mentor Interest Form" method="POST">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {renderInput('firstName', 'First Name *')}
             {renderInput('lastName', 'Last Name')}
@@ -187,48 +185,6 @@ export default function MentorInterestForm() {
                 {String(errors['pillars']?.message) ?? ''}
               </span>
             )}
-          </div>
-          <div className="mb-4">
-            <div className="relative">
-              <textarea
-                id="comments"
-                {...register('comments')}
-                rows={3}
-                className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-border-light bg-surface-primary px-3.5 pb-2.5 pt-3 text-text-primary duration-200 focus:border-green-500 focus:outline-none"
-                placeholder=" "
-              />
-              <label
-                htmlFor="comments"
-                className="absolute start-3 top-1.5 z-10 origin-[0] -translate-y-4 scale-75 transform bg-surface-primary px-2 text-sm text-text-secondary-alt duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:scale-100 peer-focus:top-1.5 peer-focus:-translate-y-4 peer-focus:scale-75 peer-focus:px-2 peer-focus:text-green-500 rtl:peer-focus:left-auto rtl:peer-focus:translate-x-1/4"
-              >
-                What's one thing you're working on, and one thing you're working through?
-              </label>
-            </div>
-            {errors['comments'] && (
-              <span role="alert" className="mt-1 text-sm text-red-500">
-                {String(errors['comments']?.message) ?? ''}
-              </span>
-            )}
-          </div>
-          <div className="flex items-start mb-4">
-            <div className="flex h-5 items-center">
-              <input
-                id="consent"
-                type="checkbox"
-                {...register('consent')}
-                className="h-4 w-4 rounded border-border-light text-green-600 focus:ring-green-500"
-              />
-            </div>
-            <div className="ml-3 text-sm">
-              <label htmlFor="consent" className="font-medium text-text-primary">
-                I consent to being contacted about mentoring opportunities *
-              </label>
-              {errors['consent'] && (
-                <span role="alert" className="mt-1 text-sm text-red-500">
-                  {String(errors['consent']?.message) ?? ''}
-                </span>
-              )}
-            </div>
           </div>
           {submitStatus === 'error' && (
             <div className="rounded-md border border-red-500 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-200" role="alert">
