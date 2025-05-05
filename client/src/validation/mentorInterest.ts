@@ -25,11 +25,5 @@ export const mentorInterestSchema = z.object({
   ], {
     required_error: 'Career stage is required',
     invalid_type_error: 'Invalid career stage selected'
-  }),
-  pillars: z.array(z.enum([
-    'Starting Points to Success',
-    'Profile & Presentation',
-    'Financial Fluency',
-    'The Future of Work'
-  ])).min(1, 'At least one pillar must be selected')
+  })
 }); 

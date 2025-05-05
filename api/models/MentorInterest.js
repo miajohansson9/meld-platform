@@ -36,14 +36,6 @@ const mentorInterestSchema = new mongoose.Schema(
       required: true,
       enum: ['Early-career (0-5 years)', 'Mid-career (5-15 years)', 'Senior-career (15+ years)'],
     },
-    pillars: [{
-      type: String,
-      enum: ['Starting Points to Success', 'Profile & Presentation', 'Financial Fluency', 'The Future of Work'],
-    }],
-    comments: {
-      type: String,
-      trim: true,
-    },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

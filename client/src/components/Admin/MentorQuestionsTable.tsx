@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DataTable from '~/components/ui/DataTable';
-import { Input, Button } from '~/components/ui';
+import { Button } from '~/components/ui';
 import { PlusIcon } from 'lucide-react';
 import { Spinner } from '~/components/svg';
 import { OGDialog, OGDialogContent, OGDialogTitle } from '~/components/ui/OriginalDialog';
+import { useNavigate } from 'react-router-dom';
 
 const fetchMentorQuestions = async () => {
   const res = await fetch('/api/mentor-interest/questions');
@@ -18,7 +19,10 @@ const fetchMentorQuestions = async () => {
 const addMentorQuestion = async ({ question, pillar, subTags }) => {
   const res = await fetch('/api/mentor-interest/questions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
     body: JSON.stringify({ question, pillar, subTags }),
   });
   if (!res.ok) {
@@ -51,15 +55,17 @@ export default function MentorQuestionsTable() {
   const [updatedQuestionText, setUpdatedQuestionText] = useState('');
   const [updatedPillar, setUpdatedPillar] = useState('');
   const [updatedSubTags, setUpdatedSubTags] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [lastSelectedPillar, setLastSelectedPillar] = useState('Starting Points to Success');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const navigate = useNavigate();
 
   const { data: questions = [], isLoading, error: fetchError } = useQuery({
     queryKey: ['mentor-questions'],
     queryFn: fetchMentorQuestions,
-    onError: (error) => {
-      console.error('Fetch error:', error.message);
-      setErrorMessage(`Error fetching questions: ${error.message}`);
+    onError: (error: unknown) => {
+      console.error('Fetch error:', (error as Error).message);
+      setErrorMessage(`Error fetching questions: ${(error as Error).message}`);
     },
   });
 
@@ -86,9 +92,9 @@ export default function MentorQuestionsTable() {
       setErrorMessage('');
       setLastSelectedPillar(updatedPillar);
     },
-    onError: (error) => {
-      console.error('Update error:', error.message);
-      setErrorMessage(`Failed to update question: ${error.message}`);
+    onError: (error: unknown) => {
+      console.error('Update error:', (error as Error).message);
+      setErrorMessage(`Failed to update question: ${(error as Error).message}`);
     },
   });
 
@@ -310,6 +316,12 @@ export default function MentorQuestionsTable() {
             </form>
           </OGDialogContent>
         </OGDialog>
+      )}
+
+      {submitStatus === 'error' && (
+        <div className="rounded-md border border-red-500 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-200" role="alert">
+          {errorMessage}
+        </div>
       )}
     </div>
   );

@@ -23,6 +23,10 @@ export enum SystemRoles {
    * The default user role
    */
   USER = 'USER',
+  /**
+   * The Mentor role
+   */
+  MENTOR = 'MENTOR',
 }
 
 // The role schema now only needs to reference the permissions schema.
@@ -68,6 +72,10 @@ const defaultRolesSchema = z.object({
     name: z.literal(SystemRoles.USER),
     permissions: permissionsSchema,
   }),
+  [SystemRoles.MENTOR]: roleSchema.extend({
+    name: z.literal(SystemRoles.MENTOR),
+    permissions: permissionsSchema,
+  }),
 });
 
 export const roleDefaults = defaultRolesSchema.parse({
@@ -100,6 +108,17 @@ export const roleDefaults = defaultRolesSchema.parse({
   },
   [SystemRoles.USER]: {
     name: SystemRoles.USER,
+    permissions: {
+      [PermissionTypes.PROMPTS]: {},
+      [PermissionTypes.BOOKMARKS]: {},
+      [PermissionTypes.AGENTS]: {},
+      [PermissionTypes.MULTI_CONVO]: {},
+      [PermissionTypes.TEMPORARY_CHAT]: {},
+      [PermissionTypes.RUN_CODE]: {},
+    },
+  },
+  [SystemRoles.MENTOR]: {
+    name: SystemRoles.MENTOR,
     permissions: {
       [PermissionTypes.PROMPTS]: {},
       [PermissionTypes.BOOKMARKS]: {},

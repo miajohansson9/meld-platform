@@ -4,6 +4,10 @@ const MentorInterest = require('../../models/MentorInterest');
 const MentorQuestion = require('../../models/MentorQuestion');
 const { logger } = require('~/config');
 const { z } = require('zod');
+const { SystemRoles } = require('librechat-data-provider');
+const crypto = require('crypto');
+const User = require('../../models/User');
+const { setAuthTokens } = require('~/server/services/AuthService');
 
 // Validation schema for mentor questions
 const mentorQuestionSchema = z.object({
@@ -27,11 +31,32 @@ async function submitMentorInterest(req, res) {
       email: submission.email
     });
 
+    // After saving mentorinterest:
+    const password = crypto.randomBytes(12).toString('base64url');
+    const user = await User.create({
+      fullName: `${submission.firstName} ${submission.lastName || ''}`.trim(),
+      email: submission.email,
+      password, // hash if needed
+      role: SystemRoles.MENTOR,
+      mentorFormId: submission._id,
+      dateCreated: new Date(),
+    });
+
+    // Generate auth token
+    const token = await setAuthTokens(user._id, res);
+
     res.status(201).json({
       message: 'Mentor interest form submitted successfully',
       submission: {
         id: submission._id,
         status: submission.status
+      },
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role
       }
     });
   } catch (error) {

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,18 +21,14 @@ const careerStages = [
   'Senior-career (15+ years)',
 ] as const;
 
-const pillars = [
-  'Starting Points to Success',
-  'Profile & Presentation',
-  'Financial Fluency',
-  'The Future of Work',
-] as const;
-
 type FormData = z.infer<typeof mentorInterestSchema>;
 
 export default function MentorInterestForm() {
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitStatus, setSubmitStatus] = React.useState<'success' | 'error' | null>(null);
+  const [countdown, setCountdown] = useState<number>(3);
+  const [submissionId, setSubmissionId] = useState<string>('');
 
   const {
     register,
@@ -39,9 +36,7 @@ export default function MentorInterestForm() {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(mentorInterestSchema),
-    defaultValues: {
-      pillars: [],
-    },
+    defaultValues: {},
   });
 
   const onSubmit = async (data: FormData) => {
@@ -53,20 +48,42 @@ export default function MentorInterestForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+      const result = await response.json();
       if (!response.ok) throw new Error('Failed to submit form');
+      setSubmissionId(result.submission.id);
       setSubmitStatus('success');
+      setCountdown(3);
     } catch (error) {
+      console.log(error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (submitStatus === 'success' && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prevCountdown) => {
+          if (prevCountdown <= 1) {
+            clearInterval(timer);
+            navigate(`/c/new?mentorFormId=${submissionId}`);
+            return 0;
+          }
+          return prevCountdown - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [submitStatus, countdown, navigate, submissionId]);
+
   const renderInput = (
     id: keyof FormData,
     label: string,
     type: string = 'text',
-    validation?: object,
     extraProps: any = {},
   ) => (
     <div className="mb-4">
@@ -98,11 +115,17 @@ export default function MentorInterestForm() {
 
   return (
     <div className="max-w-md mx-auto p-6">
-      {submitStatus === 'success' ? (
+      {submitStatus === 'success' && countdown > 0 && (
         <div className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200" role="alert">
-          Thank you signing up! We will analyze your submission and get back to you soon with personalized questions to answer.
+          Thanks for signing up! Redirecting you to the interview in {countdown} seconds...
         </div>
-      ) : (
+      )}
+      {submitStatus === 'error' && (
+        <div className="rounded-md border border-red-500 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-200" role="alert">
+          There was an error submitting your form. Please try again.
+        </div>
+      )}
+      {submitStatus !== 'success' && (
         <form onSubmit={handleSubmit(onSubmit)} aria-label="Mentor Interest Form" method="POST">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {renderInput('firstName', 'First Name *')}
@@ -165,39 +188,12 @@ export default function MentorInterestForm() {
               </span>
             )}
           </div>
-          <div className="mb-4">
-            <label className="block text-text-primary mb-2">Pillars of Interest *</label>
-            <div className="space-y-2">
-              {pillars.map((pillar) => (
-                <label key={pillar} className="flex items-center text-text-primary">
-                  <input
-                    type="checkbox"
-                    value={pillar}
-                    {...register('pillars')}
-                    className="h-4 w-4 rounded border-border-light text-green-600 focus:ring-green-500"
-                  />
-                  <span className="ml-2">{pillar}</span>
-                </label>
-              ))}
-            </div>
-            {errors['pillars'] && (
-              <span role="alert" className="mt-1 text-sm text-red-500">
-                {String(errors['pillars']?.message) ?? ''}
-              </span>
-            )}
-          </div>
-          {submitStatus === 'error' && (
-            <div className="rounded-md border border-red-500 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-200" role="alert">
-              There was an error submitting your form. Please try again.
-            </div>
-          )}
           <div className="mt-6">
             <button
               type="submit"
-              disabled={isSubmitting}
               className="w-full rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit'}
+              Continue to Conversation
             </button>
           </div>
         </form>
