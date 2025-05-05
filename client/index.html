@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="LibreChat - An open source chat application with support for multiple AI models" />
-    <title>LibreChat</title>
+    <title>Meld</title>
     <link rel="shortcut icon" href="#" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
@@ -29,12 +29,12 @@
       if (theme === 'dark') {
         backgroundColor = '#0d0d0d';
       } else if (theme === 'light') {
-        backgroundColor = '#ffffff';
+        backgroundColor = '#F8F4EB';
       } else if (theme === 'system') {
         const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
         backgroundColor = prefersDarkScheme ? '#0d0d0d' : '#ffffff';
       } else {
-        backgroundColor = '#ffffff';
+        backgroundColor = '#F8F4EB';
       }
 
       loadingContainerStyle.innerHTML = `
