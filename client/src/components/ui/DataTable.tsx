@@ -109,6 +109,7 @@ const TableRowComponent = <TData, TValue>({
 
   return (
     <TableRow
+      key={row.id}
       data-state={row.getIsSelected() ? 'selected' : undefined}
       className="border-b border-border-light cursor-pointer"
       style={{

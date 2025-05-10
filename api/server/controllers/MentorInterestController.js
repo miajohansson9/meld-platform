@@ -1,181 +1,189 @@
-const { handleError } = require('../utils');
-const { mentorInterestSchema } = require('../../validation/mentorInterest');
-const MentorInterest = require('../../models/MentorInterest');
-const MentorQuestion = require('../../models/MentorQuestion');
-const { logger } = require('~/config');
-const { z } = require('zod');
-const { SystemRoles } = require('librechat-data-provider');
-const crypto = require('crypto');
-const User = require('../../models/User');
-const { setAuthTokens } = require('~/server/services/AuthService');
+// src/controllers/MentorInterestController.js
 
-// Validation schema for mentor questions
-const mentorQuestionSchema = z.object({
-  question: z.string().min(1, 'Question is required'),
-  pillar: z.string().min(1, 'Pillar is required'),
-  subTags: z.array(z.string()).optional().default([]),
-});
+const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
+const { logger } = require('~/config');
+const MentorQuestion = require('../../models/MentorQuestion');
+const MentorInterest = require('../../models/MentorInterest');
+const { mentorQuestionSchema, mentorInterestSchema } = require('~/validation/mentorInterest');
+const { handleError } = require('../utils');
+const FormData = require('form-data');
+
+/**
+ * Store (or re-store) a question embedding in the RAG API by uploading it
+ * as a “file” in multipart/form-data.  This matches the way LibreChat’s
+ * uploadVectors tool works.
+ *
+ * @param {string} question   The question text
+ * @param {string} file_id    The UUID to identify this embedding
+ * @param {import('express').Request} req
+ */
+async function storeQuestionInRAG(question, file_id, req) {
+  if (!process.env.RAG_API_URL) {
+    throw new Error('RAG_API_URL not defined');
+  }
+  if (!file_id) {
+    throw new Error('Internal error: missing file_id');
+  }
+
+  // 1) extract the JWT
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    logger.debug('[storeQuestionInRAG] Missing or invalid Authorization header', {
+      headers: req.headers,
+    });
+    throw new Error('User not authenticated');
+  }
+  const jwtToken = authHeader.split(' ')[1];
+
+  // 2) build form-data exactly like uploadVectors does
+  const formData = new FormData();
+  formData.append('file_id', file_id);
+  formData.append('file', Buffer.from(question, 'utf-8'), {
+    filename: `question_${file_id}.txt`,
+    contentType: 'text/plain',
+  });
+  // optional additional metadata
+  formData.append('model', 'text-embedding-3-small');
+
+  const headers = {
+    Authorization: `Bearer ${jwtToken}`,
+    accept: 'application/json',
+    ...formData.getHeaders(),
+  };
+
+  const response = await axios.post(`${process.env.RAG_API_URL}/embed`, formData, { headers });
+
+  if (!response.data.status) {
+    logger.debug('[storeQuestionInRAG] RAG API returned error status', {
+      status: response.status,
+      body: response.data,
+    });
+    throw new Error('Failed to store question in RAG API');
+  }
+
+  logger.debug('[storeQuestionInRAG] Successfully stored question embedding', {
+    status: response.status,
+  });
+}
+
+/**
+ * Search embeddings in RAG API.
+ * @param {string} query
+ * @param {number} k
+ * @returns {Promise<Array<{ file_id: string; similarity: number }>>}
+ */
+async function searchQuestionsInRAG(query, k = 10) {
+  if (!process.env.RAG_API_URL) {
+    throw new Error('RAG_API_URL not defined');
+  }
+  const response = await axios.post(
+    `${process.env.RAG_API_URL}/query`,
+    { text: query, k },
+    { headers: { 'Content-Type': 'application/json', Accept: 'application/json' } },
+  );
+  return response.data.results;
+}
 
 /**
  * @route POST /api/mentor-interest
- * @desc Submit a mentor interest form
- * @access Public
  */
 async function submitMentorInterest(req, res) {
   try {
-    const validatedData = mentorInterestSchema.parse(req.body);
-    const submission = await MentorInterest.create(validatedData);
-    
-    logger.info('[submitMentorInterest] New mentor interest submission', {
-      id: submission._id,
-      email: submission.email
-    });
-
-    // After saving mentorinterest:
-    const password = crypto.randomBytes(12).toString('base64url');
-    const user = await User.create({
-      fullName: `${submission.firstName} ${submission.lastName || ''}`.trim(),
-      email: submission.email,
-      password, // hash if needed
-      role: SystemRoles.MENTOR,
-      mentorFormId: submission._id,
-      dateCreated: new Date(),
-    });
-
-    // Generate auth token
-    const token = await setAuthTokens(user._id, res);
-
-    res.status(201).json({
-      message: 'Mentor interest form submitted successfully',
-      submission: {
-        id: submission._id,
-        status: submission.status
-      },
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    logger.error('[submitMentorInterest] Error:', error);
-    if (error.name === 'ZodError') {
-      return handleError(res, { 
-        text: 'Invalid form data',
-        errors: error.errors 
-      });
+    const data = mentorInterestSchema.parse(req.body);
+    const mentorInterest = await MentorInterest.create(data);
+    res.status(201).json(mentorInterest);
+  } catch (err) {
+    if (err.name === 'ZodError') {
+      return handleError(res, { text: 'Invalid form data', errors: err.errors });
     }
-    return handleError(res, { text: 'Error submitting mentor interest form' });
+    return handleError(res, { text: 'Error submitting mentor interest' });
   }
 }
 
 /**
  * @route GET /api/mentor-interest
- * @desc Get all mentor interest responses
- * @access Admin (for now, public)
  */
 async function getMentorInterests(req, res) {
   try {
-    const responses = await MentorInterest.find().sort({ createdAt: -1 });
-    res.json(responses);
-  } catch (error) {
-    logger.error('[getMentorInterests] Error:', error);
-    return handleError(res, { text: 'Error fetching mentor interest responses' });
+    const interests = await MentorInterest.find().sort({ createdAt: -1 });
+    res.json(interests);
+  } catch (err) {
+    return handleError(res, { text: 'Error fetching mentor interests' });
   }
 }
 
 /**
  * @route GET /api/mentor-interest/questions
- * @desc Get all mentor questions
- * @access Admin (for now, public)
  */
 async function getMentorQuestions(req, res) {
   try {
     const questions = await MentorQuestion.find().sort({ dateAdded: -1 });
     res.json(questions);
-  } catch (error) {
-    logger.error('[getMentorQuestions] Error:', error);
+  } catch (err) {
     return handleError(res, { text: 'Error fetching mentor questions' });
   }
 }
 
 /**
  * @route POST /api/mentor-interest/questions
- * @desc Add a new mentor question
- * @access Admin (for now, public)
  */
 async function addMentorQuestion(req, res) {
   try {
-    const validatedData = mentorQuestionSchema.parse(req.body);
-    const { question, pillar, subTags } = validatedData;
+    const { question, pillar, subTags } = mentorQuestionSchema.parse(req.body);
+    const file_id = uuidv4();
+
+    await storeQuestionInRAG(question, file_id, req);
 
     const newQuestion = await MentorQuestion.create({
       question,
       pillar,
       subTags,
       dateAdded: new Date(),
+      file_id,
     });
-
-    logger.info('[addMentorQuestion] New mentor question added', {
-      id: newQuestion._id,
-      question: newQuestion.question,
-    });
-
     res.status(201).json(newQuestion);
-  } catch (error) {
-    logger.error('[addMentorQuestion] Error:', error);
-    if (error.name === 'ZodError') {
-      return handleError(res, { 
-        text: 'Invalid question data',
-        errors: error.errors 
-      });
-    }
+  } catch (err) {
     return handleError(res, { text: 'Error adding mentor question' });
   }
 }
 
 /**
  * @route PUT /api/mentor-interest/questions/:id
- * @desc Update an existing mentor question
- * @access Admin (for now, public)
  */
 async function updateMentorQuestion(req, res) {
   try {
     const { id } = req.params;
-    const validatedData = mentorQuestionSchema.parse(req.body);
-    const { question, pillar, subTags } = validatedData;
+    const { question, pillar, subTags } = mentorQuestionSchema.parse(req.body);
+    const existing = await MentorQuestion.findById(id).lean();
 
-    const updatedQuestion = await MentorQuestion.findByIdAndUpdate(
-      id,
-      { question, pillar, subTags },
-      { new: true }
-    );
-
-    if (!updatedQuestion) {
+    if (!existing) {
       return handleError(res, { text: 'Question not found' }, 404);
     }
 
-    logger.info('[updateMentorQuestion] Mentor question updated', {
-      id: updatedQuestion._id,
-      question: updatedQuestion.question,
-    });
+    // If there's no file_id yet, generate one now
+    const file_id = existing.file_id || uuidv4();
 
-    res.status(200).json(updatedQuestion);
-  } catch (error) {
-    logger.error('[updateMentorQuestion] Error:', error);
-    if (error.name === 'ZodError') {
-      return handleError(res, { 
-        text: 'Invalid question data',
-        errors: error.errors 
-      });
+    // Embed the updated text (or initial text if file_id was missing)
+    await storeQuestionInRAG(question, file_id, req);
+
+    const updated = await MentorQuestion.findByIdAndUpdate(
+      id,
+      { question, pillar, subTags, file_id },
+      { new: true },
+    );
+
+    res.status(200).json(updated);
+  } catch (err) {
+    if (err.name === 'ZodError') {
+      return handleError(res, { text: 'Invalid question data', errors: err.errors });
     }
     return handleError(res, { text: 'Error updating mentor question' });
   }
 }
 
 module.exports = {
+  storeQuestionInRAG,
   submitMentorInterest,
   getMentorInterests,
   getMentorQuestions,

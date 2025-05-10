@@ -1,5 +1,12 @@
 const express = require('express');
-const { submitMentorInterest, getMentorInterests, getMentorQuestions, addMentorQuestion, updateMentorQuestion } = require('../controllers/MentorInterestController');
+const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
+const {
+  submitMentorInterest,
+  getMentorInterests,
+  getMentorQuestions,
+  addMentorQuestion,
+  updateMentorQuestion,
+} = require('../controllers/MentorInterestController');
 
 const router = express.Router();
 
@@ -29,13 +36,13 @@ router.get('/questions', getMentorQuestions);
  * @desc Add a new mentor question
  * @access Admin (for now, public)
  */
-router.post('/questions', addMentorQuestion);
+router.post('/questions', requireJwtAuth, addMentorQuestion);
 
 /**
  * @route PUT /api/mentor-interest/questions/:id
  * @desc Update an existing mentor question
  * @access Admin (for now, public)
  */
-router.put('/questions/:id', updateMentorQuestion);
+router.put('/questions/:id', requireJwtAuth, updateMentorQuestion);
 
 module.exports = router;
