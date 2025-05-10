@@ -382,79 +382,100 @@ const uploadImageBuffer = async ({ req, context, metadata = {}, resize = true })
  * @returns {Promise<void>}
  */
 const processFileUpload = async ({ req, res, metadata }) => {
-  const isAssistantUpload = isAssistantsEndpoint(metadata.endpoint);
-  const assistantSource =
-    metadata.endpoint === EModelEndpoint.azureAssistants ? FileSources.azure : FileSources.openai;
-  const source = isAssistantUpload ? assistantSource : FileSources.vectordb;
-  const { handleFileUpload } = getStrategyFunctions(source);
-  const { file_id, temp_file_id } = metadata;
+  try {
+    const isAssistantUpload = isAssistantsEndpoint(metadata.endpoint);
+    const assistantSource =
+      metadata.endpoint === EModelEndpoint.azureAssistants ? FileSources.azure : FileSources.openai;
+    const source = isAssistantUpload ? assistantSource : FileSources.vectordb;
+    const { handleFileUpload } = getStrategyFunctions(source);
+    const { file_id, temp_file_id } = metadata;
 
-  /** @type {OpenAI | undefined} */
-  let openai;
-  if (checkOpenAIStorage(source)) {
-    ({ openai } = await getOpenAIClient({ req }));
-  }
+    /** @type {OpenAI | undefined} */
+    let openai;
+    if (checkOpenAIStorage(source)) {
+      ({ openai } = await getOpenAIClient({ req }));
+    }
 
-  const { file } = req;
-  const {
-    id,
-    bytes,
-    filename,
-    filepath: _filepath,
-    embedded,
-    height,
-    width,
-  } = await handleFileUpload({
-    req,
-    file,
-    file_id,
-    openai,
-  });
-
-  if (isAssistantUpload && !metadata.message_file && !metadata.tool_resource) {
-    await openai.beta.assistants.files.create(metadata.assistant_id, {
-      file_id: id,
-    });
-  } else if (isAssistantUpload && !metadata.message_file) {
-    await addResourceFileId({
-      req,
-      openai,
-      file_id: id,
-      assistant_id: metadata.assistant_id,
-      tool_resource: metadata.tool_resource,
-    });
-  }
-
-  let filepath = isAssistantUpload ? `${openai.baseURL}/files/${id}` : _filepath;
-  if (isAssistantUpload && file.mimetype.startsWith('image')) {
-    const result = await processImageFile({
-      req,
-      file,
-      metadata: { file_id: v4() },
-      returnFile: true,
-    });
-    filepath = result.filepath;
-  }
-
-  const result = await createFile(
-    {
-      user: req.user.id,
-      file_id: id ?? file_id,
-      temp_file_id,
+    const { file } = req;
+    const {
+      id,
       bytes,
-      filepath,
-      filename: filename ?? file.originalname,
-      context: isAssistantUpload ? FileContext.assistants : FileContext.message_attachment,
-      model: isAssistantUpload ? req.body.model : undefined,
-      type: file.mimetype,
+      filename,
+      filepath: _filepath,
       embedded,
-      source,
       height,
       width,
-    },
-    true,
-  );
-  res.status(200).json({ message: 'File uploaded and processed successfully', ...result });
+    } = await handleFileUpload({
+      req,
+      file,
+      file_id,
+      openai,
+    });
+
+    console.log('🔑 File uploaded', {
+      file_id: id,
+      bytes,
+      filename,
+      filepath: _filepath,
+      embedded,
+    });
+
+    if (isAssistantUpload && !metadata.message_file && !metadata.tool_resource) {
+      console.log('🔑 Creating assistant file', {
+        assistant_id: metadata.assistant_id,
+        file_id: id,
+      });
+      await openai.beta.assistants.files.create(metadata.assistant_id, {
+        file_id: id,
+      });
+    } else if (isAssistantUpload && !metadata.message_file) {
+      console.log('🔑 Adding resource file id', {
+        assistant_id: metadata.assistant_id,
+        file_id: id,
+        tool_resource: metadata.tool_resource,
+      });
+      await addResourceFileId({
+        req,
+        openai,
+        file_id: id,
+        assistant_id: metadata.assistant_id,
+        tool_resource: metadata.tool_resource,
+      });
+    }
+
+    let filepath = isAssistantUpload ? `${openai.baseURL}/files/${id}` : _filepath;
+    if (isAssistantUpload && file.mimetype.startsWith('image')) {
+      const result = await processImageFile({
+        req,
+        file,
+        metadata: { file_id: v4() },
+        returnFile: true,
+      });
+      filepath = result.filepath;
+    }
+
+    const result = await createFile(
+      {
+        user: req.user.id,
+        file_id: id ?? file_id,
+        temp_file_id,
+        bytes,
+        filepath,
+        filename: filename ?? file.originalname,
+        context: isAssistantUpload ? FileContext.assistants : FileContext.message_attachment,
+        model: isAssistantUpload ? req.body.model : undefined,
+        type: file.mimetype,
+        embedded,
+        source,
+        height,
+        width,
+      },
+      true,
+    );
+    res.status(200).json({ message: 'File uploaded and processed successfully', ...result });
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 /**

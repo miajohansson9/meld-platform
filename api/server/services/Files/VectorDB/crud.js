@@ -22,6 +22,18 @@ const deleteVectors = async (req, file) => {
   if (!file.embedded || !process.env.RAG_API_URL) {
     return;
   }
+
+  const ragApiUrl = process.env.RAG_API_URL;
+
+  logger.debug('Starting file upload to RAG API', {
+    url: ragApiUrl,
+    file_id: file.file_id,
+    entity_id: file.entity_id,
+    file_path: file.path,
+    file_size: file.size,
+    file_type: file.mimetype,
+  });
+
   try {
     const jwtToken = req.headers.authorization.split(' ')[1];
     return await axios.delete(`${process.env.RAG_API_URL}/documents`, {
@@ -79,6 +91,16 @@ async function uploadVectors({ req, file, file_id, entity_id }) {
     }
 
     const formHeaders = formData.getHeaders();
+
+    console.log('📤 Uploading to RAG API:', {
+      file_id,
+      file_path: file.path,
+      entity_id,
+      headers: formHeaders,
+    });
+
+    console.log('🔑 JWT Token:', jwtToken);
+    console.log('🔑 RAG API URL:', process.env.RAG_API_URL);
 
     const response = await axios.post(`${process.env.RAG_API_URL}/embed`, formData, {
       headers: {

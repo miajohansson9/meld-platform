@@ -191,7 +191,6 @@ export default function MentorQuestionsTable() {
           onChange={onChange}
           disabled={disabled}
           className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-border-light bg-surface-primary px-3.5 pb-2.5 pt-3 text-text-primary duration-200 focus:border-green-500 focus:outline-none"
-          defaultValue=""
         >
           <option value="" disabled hidden></option>
           {options.map((option) => (

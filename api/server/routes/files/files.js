@@ -253,6 +253,7 @@ router.post('/', async (req, res) => {
 
     await processFileUpload({ req, res, metadata });
   } catch (error) {
+    console.log(error);
     let message = 'Error processing file';
     logger.error('[/files] Error processing file:', error);
 

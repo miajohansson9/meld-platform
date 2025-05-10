@@ -131,33 +131,8 @@ const uploadMistralOCR = async ({ req, file, file_id, entity_id }) => {
     /** @type {TCustomConfig['ocr']} */
     const ocrConfig = req.app.locals?.ocr;
 
-    const apiKeyConfig = ocrConfig.apiKey || '';
-    const baseURLConfig = ocrConfig.baseURL || '';
-
-    const isApiKeyEnvVar = envVarRegex.test(apiKeyConfig);
-    const isBaseURLEnvVar = envVarRegex.test(baseURLConfig);
-
-    const isApiKeyEmpty = !apiKeyConfig.trim();
-    const isBaseURLEmpty = !baseURLConfig.trim();
-
-    let apiKey, baseURL;
-
-    if (isApiKeyEnvVar || isBaseURLEnvVar || isApiKeyEmpty || isBaseURLEmpty) {
-      const apiKeyVarName = isApiKeyEnvVar ? extractVariableName(apiKeyConfig) : 'OCR_API_KEY';
-      const baseURLVarName = isBaseURLEnvVar ? extractVariableName(baseURLConfig) : 'OCR_BASEURL';
-
-      const authValues = await loadAuthValues({
-        userId: req.user.id,
-        authFields: [baseURLVarName, apiKeyVarName],
-        optional: new Set([baseURLVarName]),
-      });
-
-      apiKey = authValues[apiKeyVarName];
-      baseURL = authValues[baseURLVarName];
-    } else {
-      apiKey = apiKeyConfig;
-      baseURL = baseURLConfig;
-    }
+    const apiKey = process.env.OCR_API_KEY;
+    const baseURL = process.env.OCR_BASEURL;
 
     const mistralFile = await uploadDocumentToMistral({
       filePath: file.path,
