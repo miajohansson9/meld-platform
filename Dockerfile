@@ -14,15 +14,8 @@ ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
 COPY --from=ghcr.io/astral-sh/uv:0.6.13 /uv /uvx /bin/
 RUN uv --version
 
-# Create app directory and set ownership
 RUN mkdir -p /app && chown node:node /app
 WORKDIR /app
-
-# Create npm cache directory and set ownership
-RUN mkdir -p /app/.npm-cache && chown node:node /app/.npm-cache
-
-# Set npm cache directory
-ENV NPM_CONFIG_CACHE=/app/.npm-cache
 
 USER node
 
@@ -48,3 +41,10 @@ RUN mkdir -p /app/client/public/images /app/api/logs
 EXPOSE 3080
 ENV HOST=0.0.0.0
 CMD ["npm", "run", "backend"]
+
+# Optional: for client with nginx routing
+# FROM nginx:stable-alpine AS nginx-client
+# WORKDIR /usr/share/nginx/html
+# COPY --from=node /app/client/dist /usr/share/nginx/html
+# COPY client/nginx.conf /etc/nginx/conf.d/default.conf
+# ENTRYPOINT ["nginx", "-g", "daemon off;"]

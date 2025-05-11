@@ -106,14 +106,24 @@ async function domainParser(domain, inverse = false) {
 /**
  * Loads action sets based on the user and assistant ID.
  *
- * @param {Object} searchParams - The parameters for loading action sets.
+ * @param {Object} searchParams
  * @param {string} searchParams.user - The user identifier.
  * @param {string} [searchParams.agent_id]- The agent identifier.
  * @param {string} [searchParams.assistant_id]- The assistant identifier.
+ * @param {ServerRequest} [searchParams.req] - The request object.
  * @returns {Promise<Action[] | null>} A promise that resolves to an array of actions or `null` if no match.
  */
 async function loadActionSets(searchParams) {
-  return await getActions(searchParams, true);
+  const actions = await getActions(searchParams, true);
+  const incoming = searchParams.req.headers.authorization;
+  if (incoming?.startsWith('Bearer ')) {
+    const token = incoming.split(' ')[1];
+    for (const action of actions) {
+      action.metadata.api_key = token;
+    }
+  }
+
+  return actions;
 }
 
 /**

@@ -6,6 +6,7 @@ const {
   getMentorQuestions,
   addMentorQuestion,
   updateMentorQuestion,
+  searchMentorQuestions,
 } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
@@ -44,5 +45,11 @@ router.post('/questions', requireJwtAuth, addMentorQuestion);
  * @access Admin (for now, public)
  */
 router.put('/questions/:id', requireJwtAuth, updateMentorQuestion);
+
+/**
+ * @route POST /api/mentor-interest/questions/search
+ * @desc  Search all mentor questions (requires auth)
+ */
+router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
 
 module.exports = router;

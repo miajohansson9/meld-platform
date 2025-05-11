@@ -92,16 +92,6 @@ async function uploadVectors({ req, file, file_id, entity_id }) {
 
     const formHeaders = formData.getHeaders();
 
-    console.log('📤 Uploading to RAG API:', {
-      file_id,
-      file_path: file.path,
-      entity_id,
-      headers: formHeaders,
-    });
-
-    console.log('🔑 JWT Token:', jwtToken);
-    console.log('🔑 RAG API URL:', process.env.RAG_API_URL);
-
     const response = await axios.post(`${process.env.RAG_API_URL}/embed`, formData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,

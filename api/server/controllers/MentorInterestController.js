@@ -1,6 +1,5 @@
 // src/controllers/MentorInterestController.js
 
-const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const { logger } = require('~/config');
 const MentorQuestion = require('../../models/MentorQuestion');
@@ -8,25 +7,23 @@ const MentorInterest = require('../../models/MentorInterest');
 const { mentorQuestionSchema, mentorInterestSchema } = require('~/validation/mentorInterest');
 const { handleError } = require('../utils');
 const FormData = require('form-data');
-
+const MENTOR_QUESTIONS_INDEX = 'mentor_questions';
 /**
  * Store (or re-store) a question embedding in the RAG API by uploading it
- * as a “file” in multipart/form-data.  This matches the way LibreChat’s
+ * as a "file" in multipart/form-data.  This matches the way LibreChat's
  * uploadVectors tool works.
  *
  * @param {string} question   The question text
- * @param {string} file_id    The UUID to identify this embedding
+ * @param {string} pillar     The pillar of the question
+ * @param {string[]} subTags  The sub-tags of the question
+ * @param {string} question_id The ID of the question to use as entity_id
  * @param {import('express').Request} req
  */
-async function storeQuestionInRAG(question, file_id, req) {
+async function storeQuestionInRAG(question, pillar, subTags, question_id, req) {
   if (!process.env.RAG_API_URL) {
     throw new Error('RAG_API_URL not defined');
   }
-  if (!file_id) {
-    throw new Error('Internal error: missing file_id');
-  }
 
-  // 1) extract the JWT
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     logger.debug('[storeQuestionInRAG] Missing or invalid Authorization header', {
@@ -36,15 +33,15 @@ async function storeQuestionInRAG(question, file_id, req) {
   }
   const jwtToken = authHeader.split(' ')[1];
 
-  // 2) build form-data exactly like uploadVectors does
   const formData = new FormData();
-  formData.append('file_id', file_id);
+  formData.append('file_id', question_id);
   formData.append('file', Buffer.from(question, 'utf-8'), {
-    filename: `question_${file_id}.txt`,
+    filename: `question_${question_id}.txt`,
     contentType: 'text/plain',
   });
-  // optional additional metadata
+  formData.append('entity_id', MENTOR_QUESTIONS_INDEX);
   formData.append('model', 'text-embedding-3-small');
+  formData.append('metadata', JSON.stringify({ pillar, subTags }));
 
   const headers = {
     Authorization: `Bearer ${jwtToken}`,
@@ -64,6 +61,7 @@ async function storeQuestionInRAG(question, file_id, req) {
 
   logger.debug('[storeQuestionInRAG] Successfully stored question embedding', {
     status: response.status,
+    data: response.data,
   });
 }
 
@@ -73,16 +71,92 @@ async function storeQuestionInRAG(question, file_id, req) {
  * @param {number} k
  * @returns {Promise<Array<{ file_id: string; similarity: number }>>}
  */
-async function searchQuestionsInRAG(query, k = 10) {
+async function searchQuestionsInRAG(req, query, k = 30) {
+  if (!process.env.RAG_API_URL) {
+    logger.error('[searchQuestionsInRAG] RAG_API_URL environment variable is not defined');
+    throw new Error('RAG_API_URL not defined');
+  }
+
+  const url = `${process.env.RAG_API_URL}/query`;
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    logger.debug('[storeQuestionInRAG] Missing or invalid Authorization header', {
+      headers: req.headers,
+    });
+    throw new Error('User not authenticated');
+  }
+  const jwtToken = authHeader.split(' ')[1];
+
+  const body = {
+    query: query,
+    k,
+    entity_id: MENTOR_QUESTIONS_INDEX,
+  };
+
+  logger.debug('[searchQuestionsInRAG] Attempting to query RAG API', body);
+
+  try {
+    const response = await axios.post(`${process.env.RAG_API_URL}/query`, body, {
+      headers: { Authorization: `Bearer ${jwtToken}`, 'Content-Type': 'application/json' },
+    });
+
+    logger.debug('[searchQuestionsInRAG] RAG API response', {
+      status: response?.status,
+      statusText: response?.statusText,
+      data: response?.data,
+    });
+
+    return response.data;
+  } catch (error) {
+    logger.debug('[searchQuestionsInRAG] Error querying RAG API', {
+      error: error.message,
+      code: error.code,
+      url,
+      ragApiUrl: process.env.RAG_API_URL,
+      stack: error.stack,
+      response: error.response?.data,
+    });
+    throw new Error(`Failed to search questions: ${error.message}`);
+  }
+}
+
+/**
+ * Delete a question embedding from the RAG API by its file_id
+ * @param {string} file_id The file_id to delete
+ * @param {import('express').Request} req
+ */
+async function deleteQuestionFromRAG(file_id, req) {
   if (!process.env.RAG_API_URL) {
     throw new Error('RAG_API_URL not defined');
   }
-  const response = await axios.post(
-    `${process.env.RAG_API_URL}/query`,
-    { text: query, k },
-    { headers: { 'Content-Type': 'application/json', Accept: 'application/json' } },
-  );
-  return response.data.results;
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    logger.debug('[deleteQuestionFromRAG] Missing or invalid Authorization header', {
+      headers: req.headers,
+    });
+    throw new Error('User not authenticated');
+  }
+  const jwtToken = authHeader.split(' ')[1];
+
+  try {
+    await axios.delete(`${process.env.RAG_API_URL}/documents`, {
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      data: [file_id],
+    });
+    logger.debug('[deleteQuestionFromRAG] Successfully deleted question embedding', { file_id });
+  } catch (error) {
+    // Log but don't throw - we'll try to create the new embedding anyway
+    logger.debug('[deleteQuestionFromRAG] Error deleting question embedding', {
+      error: error.message,
+      status: error.response?.status,
+    });
+  }
 }
 
 /**
@@ -131,17 +205,16 @@ async function getMentorQuestions(req, res) {
 async function addMentorQuestion(req, res) {
   try {
     const { question, pillar, subTags } = mentorQuestionSchema.parse(req.body);
-    const file_id = uuidv4();
-
-    await storeQuestionInRAG(question, file_id, req);
 
     const newQuestion = await MentorQuestion.create({
       question,
       pillar,
       subTags,
       dateAdded: new Date(),
-      file_id,
     });
+
+    await storeQuestionInRAG(question, pillar, subTags, newQuestion._id.toString(), req);
+
     res.status(201).json(newQuestion);
   } catch (err) {
     return handleError(res, { text: 'Error adding mentor question' });
@@ -161,17 +234,16 @@ async function updateMentorQuestion(req, res) {
       return handleError(res, { text: 'Question not found' }, 404);
     }
 
-    // If there's no file_id yet, generate one now
-    const file_id = existing.file_id || uuidv4();
-
-    // Embed the updated text (or initial text if file_id was missing)
-    await storeQuestionInRAG(question, file_id, req);
+    // First delete the existing embedding
+    await deleteQuestionFromRAG(id, req);
 
     const updated = await MentorQuestion.findByIdAndUpdate(
       id,
-      { question, pillar, subTags, file_id },
+      { question, pillar, subTags },
       { new: true },
     );
+
+    await storeQuestionInRAG(question, pillar, subTags, id, req);
 
     res.status(200).json(updated);
   } catch (err) {
@@ -182,6 +254,61 @@ async function updateMentorQuestion(req, res) {
   }
 }
 
+/**
+ * @route POST /api/mentor-interest/search
+ * Agent endpoint for searching mentor questions
+ */
+async function searchMentorQuestions(req, res) {
+  try {
+    const { query, k = 10 } = req.body;
+    if (!query) {
+      return handleError(res, { text: 'Query is required' }, 400);
+    }
+
+    const hits = await searchQuestionsInRAG(req, query, k);
+    logger.debug('[searchMentorQuestions] Hits:', hits);
+    if (!Array.isArray(hits) || hits.length === 0) {
+      return res.json({ results: [] });
+    }
+
+    const fileIds = hits
+      .map((h) => {
+        let [jsonStr, sim] = Array.isArray(h) ? h : [h, null];
+        let obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+        if (Array.isArray(obj)) obj = obj[0];
+        return obj.metadata?.file_id;
+      })
+      .filter(Boolean);
+
+    // 3) fetch all matching questions in one go
+    const docs = await MentorQuestion.find({ _id: { $in: fileIds } }).lean();
+
+    // 4) build a lookup map for O(1) access
+    const docMap = docs.reduce((map, d) => {
+      map[d._id.toString()] = d;
+      return map;
+    }, {});
+
+    // 5) reconstruct results in the same order as fileIds
+    const results = fileIds
+      .map((id) => {
+        const doc = docMap[id];
+        if (!doc) return null;
+        return {
+          question: doc.question,
+          pillar: doc.pillar,
+          subTags: doc.subTags || [],
+        };
+      })
+      .filter(Boolean);
+
+    res.json({ results });
+  } catch (err) {
+    logger.error('[searchMentorQuestions] Error:', err);
+    return handleError(res, { text: 'Error searching mentor questions' });
+  }
+}
+
 module.exports = {
   storeQuestionInRAG,
   submitMentorInterest,
@@ -189,4 +316,5 @@ module.exports = {
   getMentorQuestions,
   addMentorQuestion,
   updateMentorQuestion,
+  searchMentorQuestions,
 };

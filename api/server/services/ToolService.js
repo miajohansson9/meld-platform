@@ -358,6 +358,7 @@ async function processRequiredActions(client, requiredActions) {
         actionSets =
           (await loadActionSets({
             assistant_id: client.req.body.assistant_id,
+            req: client.req,
           })) ?? [];
 
         // Process all action sets once
@@ -586,7 +587,7 @@ async function loadAgentTools({ req, res, agent, tool_resources, openAIApiKey })
     };
   }
 
-  const actionSets = (await loadActionSets({ agent_id: agent.id })) ?? [];
+  const actionSets = (await loadActionSets({ agent_id: agent.id, req: req })) ?? [];
   if (actionSets.length === 0) {
     if (_agentTools.length > 0 && agentTools.length === 0) {
       logger.warn(`No tools found for the specified tool calls: ${_agentTools.join(', ')}`);
