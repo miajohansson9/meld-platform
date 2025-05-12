@@ -6,24 +6,6 @@ export const mentorInterestSchema = z.object({
   email: z.string().email('Invalid email address').trim().toLowerCase(),
   jobTitle: z.string().min(1, 'Job title is required').trim(),
   company: z.string().trim().optional(),
-  industry: z.enum([
-    'Technology',
-    'Finance',
-    'Healthcare',
-    'Education',
-    'Non-Profit',
-    'Marketing',
-    'Other'
-  ], {
-    required_error: 'Industry is required',
-    invalid_type_error: 'Invalid industry selected'
-  }),
-  careerStage: z.enum([
-    'Early-career (0-5 years)',
-    'Mid-career (5-15 years)',
-    'Senior-career (15+ years)'
-  ], {
-    required_error: 'Career stage is required',
-    invalid_type_error: 'Invalid career stage selected'
-  })
-}); 
+  industry: z.string().trim(),
+  careerStage: z.string().trim(),
+});

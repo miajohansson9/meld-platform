@@ -8,6 +8,8 @@ const { mentorQuestionSchema, mentorInterestSchema } = require('~/validation/men
 const { handleError } = require('../utils');
 const FormData = require('form-data');
 const MENTOR_QUESTIONS_INDEX = 'mentor_questions';
+const MentorResponse = require('../../models/MentorResponse');
+
 /**
  * Store (or re-store) a question embedding in the RAG API by uploading it
  * as a "file" in multipart/form-data.  This matches the way LibreChat's
@@ -309,6 +311,34 @@ async function searchMentorQuestions(req, res) {
   }
 }
 
+/**
+ * @route POST /api/mentor-interest/:mentor_interest_id/response/:stage_id
+ * Create or update a mentor response for a given mentor_interest and stage_id
+ */
+async function upsertMentorResponse(req, res) {
+  try {
+    const { mentor_interest_id, stage_id } = req.params;
+    const { response_text } = req.body;
+    // Find existing response
+    let response = await MentorResponse.findOne({ mentor_interest: mentor_interest_id, stage_id });
+    if (response) {
+      // Update
+      response.response_text = response_text;
+      await response.save();
+    } else {
+      // Create
+      response = await MentorResponse.create({
+        mentor_interest: mentor_interest_id,
+        stage_id,
+        response_text,
+      });
+    }
+    res.status(200).json(response);
+  } catch (err) {
+    return handleError(res, { text: 'Error saving mentor response' });
+  }
+}
+
 module.exports = {
   storeQuestionInRAG,
   submitMentorInterest,
@@ -317,4 +347,5 @@ module.exports = {
   addMentorQuestion,
   updateMentorQuestion,
   searchMentorQuestions,
+  upsertMentorResponse,
 };

@@ -18,6 +18,9 @@ import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
 import MentorInterestForm from '~/components/MentorInterest/MentorInterestForm';
+import MentorInterview from './Layouts/MentorInterview';
+import MentorInterviewStart from '~/components/MentorInterview/MentorInterviewStart';
+import MentorInterviewQuestion from '~/components/MentorInterview/MentorInterviewQuestion';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -94,6 +97,20 @@ export const router = createBrowserRouter([
           {
             path: 'search',
             element: <Search />,
+          },
+        ],
+      },
+      {
+        path: '/:mentor_interest_id/mentor-interview',
+        element: <MentorInterview />,
+        children: [
+          {
+            path: 'start',
+            element: <MentorInterviewStart />,
+          },
+          {
+            path: 'question/:step',
+            element: <MentorInterviewQuestion />,
           },
         ],
       },

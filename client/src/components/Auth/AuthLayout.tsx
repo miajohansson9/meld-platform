@@ -69,7 +69,7 @@ function AuthLayout({
           />
           <img
             src="/assets/logo-w.svg"
-            className="h-full w-full object-contain hidden dark:block"
+            className="hidden h-full w-full object-contain dark:block"
             alt={localize('com_ui_logo', { 0: startupConfig?.appTitle ?? 'LibreChat' })}
           />
         </div>
@@ -80,7 +80,7 @@ function AuthLayout({
       </div>
 
       <div className="flex flex-grow items-center justify-center">
-        <div className="w-authPageWidth bg-theme-cream overflow-hidden px-6 py-4 dark:bg-gray-900 sm:max-w-md sm:rounded-lg">
+        <div className="w-authPageWidth overflow-hidden rounded-lg bg-white px-6 py-4 shadow-lg dark:bg-gray-900 sm:max-w-md">
           {!hasStartupConfigError && !isFetching && (
             <h1
               className="mb-4 text-center text-3xl font-semibold text-black dark:text-white"
@@ -92,8 +92,8 @@ function AuthLayout({
           {children}
           {!pathname.includes('2fa') &&
             (pathname.includes('login') || pathname.includes('register')) && (
-            <SocialLoginRender startupConfig={startupConfig} />
-          )}
+              <SocialLoginRender startupConfig={startupConfig} />
+            )}
         </div>
       </div>
       <Footer startupConfig={startupConfig} />

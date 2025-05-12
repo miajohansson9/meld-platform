@@ -29,12 +29,10 @@ const mentorInterestSchema = new mongoose.Schema(
     industry: {
       type: String,
       required: true,
-      enum: ['Technology', 'Finance', 'Healthcare', 'Education', 'Non-Profit', 'Marketing', 'Other'],
     },
     careerStage: {
       type: String,
       required: true,
-      enum: ['Early-career (0-5 years)', 'Mid-career (5-15 years)', 'Senior-career (15+ years)'],
     },
     status: {
       type: String,
@@ -44,7 +42,7 @@ const mentorInterestSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Add indexes for common queries

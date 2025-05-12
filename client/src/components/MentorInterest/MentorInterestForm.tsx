@@ -6,12 +6,26 @@ import { z } from 'zod';
 import { mentorInterestSchema } from '~/validation/mentorInterest';
 
 const industries = [
-  'Technology',
-  'Finance',
-  'Healthcare',
+  'Consulting',
+  'Consumer Goods',
   'Education',
-  'Non-Profit',
+  'Fashion & Beauty',
+  'Finance',
+  'Government & Public Sector',
+  'Healthcare',
+  'Hospitality & Tourism',
+  'Human Resources',
+  'Legal',
+  'Manufacturing',
   'Marketing',
+  'Media & Entertainment',
+  'Non-Profit',
+  'Real Estate',
+  'Retail & E-commerce',
+  'Science & Research',
+  'Sustainability & Environment',
+  'Technology',
+  'Transportation & Logistics',
   'Other',
 ] as const;
 
@@ -19,15 +33,16 @@ const careerStages = [
   'Early-career (0-5 years)',
   'Mid-career (5-15 years)',
   'Senior-career (15+ years)',
+  'Career Change / Transition',
+  'Retired',
 ] as const;
 
 type FormData = z.infer<typeof mentorInterestSchema>;
 
 export default function MentorInterestForm() {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [submitStatus, setSubmitStatus] = React.useState<'success' | 'error' | null>(null);
-  const [countdown, setCountdown] = useState<number>(3);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
   const [submissionId, setSubmissionId] = useState<string>('');
 
   const {
@@ -48,13 +63,12 @@ export default function MentorInterestForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      const result = await response.json();
       if (!response.ok) throw new Error('Failed to submit form');
-      setSubmissionId(result.submission.id);
+      const result = await response.json();
+      setSubmissionId(result._id);
       setSubmitStatus('success');
-      setCountdown(3);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
@@ -62,23 +76,9 @@ export default function MentorInterestForm() {
   };
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (submitStatus === 'success' && countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown((prevCountdown) => {
-          if (prevCountdown <= 1) {
-            clearInterval(timer);
-            navigate(`/c/new?mentorFormId=${submissionId}`);
-            return 0;
-          }
-          return prevCountdown - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [submitStatus, countdown, navigate, submissionId]);
+    if (submitStatus !== 'success') return;
+    navigate(`/${submissionId}/mentor-interview/start`);
+  }, [submitStatus, submissionId, navigate]);
 
   const renderInput = (
     id: keyof FormData,
@@ -86,7 +86,7 @@ export default function MentorInterestForm() {
     type: string = 'text',
     extraProps: any = {},
   ) => (
-    <div className="mb-4">
+    <div className="mb-4" key={id}>
       <div className="relative">
         <input
           id={id}
@@ -114,23 +114,19 @@ export default function MentorInterestForm() {
   );
 
   return (
-    <div className="max-w-md mx-auto p-6">
-      {submitStatus === 'success' && countdown > 0 && (
-        <div className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200" role="alert">
-          Thanks for signing up! Redirecting you to the interview in {countdown} seconds...
-        </div>
-      )}
+    <div className="mx-auto max-w-md p-6">
       {submitStatus === 'error' && (
-        <div className="rounded-md border border-red-500 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-200" role="alert">
+        <div
+          className="rounded-md border border-red-500 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-200"
+          role="alert"
+        >
           There was an error submitting your form. Please try again.
         </div>
       )}
       {submitStatus !== 'success' && (
         <form onSubmit={handleSubmit(onSubmit)} aria-label="Mentor Interest Form" method="POST">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {renderInput('firstName', 'First Name *')}
-            {renderInput('lastName', 'Last Name')}
-          </div>
+          {renderInput('firstName', 'First Name *')}
+          {renderInput('lastName', 'Last Name')}
           {renderInput('email', 'Email *', 'email')}
           {renderInput('jobTitle', 'Job Title *')}
           {renderInput('company', 'Company')}
@@ -143,9 +139,11 @@ export default function MentorInterestForm() {
                 className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-border-light bg-surface-primary px-3.5 pb-2.5 pt-3 text-text-primary duration-200 focus:border-green-500 focus:outline-none"
                 defaultValue=""
               >
-                <option value="" disabled hidden></option>
+                <option value="" disabled hidden />
                 {industries.map((industry) => (
-                  <option key={industry} value={industry}>{industry}</option>
+                  <option key={industry} value={industry}>
+                    {industry}
+                  </option>
                 ))}
               </select>
               <label
@@ -170,9 +168,11 @@ export default function MentorInterestForm() {
                 className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-border-light bg-surface-primary px-3.5 pb-2.5 pt-3 text-text-primary duration-200 focus:border-green-500 focus:outline-none"
                 defaultValue=""
               >
-                <option value="" disabled hidden></option>
+                <option value="" disabled hidden />
                 {careerStages.map((stage) => (
-                  <option key={stage} value={stage}>{stage}</option>
+                  <option key={stage} value={stage}>
+                    {stage}
+                  </option>
                 ))}
               </select>
               <label
@@ -191,13 +191,14 @@ export default function MentorInterestForm() {
           <div className="mt-6">
             <button
               type="submit"
-              className="w-full rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
+              disabled={isSubmitting}
+              className="w-full rounded-md bg-[#B04A2F] py-3 text-lg text-white transition hover:bg-[#8a3a23]"
             >
-              Continue to Conversation
+              {isSubmitting ? 'Submitting...' : 'Submit & Continue'}
             </button>
           </div>
         </form>
       )}
     </div>
   );
-} 
+}
