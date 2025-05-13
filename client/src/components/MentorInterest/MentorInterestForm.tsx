@@ -30,6 +30,8 @@ const industries = [
 ] as const;
 
 const careerStages = [
+  'Student',
+  'Recent Graduate',
   'Early-career (0-5 years)',
   'Mid-career (5-15 years)',
   'Senior-career (15+ years)',
