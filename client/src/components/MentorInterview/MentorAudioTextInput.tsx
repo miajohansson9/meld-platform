@@ -177,7 +177,7 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
           </button>
           <div className="flex min-h-[24px] items-center justify-center">
             {isRecording || timer > 0 ? (
-              <span className="font-serif inline-block rounded-full bg-white px-4 py-1 text-lg font-semibold text-[#B04A2F]">
+              <span className="font-serif inline-block rounded-full bg-theme-rose px-4 py-1 text-lg font-semibold text-theme-charcoal">
                 {formatTimer(timer)}
               </span>
             ) : (

@@ -9,10 +9,8 @@ const MentorInterviewQuestion: React.FC = () => {
   const { step, mentor_interest_id } = useParams();
   const navigate = useNavigate();
   const currentStep = Number(step) || 1;
-
   const isFirst = currentStep === 1;
 
-  // Question content
   const preamble = isFirst ? (
     <span>
       Let's begin with a question we ask <i>every mentor</i>.
@@ -44,12 +42,11 @@ const MentorInterviewQuestion: React.FC = () => {
 
   const extraText = isFirst ? (
     <span>
-      As you answer, please include a bit about yourself. Your answer will be used to help us choose
+      As you answer, please introduce yourself as if you were at a dinner party. Your answer will be used to help us choose
       personalized questions you'll be uniquely suited to answer.
     </span>
   ) : null;
 
-  // Local input state
   const [transcript, setTranscript] = useState('');
   const [paused, setPaused] = useState(false);
 
@@ -58,31 +55,28 @@ const MentorInterviewQuestion: React.FC = () => {
       setPaused(p);
       setTranscript(t);
     },
-    [],
+    []
   );
 
   const handleSubmit = useCallback((text: string) => {
     setTranscript(text);
-    // You can post to server here
   }, []);
 
   const handleAutoSave = useCallback(
-    async (transcript: string, paused: boolean) => {
+    async (text: string) => {
       if (!mentor_interest_id || !currentStep) return;
       const questionText = typeof question === 'string' ? question : '';
-      const response = await fetch(
+      const res = await fetch(
         `/api/mentor-interest/${mentor_interest_id}/response/${currentStep}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: questionText, response_text: transcript }),
-        },
+          body: JSON.stringify({ question: questionText, response_text: text }),
+        }
       );
-      if (!response.ok) {
-        console.error('Failed to save response:', response.statusText);
-      }
+      if (!res.ok) console.error('Failed to save response:', res.statusText);
     },
-    [mentor_interest_id, currentStep, question],
+    [mentor_interest_id, currentStep, question]
   );
 
   const goNext = useCallback(() => {
@@ -91,37 +85,43 @@ const MentorInterviewQuestion: React.FC = () => {
   }, [navigate, mentor_interest_id, currentStep]);
 
   return (
-    <div className="relative flex min-h-screen w-full max-w-md flex-col items-center justify-center rounded-lg bg-white p-12 shadow-lg">
-      {/* Logo */}
-      <div className="absolute left-6 top-6">
-        <img src="/assets/logo-b.svg" alt="MELD" className="h-7 w-auto dark:hidden" />
+    <div className="flex flex-col items-center justify-center gap-10 bg-[#F8F4EB] p-4">
+      {/* Progress Rail */}
+      <div className="w-full flex flex-row items-center gap-4">
+        <div className="w-px flex-1 bg-[#C9C9B6]" />
+        {Array.from({ length: TOTAL_QUESTIONS }).map((_, idx) => (
+          <div
+            key={idx}
+            className={`my-2 h-3 w-3 flex-shrink-0 rounded-full border-2 ` +
+              (idx + 1 === currentStep
+                ? 'border-[#B04A2F] bg-[#B04A2F]'
+                : 'border-[#C9C9B6] bg-white')}
+          />
+        ))}
+        <div className="w-px flex-1 bg-[#C9C9B6]" />
       </div>
-
-      {/* Progress Dots */}
-      <div className="absolute left-[-10px] top-0 flex h-full w-8 flex-col items-center justify-center">
-        <div className="relative mb-[10vh] mt-[10vh] flex h-5/6 flex-col items-center justify-between">
-          <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[#C9C9B6]" />
-          {Array.from({ length: TOTAL_QUESTIONS }).map((_, idx) => (
-            <div
-              key={idx}
-              className={`relative z-10 m-2 h-3 w-3 rounded-full border-2 ${
-                idx + 1 === currentStep
-                  ? 'border-[#B04A2F] bg-[#B04A2F]'
-                  : 'border-[#C9C9B6] bg-white'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-
       {/* Card */}
-      <div className="mt-20 w-full max-w-md rounded-lg p-0">
-        <div className="font-serif mb-2 w-full text-2xl leading-snug text-[#B04A2F]">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg sm:p-8">
+        {/* Logo */}
+        <div className="mb-4 flex justify-start">
+          <img src="/assets/logo-b.svg" alt="MELD" className="h-7 w-auto" />
+        </div>
+
+        {/* Content */}
+        <div className="font-serif mb-2 text-2xl leading-snug text-[#B04A2F]">
           {preamble}
         </div>
-        <div className="mb-4 w-full leading-snug text-black">{supporting}</div>
-        <div className="mb-4 w-full text-lg leading-snug text-black">{question}</div>
-        {extraText && <div className="mb-4 w-full leading-snug text-black">{extraText}</div>}
+        <div className="mb-6 text-base leading-relaxed text-gray-600 dark:text-gray-400">
+          {supporting}
+        </div>
+        <div className="mb-4 text-lg leading-snug text-black">
+          {question}
+        </div>
+        {extraText && (
+          <div className="mb-6 text-base leading-relaxed text-gray-600 dark:text-gray-400">
+            {extraText}
+          </div>
+        )}
 
         {/* Audio/Text Input */}
         <div className="mt-4 flex w-full flex-col items-center">
@@ -133,10 +133,8 @@ const MentorInterviewQuestion: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <div className="mt-8 flex w-full items-center justify-between px-2">
-          <button className="flex items-center gap-1 text-sm text-[#222] underline">
-            Resume Later
-          </button>
+        <div className="me-auto ms-auto mt-8 flex w-full items-center justify-between gap-8 px-2">
+          <button className="text-sm text-[#222] underline">Resume Later</button>
 
           {paused && transcript.length > 50 ? (
             <button className="text-sm text-[#222] underline" onClick={goNext}>

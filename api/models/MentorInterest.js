@@ -50,6 +50,7 @@ mentorInterestSchema.index({ email: 1 });
 mentorInterestSchema.index({ status: 1 });
 mentorInterestSchema.index({ createdAt: -1 });
 
-const MentorInterest = mongoose.models.MentorInterest || mongoose.model('MentorInterest', mentorInterestSchema);
+const MentorInterest =
+  mongoose.models.MentorInterest || mongoose.model('MentorInterest', mentorInterestSchema);
 
-module.exports = MentorInterest; 
+module.exports = MentorInterest;

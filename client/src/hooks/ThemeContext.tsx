@@ -32,10 +32,8 @@ export const ThemeProvider = ({ initialTheme, children }) => {
 
   const rawSetTheme = (rawTheme: string) => {
     const root = window.document.documentElement;
-    const darkMode = isDark(rawTheme);
 
-    root.classList.remove(darkMode ? 'light' : 'dark');
-    root.classList.add(darkMode ? 'dark' : 'light');
+    root.classList.add('light');
 
     localStorage.setItem('color-theme', rawTheme);
   };

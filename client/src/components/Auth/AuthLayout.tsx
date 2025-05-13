@@ -60,30 +60,21 @@ function AuthLayout({
   return (
     <div className="relative flex min-h-screen flex-col bg-theme-cream dark:bg-gray-900">
       <Banner />
-      <BlinkAnimation active={isFetching}>
-        <div className="mt-6 h-10 w-full bg-cover">
-          <img
-            src="/assets/logo-b.svg"
-            className="h-full w-full object-contain dark:hidden"
-            alt={localize('com_ui_logo', { 0: startupConfig?.appTitle ?? 'LibreChat' })}
-          />
-          <img
-            src="/assets/logo-w.svg"
-            className="hidden h-full w-full object-contain dark:block"
-            alt={localize('com_ui_logo', { 0: startupConfig?.appTitle ?? 'LibreChat' })}
-          />
-        </div>
-      </BlinkAnimation>
       <DisplayError />
       <div className="absolute bottom-0 left-0 md:m-4">
         <ThemeSelector />
       </div>
 
-      <div className="flex flex-grow items-center justify-center">
-        <div className="w-authPageWidth overflow-hidden rounded-lg bg-white px-6 py-4 shadow-lg dark:bg-gray-900 sm:max-w-md">
+      <div className="flex flex-grow flex-col items-center justify-center">
+        <BlinkAnimation active={isFetching}>
+          <div className="mb-2 mt-4">
+            <img src="/assets/logo-b.svg" alt="MELD" className="h-7 w-auto" />
+          </div>
+        </BlinkAnimation>
+        <div className="flex w-authPageWidth max-w-full flex-col gap-4 overflow-hidden rounded-lg dark:bg-gray-900">
           {!hasStartupConfigError && !isFetching && (
             <h1
-              className="mb-4 text-center text-3xl font-semibold text-black dark:text-white"
+              className="font-serif text-center text-3xl font-medium leading-snug tracking-wide text-black dark:text-white sm:text-4xl"
               style={{ userSelect: 'none' }}
             >
               {header}
