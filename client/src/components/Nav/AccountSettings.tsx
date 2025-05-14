@@ -12,6 +12,7 @@ import { useLocalize } from '~/hooks';
 import Settings from './Settings';
 import store from '~/store';
 import AdminModal from '../Admin/AdminModal';
+import { SystemRoles } from 'librechat-data-provider';
 
 function AccountSettings() {
   const localize = useLocalize();
@@ -82,13 +83,13 @@ function AccountSettings() {
           {startupConfig?.balance?.enabled === true &&
             balanceQuery.data != null &&
             !isNaN(parseFloat(balanceQuery.data)) && (
-            <>
-              <div className="text-token-text-secondary ml-3 mr-2 py-2 text-sm" role="note">
-                {localize('com_nav_balance')}: {parseFloat(balanceQuery.data).toFixed(2)}
-              </div>
-              <DropdownMenuSeparator />
-            </>
-          )}
+              <>
+                <div className="text-token-text-secondary ml-3 mr-2 py-2 text-sm" role="note">
+                  {localize('com_nav_balance')}: {parseFloat(balanceQuery.data).toFixed(2)}
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
           <Select.SelectItem
             value=""
             onClick={() => setShowFiles(true)}
@@ -97,14 +98,16 @@ function AccountSettings() {
             <FileText className="icon-md" aria-hidden="true" />
             {localize('com_nav_my_files')}
           </Select.SelectItem>
-          <Select.SelectItem
-            value=""
-            onClick={() => setShowAdminModal(true)}
-            className="select-item text-sm"
-          >
-            <ShieldEllipsis className="icon-md" aria-hidden="true" />
-            Admin
-          </Select.SelectItem>
+          {user?.role === SystemRoles.ADMIN && (
+            <Select.SelectItem
+              value=""
+              onClick={() => setShowAdminModal(true)}
+              className="select-item text-sm"
+            >
+              <ShieldEllipsis className="icon-md" aria-hidden="true" />
+              Admin
+            </Select.SelectItem>
+          )}
           {startupConfig?.helpAndFaqURL !== '/' && (
             <Select.SelectItem
               value=""
