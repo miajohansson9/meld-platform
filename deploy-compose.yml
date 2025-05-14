@@ -4,7 +4,6 @@ services:
     container_name: LibreChat-API
     image: ghcr.io/miajohansson9/meld-hub:latest
     ports:
-      - 3080:3080
       - 80:3080
     depends_on:
       - rag_api
