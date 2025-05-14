@@ -215,7 +215,7 @@ export default function MentorInterestForm() {
           </>
         ) : (
           <div className="mx-auto max-w-prose text-center shadow-sm">
-            <div className="mx-auto max-w-prose rounded-lg border border-green-200 bg-[#F0F7F3] p-6">
+            <div className="mx-auto max-w-prose rounded-lg border border-green-200 bg-[#F0F7F3] p-4">
               <div className="mb-4 flex justify-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#B04A2F] text-xl text-white">
                   ✓
@@ -226,11 +226,8 @@ export default function MentorInterestForm() {
               </h2>
               <p className="text-base leading-relaxed text-gray-700">
                 We will email you at{' '}
-                <span className="font-semibold text-black"> miajohansson08@gmail.com </span>
-                within 1–2 weeks for your personalized interview.
-              </p>
-              <p className="mt-4 text-base leading-relaxed text-gray-700">
-                Thank you for volunteering to share your insights. <b>We're so glad you're here!</b>
+                <span className="font-semibold text-black"> {submittedEmail} </span>
+                within 1–2 weeks for your personalized interview. We&apos;re excited to meet you!
               </p>
             </div>
             <p className="mt-4 text-base leading-relaxed text-gray-700">
