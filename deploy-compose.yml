@@ -1,7 +1,6 @@
 services:
   api:
     platform: linux/amd64
-    container_name: LibreChat-API
     image: ghcr.io/miajohansson9/meld-hub:latest
     ports:
       - 80:3080
