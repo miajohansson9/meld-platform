@@ -134,8 +134,14 @@ export default function MentorInterestForm() {
           <>
             {/* Welcome Subtext */}
             <p className="mx-auto mb-6 max-w-prose text-base leading-relaxed text-gray-600 dark:text-gray-300">
-              Welcome to MELD. We can’t wait to meet you! Your experiences will help shape the
-              future success of women on the rise. Thank you for contributing.
+              Welcome to MELD. We can&apos;t wait to meet you! Your experiences will help shape the
+              future success of women on the rise.
+            </p>
+            <p className="mx-auto mb-6 max-w-prose text-base leading-relaxed text-gray-600 dark:text-gray-300">
+              By filling out your information below, you agree to receive a few questions that you can respond to on your own time about your professional experience. The time you put in will help thousands of women.
+            </p>
+            <p className="mx-auto mb-6 max-w-prose text-base leading-relaxed text-gray-600 dark:text-gray-300">
+              Thank you for contributing. We will be back to you soon.
             </p>
             <form onSubmit={handleSubmit(onSubmit)} aria-label="Mentor Interest Form">
               {renderInput('firstName', 'First Name *')}
@@ -227,7 +233,7 @@ export default function MentorInterestForm() {
               <p className="text-base leading-relaxed text-gray-700">
                 We will email you at{' '}
                 <span className="font-semibold text-black"> {submittedEmail} </span>
-                within 1–2 weeks for your personalized interview. We&apos;re excited to meet you!
+                within one to two weeks for your personalized interview. We&apos;re excited to meet you!
               </p>
             </div>
             <p className="mt-4 text-base leading-relaxed text-gray-700">
