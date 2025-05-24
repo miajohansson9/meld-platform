@@ -90,7 +90,7 @@ const useSpeechToTextBrowser = (
     } else {
       SpeechRecognition.startListening({
         language: languageSTT,
-        continuous: autoTranscribeAudio,
+        continuous: true,
       });
     }
   };

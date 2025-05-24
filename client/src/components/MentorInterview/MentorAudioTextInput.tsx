@@ -1,195 +1,177 @@
+/* eslint-disable i18next/no-literal-string */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSpeechToText } from '~/hooks';
 
 interface MentorAudioTextInputProps {
+  mentorInterestId: string;
+  stageId: number;
   onSubmit: (transcript: string) => void;
-  disabled?: boolean;
   onStateChange?: (state: { paused: boolean; transcript: string }) => void;
-  onAutoSave?: (transcript: string, paused: boolean) => void;
 }
 
 const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
+  mentorInterestId,
+  stageId,
   onSubmit,
-  disabled = false,
   onStateChange,
-  onAutoSave,
 }) => {
   const [mode, setMode] = useState<'audio' | 'text'>('audio');
-  const [transcript, setTranscript] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [timer, setTimer] = useState(0);
-  const timerRef = useRef<number>();
+  const [startingText, setStartingText] = useState('');
+  const [fullTranscript, setFullTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [wordCount, setWordCount] = useState(0);
+  const [percent, setPercent] = useState(0);
+  const maxWords = 300;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const onTranscriptionComplete = useCallback(
-    (finalText: string) => {
-      setTranscript(finalText);
-      onSubmit(finalText);
-    },
-    [onSubmit],
-  );
-
-  const { isListening, isLoading, startRecording, stopRecording } = useSpeechToText(
-    setTranscript,
-    onTranscriptionComplete,
-  );
-
-  // Sync isRecording & timer with speech-to-text hook
+  // Fetch initial transcript
   useEffect(() => {
-    if (isListening) {
-      setIsRecording(true);
-      if (!timerRef.current) {
-        timerRef.current = window.setInterval(() => {
-          setTimer((t) => t + 1);
-        }, 1000);
+    fetch(`/api/mentor-interest/${mentorInterestId}/response/${stageId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.response_text) {
+          setStartingText(data.response_text);
+          setFullTranscript(data.response_text);
+        }
+      })
+      .catch(console.error);
+  }, [mentorInterestId, stageId]);
+
+  // Update word count and percent
+  useEffect(() => {
+    const displayTranscript = mode === 'audio' ? startingText + interimTranscript : fullTranscript;
+    const words = displayTranscript.trim().split(/\s+/).filter(Boolean).length;
+    setWordCount(words);
+    setPercent(Math.min(words / maxWords, 1));
+    setFullTranscript(displayTranscript);
+  }, [startingText, fullTranscript, interimTranscript, mode]);
+
+  // Save transcript to server
+  const saveTranscript = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/mentor-interest/${mentorInterestId}/response/${stageId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response_text: fullTranscript }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFullTranscript(data.response_text);
       }
-    } else {
-      if (isRecording) setIsRecording(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = undefined;
-      }
+    } catch (error) {
+      console.error(error);
     }
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = undefined;
-      }
-    };
-  }, [isListening, isRecording]);
+  }, [mentorInterestId, stageId, fullTranscript]);
 
-  // Notify parent of state changes
+  // Save transcript periodically
   useEffect(() => {
-    onStateChange?.({ paused: !isRecording, transcript });
-  }, [isRecording, transcript, onStateChange]);
+    if (!fullTranscript && !interimTranscript) return;
+    const timeout = setTimeout(saveTranscript, 1000);
+    return () => clearTimeout(timeout);
+  }, [fullTranscript, interimTranscript, saveTranscript]);
 
-  // Keyboard shortcuts
-  const toggleRecording = useCallback(() => {
-    if (disabled) return;
-    if (isRecording) {
+  const { isListening, startRecording, stopRecording } = useSpeechToText(
+    setInterimTranscript,
+    setFullTranscript,
+  );
+
+  useEffect(() => {
+    onStateChange?.({
+      paused: mode === 'text' || !isListening,
+      transcript: fullTranscript,
+    });
+  }, [isListening, mode, fullTranscript, onStateChange]);
+
+  const toggleRecording = () => {
+    if (isListening) {
       stopRecording();
+      if (fullTranscript || interimTranscript) saveTranscript();
     } else {
       startRecording();
     }
-  }, [disabled, isRecording, startRecording, stopRecording]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (disabled) return;
-      if (mode === 'audio' && e.code === 'Space') {
-        e.preventDefault();
-        toggleRecording();
-      }
-      if (mode === 'text' && e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        onSubmit(transcript);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, transcript, toggleRecording, onSubmit, disabled]);
+  };
 
   const switchToText = () => {
-    if (isRecording) stopRecording();
+    if (isListening) stopRecording();
+    if (fullTranscript || interimTranscript) saveTranscript();
     setMode('text');
-    setTimeout(() => {
-      textareaRef.current?.focus();
-      const len = textareaRef.current?.value.length || 0;
-      textareaRef.current?.setSelectionRange(len, len);
-    }, 0);
+    setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
   const switchToAudio = () => {
+    if (fullTranscript || interimTranscript) saveTranscript();
     setMode('audio');
-    startRecording();
   };
 
-  // Format timer as mm:ss
-  const formatTimer = (t: number) => {
-    const minutes = Math.floor(t / 60)
-      .toString()
-      .padStart(2, '0');
-    const seconds = (t % 60).toString().padStart(2, '0');
-    return `${minutes}:${seconds}`;
-  };
-
-  // Debounce for typing
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  useEffect(() => {
-    if (transcript.length > 0 && transcript.length % 50 === 0) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        onAutoSave?.(transcript, false);
-      }, 500);
-    }
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [transcript, onAutoSave]);
-
-  // Save on pause (immediate)
-  useEffect(() => {
-    if (!isRecording && transcript.length > 0) {
-      onAutoSave?.(transcript, true);
-    }
-  }, [isRecording, transcript, onAutoSave]);
+  const radius = 44;
+  const stroke = 4;
+  const normalizedRadius = radius - stroke;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - percent * circumference;
 
   return (
     <div className="flex w-full flex-col items-center">
       {mode === 'audio' ? (
         <>
-          <button
-            type="button"
-            onClick={toggleRecording}
-            disabled={disabled}
-            aria-pressed={isRecording}
-            className={`mb-2 flex h-20 w-20 items-center justify-center rounded-full border-4 transition-colors duration-200 ${isRecording ? 'border-[#B04A2F] bg-white' : 'border-[#B04A2F] bg-[#B04A2F]'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`.replace(
-              /\s+/g,
-              ' ',
-            )}
-          >
-            {/* Microphone SVG */}
-            <svg
-              width={48}
-              height={48}
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx={24} cy={24} r={24} fill={isRecording ? '#fff' : '#B04A2F'} />
-              <path
-                d="M24 14C25.6569 14 27 15.3431 27 17V25C27 26.6569 25.6569 28 24 28C22.3431 28 21 26.6569 21 25V17C21 15.3431 22.3431 14 24 14Z"
-                fill={isRecording ? '#B04A2F' : '#fff'}
+          <div className="relative mb-2" style={{ width: 96, height: 96 }}>
+            <svg width={96} height={96} viewBox="0 0 96 96" className="absolute left-0 top-0 z-10">
+              <circle
+                cx={48}
+                cy={48}
+                r={normalizedRadius}
+                stroke="#ccc"
+                strokeWidth={stroke}
+                fill="none"
               />
-              <path
-                d="M30 25C30 28.3137 27.3137 31 24 31C20.6863 31 18 28.3137 18 25"
-                stroke={isRecording ? '#B04A2F' : '#fff'}
-                strokeWidth={2}
+              <circle
+                cx={48}
+                cy={48}
+                r={normalizedRadius}
+                stroke="#B04A2F"
+                strokeWidth={stroke}
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
-              />
-              <path
-                d="M24 31V34"
-                stroke={isRecording ? '#B04A2F' : '#fff'}
-                strokeWidth={2}
-                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.3s ease' }}
               />
             </svg>
-          </button>
-          <div className="flex min-h-[24px] items-center justify-center">
-            {isRecording || timer > 0 ? (
-              <span className="font-serif inline-block rounded-full bg-theme-rose px-4 py-1 text-lg font-semibold text-theme-charcoal">
-                {formatTimer(timer)}
-              </span>
-            ) : (
-              'record your response'
-            )}
+            <button
+              type="button"
+              onClick={toggleRecording}
+              aria-pressed={isListening}
+              className={`absolute left-1/2 top-1/2 z-20 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition-colors duration-200 ${
+                isListening ? 'bg-white' : 'bg-[#B04A2F]'
+              }`.replace(/\s+/g, ' ')}
+            >
+              <svg
+                width={48}
+                height={48}
+                viewBox="0 0 48 48"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle cx={24} cy={24} r={24} fill={isListening ? '#fff' : '#B04A2F'} />
+                <path
+                  d="M24 14C25.6569 14 27 15.3431 27 17V25C27 26.6569 25.6569 28 24 28C22.3431 28 21 26.6569 21 25V17C21 15.3431 22.3431 14 24 14Z"
+                  fill={isListening ? '#B04A2F' : '#fff'}
+                />
+                <path
+                  d="M30 25C30 28.3137 27.3137 31 24 31C20.6863 31 18 28.3137 18 25"
+                  stroke={isListening ? '#B04A2F' : '#fff'}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M24 31V34"
+                  stroke={isListening ? '#B04A2F' : '#fff'}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
           </div>
-          <button
-            type="button"
-            className="mt-2 text-sm text-[#222] underline"
-            onClick={switchToText}
-            disabled={disabled}
-          >
+          <button type="button" className="mt-2 text-sm underline" onClick={switchToText}>
             Type instead
           </button>
         </>
@@ -197,24 +179,19 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
         <>
           <textarea
             ref={textareaRef}
-            className="min-h-[220px] w-full resize-y rounded border border-[#C9C9B6] p-4 text-xl"
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            disabled={disabled}
+            className="min-h-[220px] w-full resize-y rounded border p-4 text-xl"
+            value={fullTranscript}
+            onChange={(e) => setFullTranscript(e.target.value)}
             placeholder="Type your response..."
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                onSubmit(transcript);
+                onSubmit(fullTranscript);
               }
             }}
           />
-          <button
-            type="button"
-            className="mt-2 text-sm text-[#222] underline"
-            onClick={switchToAudio}
-            disabled={disabled}
-          >
+          <p className="mt-2 text-sm text-gray-500">{wordCount} words</p>
+          <button type="button" className="mt-2 text-sm underline" onClick={switchToAudio}>
             Record instead
           </button>
         </>

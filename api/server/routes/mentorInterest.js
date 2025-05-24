@@ -8,6 +8,7 @@ const {
   updateMentorQuestion,
   searchMentorQuestions,
   upsertMentorResponse,
+  getMentorResponse,
 } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
@@ -58,6 +59,13 @@ router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
  * @desc Add or update a mentor response
  * @access Public
  */
-router.post('/api/mentor-interest/:mentor_interest_id/response/:stage_id', upsertMentorResponse);
+router.post('/:mentor_interest_id/response/:stage_id', upsertMentorResponse);
+
+/**
+ * @route GET /api/mentor-interest/:mentor_interest_id/response/:stage_id
+ * @desc  Retrieve a single mentor response for this mentor & stage.
+ * @access Public
+ */
+router.get('/:mentor_interest_id/response/:stage_id', getMentorResponse);
 
 module.exports = router;

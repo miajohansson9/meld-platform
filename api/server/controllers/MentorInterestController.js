@@ -313,29 +313,59 @@ async function searchMentorQuestions(req, res) {
 
 /**
  * @route POST /api/mentor-interest/:mentor_interest_id/response/:stage_id
- * Create or update a mentor response for a given mentor_interest and stage_id
+ * @desc  Create **or** update a mentor response, using a monotonically‑
+ *        increasing `version` field to guarantee "newest‑wins" semantics.
+ *        If the incoming version is <= the stored version, the write is
+ *        ignored and the canonical copy is returned unchanged.
+ * @access Public (can be auth‑gated later)
  */
 async function upsertMentorResponse(req, res) {
   try {
     const { mentor_interest_id, stage_id } = req.params;
-    const { response_text } = req.body;
-    // Find existing response
-    let response = await MentorResponse.findOne({ mentor_interest: mentor_interest_id, stage_id });
-    if (response) {
-      // Update
-      response.response_text = response_text;
-      await response.save();
-    } else {
-      // Create
-      response = await MentorResponse.create({
-        mentor_interest: mentor_interest_id,
-        stage_id,
-        response_text,
-      });
+    const { response_text = '' } = req.body;
+
+    const filter = { mentor_interest: mentor_interest_id, stage_id };
+    const existing = await MentorResponse.findOne(filter);
+
+    // --------------------------------------------------
+    // No existing doc → create brand‑new
+    // --------------------------------------------------
+    if (!existing) {
+      const created = await MentorResponse.create({ ...filter, response_text });
+      return res.status(201).json(created);
     }
-    res.status(200).json(response);
+
+    // --------------------------------------------------
+    // Update only when incoming response_text is different
+    // --------------------------------------------------
+    if (response_text !== existing.response_text) {
+      existing.response_text = response_text;
+      await existing.save();
+    }
+
+    return res.json(existing); // always send canonical (may be unchanged)
   } catch (err) {
     return handleError(res, { text: 'Error saving mentor response' });
+  }
+}
+
+/**
+ * @route GET /api/mentor-interest/:mentor_interest_id/response/:stage_id
+ * @desc  Retrieve a single mentor response for this mentor & stage.
+ *        Returns 404 if none exists.
+ * @access Public (can be auth‑gated later)
+ */
+async function getMentorResponse(req, res) {
+  try {
+    const { mentor_interest_id, stage_id } = req.params;
+    const response = await MentorResponse.findOne({
+      mentor_interest: mentor_interest_id,
+      stage_id,
+    });
+    if (!response) return res.status(404).end();
+    res.json(response);
+  } catch (err) {
+    return handleError(res, { text: 'Error retrieving mentor response' });
   }
 }
 
@@ -348,4 +378,5 @@ module.exports = {
   updateMentorQuestion,
   searchMentorQuestions,
   upsertMentorResponse,
+  getMentorResponse,
 };

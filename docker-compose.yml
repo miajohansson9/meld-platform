@@ -4,7 +4,9 @@
 services:
   api:
     container_name: meld_hub
-    image: ghcr.io/miajohansson9/meld-hub:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "${PORT}:${PORT}"
     depends_on:
@@ -16,6 +18,7 @@ services:
     environment:
       - HOST=0.0.0.0
       - MONGO_URI=${MONGO_URI}
+      - NODE_ENV=development
       - MEILI_HOST=http://meilisearch:7700
       - RAG_PORT=${RAG_PORT:-8000}
       - RAG_API_URL=${RAG_API_URL}
@@ -42,6 +45,8 @@ services:
     environment:
       - DB_HOST=vectordb
       - RAG_PORT=${RAG_PORT:-8000}
+    ports:
+      - "8000:8000"
     restart: always
     depends_on:
       - vectordb
