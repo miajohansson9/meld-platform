@@ -7,6 +7,7 @@ interface MentorAudioTextInputProps {
   stageId: number;
   onSubmit: (transcript: string) => void;
   onStateChange?: (state: { paused: boolean; transcript: string }) => void;
+  onSave?: (saveFn: () => Promise<void>) => void;
 }
 
 const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
@@ -14,9 +15,9 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
   stageId,
   onSubmit,
   onStateChange,
+  onSave,
 }) => {
   const [mode, setMode] = useState<'audio' | 'text'>('audio');
-  const [startingText, setStartingText] = useState('');
   const [fullTranscript, setFullTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [wordCount, setWordCount] = useState(0);
@@ -30,76 +31,105 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.response_text) {
-          setStartingText(data.response_text);
           setFullTranscript(data.response_text);
+        } else {
+          setFullTranscript('');
         }
       })
       .catch(console.error);
   }, [mentorInterestId, stageId]);
 
-  // Update word count and percent
+  // Calculate current display content and word count
+  const currentContent = mode === 'audio' ? fullTranscript + interimTranscript : fullTranscript;
+  
+  // Update word count and percent when content changes
   useEffect(() => {
-    const displayTranscript = mode === 'audio' ? startingText + interimTranscript : fullTranscript;
-    const words = displayTranscript.trim().split(/\s+/).filter(Boolean).length;
+    const words = currentContent.trim().split(/\s+/).filter(Boolean).length;
     setWordCount(words);
     setPercent(Math.min(words / maxWords, 1));
-    setFullTranscript(displayTranscript);
-  }, [startingText, fullTranscript, interimTranscript, mode]);
+  }, [currentContent]);
 
   // Save transcript to server
   const saveTranscript = useCallback(async () => {
+    const contentToSave = currentContent;
+    if (!contentToSave.trim()) return;
+    
     try {
       const response = await fetch(`/api/mentor-interest/${mentorInterestId}/response/${stageId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response_text: fullTranscript }),
+        body: JSON.stringify({ response_text: contentToSave }),
       });
       if (response.ok) {
         const data = await response.json();
-        setFullTranscript(data.response_text);
+        // Only update if we successfully saved and got a response
+        setFullTranscript(data.response_text || contentToSave);
       }
     } catch (error) {
       console.error(error);
     }
-  }, [mentorInterestId, stageId, fullTranscript]);
+  }, [currentContent, mentorInterestId, stageId]);
 
   // Save transcript periodically
   useEffect(() => {
-    if (!fullTranscript && !interimTranscript) return;
+    if (!currentContent.trim()) return;
     const timeout = setTimeout(saveTranscript, 1000);
     return () => clearTimeout(timeout);
-  }, [fullTranscript, interimTranscript, saveTranscript]);
+  }, [currentContent, saveTranscript]);
+
+  // Expose save function to parent
+  useEffect(() => {
+    if (onSave) {
+      onSave(saveTranscript);
+    }
+  }, [onSave, saveTranscript]);
 
   const { isListening, startRecording, stopRecording } = useSpeechToText(
     setInterimTranscript,
-    setFullTranscript,
+    (newText) => {
+      // When speech recognition provides final text, append it to fullTranscript
+      setFullTranscript(prev => prev + newText);
+      setInterimTranscript(''); // Clear interim after adding to full
+    },
   );
 
   useEffect(() => {
     onStateChange?.({
       paused: mode === 'text' || !isListening,
-      transcript: fullTranscript,
+      transcript: currentContent,
     });
-  }, [isListening, mode, fullTranscript, onStateChange]);
+  }, [isListening, mode, currentContent, onStateChange]);
 
   const toggleRecording = () => {
     if (isListening) {
       stopRecording();
-      if (fullTranscript || interimTranscript) saveTranscript();
+      // Save any interim transcript to full transcript
+      if (interimTranscript) {
+        setFullTranscript(prev => prev + interimTranscript);
+        setInterimTranscript('');
+      }
+      saveTranscript();
     } else {
       startRecording();
     }
   };
 
   const switchToText = () => {
-    if (isListening) stopRecording();
-    if (fullTranscript || interimTranscript) saveTranscript();
+    if (isListening) {
+      stopRecording();
+      // Save any interim transcript to full transcript
+      if (interimTranscript) {
+        setFullTranscript(prev => prev + interimTranscript);
+        setInterimTranscript('');
+      }
+    }
+    saveTranscript();
     setMode('text');
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
   const switchToAudio = () => {
-    if (fullTranscript || interimTranscript) saveTranscript();
+    saveTranscript();
     setMode('audio');
   };
 

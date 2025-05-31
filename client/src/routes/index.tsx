@@ -21,6 +21,7 @@ import MentorInterestForm from '~/components/MentorInterest/MentorInterestForm';
 import MentorInterview from './Layouts/MentorInterview';
 import MentorInterviewStart from '~/components/MentorInterview/MentorInterviewStart';
 import MentorInterviewQuestion from '~/components/MentorInterview/MentorInterviewQuestion';
+import MentorInterviewComplete from '~/components/MentorInterview/MentorInterviewComplete';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -113,6 +114,10 @@ export const router = createBrowserRouter([
             element: <MentorInterviewQuestion />,
           },
         ],
+      },
+      {
+        path: '/mentor-interview/complete',
+        element: <MentorInterviewComplete />,
       },
     ],
   },
