@@ -9,10 +9,10 @@ const {
   searchMentorQuestions,
   upsertMentorResponse,
   getMentorResponse,
-  getSimilarQuestions,
   generateNextQuestion,
-  saveMentorResponseTags,
   getMentorInterest,
+  generatePersonalizedIntro,
+  getSimilarQuestions,
 } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
@@ -73,6 +73,13 @@ router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
 router.get('/:id', getMentorInterest);
 
 /**
+ * @route POST /api/mentor-interest/:id/generate-intro
+ * @desc Generate grammatically correct personalized introduction using AI
+ * @access Public
+ */
+router.post('/:id/generate-intro', generatePersonalizedIntro);
+
+/**
  * @route POST /api/mentor-interest/:mentor_interest_id/next-question
  * @desc Generate next adaptive question using AI
  * @access Private (requires JWT)
@@ -85,13 +92,6 @@ router.post('/:mentor_interest_id/next-question', requireJwtAuth, generateNextQu
  * @access Public
  */
 router.post('/:mentor_interest_id/response/:stage_id', upsertMentorResponse);
-
-/**
- * @route POST /api/mentor-interest/:mentor_interest_id/response/:stage_id/tags
- * @desc Save selected tags for a mentor response
- * @access Private (requires JWT)
- */
-router.post('/:mentor_interest_id/response/:stage_id/tags', requireJwtAuth, saveMentorResponseTags);
 
 /**
  * @route GET /api/mentor-interest/:mentor_interest_id/response/:stage_id

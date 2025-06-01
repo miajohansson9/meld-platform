@@ -9,6 +9,36 @@ const MentorInterviewStart: React.FC = () => {
   const [mentorProfile, setMentorProfile] = useState<any>(null);
   const [personalizedIntro, setPersonalizedIntro] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingIntro, setIsGeneratingIntro] = useState(false);
+
+  // Generate personalized introduction using the backend endpoint
+  const generatePersonalizedIntro = async (mentorId: string) => {
+    setIsGeneratingIntro(true);
+    try {
+      const response = await fetch(`/api/mentor-interest/${mentorId}/generate-intro`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPersonalizedIntro(data.introduction);
+      } else {
+        // Fallback to the original template if API fails
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error generating intro:', errorData);
+        setPersonalizedIntro('');
+      }
+    } catch (error) {
+      console.error('Error generating personalized intro:', error);
+      // Fallback - let the component use the original template
+      setPersonalizedIntro('');
+    } finally {
+      setIsGeneratingIntro(false);
+    }
+  };
 
   // Fetch mentor's name when component mounts
   useEffect(() => {
@@ -21,6 +51,11 @@ const MentorInterviewStart: React.FC = () => {
           const mentorData = await response.json();
           setMentorName(mentorData.firstName || 'there');
           setMentorProfile(mentorData);
+          
+          // Generate personalized intro if we have job title and company
+          if (mentorData.jobTitle && mentorData.company) {
+            await generatePersonalizedIntro(mentor_interest_id);
+          }
         } else {
           setMentorName('there'); // Fallback greeting
         }
@@ -71,14 +106,23 @@ const MentorInterviewStart: React.FC = () => {
             Thank you for contributing your insights to MELD. We're here to empower young women through authentic, relatable experiences shared by accomplished leaders like you.
           </p>
           <p className="mb-4">
-            {mentorProfile && mentorProfile.jobTitle && mentorProfile.company 
-              ? `As a ${mentorProfile.jobTitle} at ${mentorProfile.company}, your experience offers critical insights for women in their 20s navigating the early stages of their professional journey.`
-              : `As a professional, your experience offers critical insights for women in their 20s navigating the early stages of their professional journey.`
-            }
+            {isGeneratingIntro ? (
+              <span className="inline-flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#B04A2F]"></div>
+                Personalizing your introduction...
+              </span>
+            ) : personalizedIntro ? (
+              personalizedIntro
+            ) : mentorProfile && mentorProfile.jobTitle && mentorProfile.company ? (
+              `As a ${mentorProfile.jobTitle} at ${mentorProfile.company}, your experience offers critical insights for women in their 20s navigating the early stages of their professional journey.`
+            ) : (
+              'Your experience offers critical insights for women in their 20s navigating the early stages of their professional journey.'
+            )}
+            {' '}
             Think of this as the conversation you wish you could have had with a mentor when you were 22—candid, supportive, and full of real-world wisdom.
           </p>
           <p>
-            Don't worry about sounding perfect; we will help you review and organize your answers afterward.
+            Don't worry about sounding perfect; we will help you review and refine your answers afterward.
           </p>
         </div>
 

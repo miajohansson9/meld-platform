@@ -26,15 +26,6 @@ const mentorResponseSchema = new mongoose.Schema(
     audio_url: {
       type: String,
     },
-    selected_tags: {
-      type: [String],
-      validate: {
-        validator: function (tags) {
-          return !tags || tags.length === 0 || tags.length === 3;
-        },
-        message: 'selected_tags must be empty or contain exactly 3 tags',
-      },
-    },
     source_question_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'MentorQuestion',

@@ -8,6 +8,7 @@ interface MentorAudioTextInputProps {
   onSubmit: (transcript: string) => void;
   onStateChange?: (state: { paused: boolean; transcript: string }) => void;
   onSave?: (saveFn: () => Promise<void>) => void;
+  onSaveComplete?: (savedText: string) => void;
 }
 
 const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
@@ -16,13 +17,15 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
   onSubmit,
   onStateChange,
   onSave,
+  onSaveComplete,
 }) => {
   const [mode, setMode] = useState<'audio' | 'text'>('audio');
   const [fullTranscript, setFullTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [wordCount, setWordCount] = useState(0);
   const [percent, setPercent] = useState(0);
-  const maxWords = 300;
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const targetWords = 200;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch initial transcript
@@ -41,19 +44,21 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
 
   // Calculate current display content and word count
   const currentContent = mode === 'audio' ? fullTranscript + interimTranscript : fullTranscript;
-  
+
   // Update word count and percent when content changes
   useEffect(() => {
     const words = currentContent.trim().split(/\s+/).filter(Boolean).length;
     setWordCount(words);
-    setPercent(Math.min(words / maxWords, 1));
+    setPercent(Math.min(words / targetWords, 1));
   }, [currentContent]);
 
   // Save transcript to server
   const saveTranscript = useCallback(async () => {
-    const contentToSave = currentContent;
+    // During speech, only save the fullTranscript (not interim results)
+    const contentToSave = mode === 'audio' && interimTranscript ? fullTranscript : currentContent;
     if (!contentToSave.trim()) return;
     
+    setSaveStatus('saving');
     try {
       const response = await fetch(`/api/mentor-interest/${mentorInterestId}/response/${stageId}`, {
         method: 'POST',
@@ -64,18 +69,36 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
         const data = await response.json();
         // Only update if we successfully saved and got a response
         setFullTranscript(data.response_text || contentToSave);
+        setSaveStatus('saved');
+        
+        // Clear saved status after 2 seconds
+        setTimeout(() => setSaveStatus('idle'), 2000);
+        
+        if (onSaveComplete) {
+          onSaveComplete(data.response_text || contentToSave);
+        }
+      } else {
+        setSaveStatus('idle');
       }
     } catch (error) {
       console.error(error);
+      setSaveStatus('idle');
     }
-  }, [currentContent, mentorInterestId, stageId]);
+  }, [fullTranscript, currentContent, mode, interimTranscript, mentorInterestId, stageId, onSaveComplete]);
 
-  // Save transcript periodically
+  // Smart debounced saving - only save when content changes and user stops activity
   useEffect(() => {
-    if (!currentContent.trim()) return;
-    const timeout = setTimeout(saveTranscript, 1000);
-    return () => clearTimeout(timeout);
-  }, [currentContent, saveTranscript]);
+    // Don't save if no content
+    if (!fullTranscript.trim()) return;
+    
+    // Debounced save after 3 seconds of no changes to fullTranscript
+    const timeout = setTimeout(() => {
+      saveTranscript();
+    }, 3000);
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [fullTranscript, saveTranscript]);
 
   // Expose save function to parent
   useEffect(() => {
@@ -103,9 +126,16 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
   const toggleRecording = () => {
     if (isListening) {
       stopRecording();
-      // Save any interim transcript to full transcript
-      if (interimTranscript) {
-        setFullTranscript(prev => prev + interimTranscript);
+      // Only add interim transcript if it's not empty and hasn't been processed yet
+      // This handles cases where speech recognition stops without a final result
+      if (interimTranscript.trim()) {
+        setFullTranscript(prev => {
+          // Check if the interim text is already included in the full transcript
+          if (!prev.includes(interimTranscript.trim())) {
+            return prev + interimTranscript;
+          }
+          return prev;
+        });
         setInterimTranscript('');
       }
       saveTranscript();
@@ -117,9 +147,15 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
   const switchToText = () => {
     if (isListening) {
       stopRecording();
-      // Save any interim transcript to full transcript
-      if (interimTranscript) {
-        setFullTranscript(prev => prev + interimTranscript);
+      // Only add interim transcript if it's not empty and hasn't been processed yet
+      if (interimTranscript.trim()) {
+        setFullTranscript(prev => {
+          // Check if the interim text is already included in the full transcript
+          if (!prev.includes(interimTranscript.trim())) {
+            return prev + interimTranscript;
+          }
+          return prev;
+        });
         setInterimTranscript('');
       }
     }
@@ -134,7 +170,7 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
   };
 
   const radius = 44;
-  const stroke = 4;
+  const stroke = 2;
   const normalizedRadius = radius - stroke;
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - percent * circumference;
@@ -170,9 +206,8 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
               type="button"
               onClick={toggleRecording}
               aria-pressed={isListening}
-              className={`absolute left-1/2 top-1/2 z-20 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition-colors duration-200 ${
-                isListening ? 'bg-white' : 'bg-[#B04A2F]'
-              }`.replace(/\s+/g, ' ')}
+              className={`absolute left-1/2 top-1/2 z-20 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition-colors duration-200 ${isListening ? 'bg-white' : 'bg-[#B04A2F]'
+                }`.replace(/\s+/g, ' ')}
             >
               <svg
                 width={48}
@@ -212,6 +247,7 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
             className="min-h-[220px] w-full resize-y rounded border p-4 text-xl"
             value={fullTranscript}
             onChange={(e) => setFullTranscript(e.target.value)}
+            onBlur={saveTranscript}
             placeholder="Type your response..."
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -220,12 +256,20 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
               }
             }}
           />
-          <p className="mt-2 text-sm text-gray-500">{wordCount} words</p>
           <button type="button" className="mt-2 text-sm underline" onClick={switchToAudio}>
             Record instead
           </button>
         </>
       )}
+      <div className="relative mt-2">
+        {saveStatus !== 'idle' ? (
+          <p className="text-sm text-gray-500">
+            {saveStatus === 'saving' ? 'Saving...' : 'Saved ✓'}
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500">{wordCount} words</p>
+        )}
+      </div>
     </div>
   );
 };

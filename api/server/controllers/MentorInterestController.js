@@ -455,23 +455,42 @@ async function getSimilarQuestions(req, res) {
 async function generateNextQuestion(req, res) {
   try {
     const { mentor_interest_id } = req.params;
-    const { previous_stage_id, answer_text, selected_tags } = req.body;
+    const { previous_stage_id, answer_text } = req.body;
 
-    if (
-      !answer_text ||
-      !selected_tags ||
-      !Array.isArray(selected_tags) ||
-      selected_tags.length !== 3
-    ) {
-      return handleError(
-        res,
-        { text: 'answer_text and exactly 3 selected_tags are required' },
-        400,
-      );
+    // Allow empty answer_text for skipping questions
+    const effectiveAnswerText = answer_text || '[Question was skipped]';
+    
+    // For RAG search, use a generic query if no answer provided
+    const searchQuery = answer_text || 'general mentor advice for young professionals';
+
+    // Calculate next stage
+    const nextStage = (previous_stage_id || 0) + 1;
+
+    // Check if a question already exists for the next stage
+    const existingResponse = await MentorResponse.findOne({
+      mentor_interest: mentor_interest_id,
+      stage_id: nextStage,
+    });
+
+    // If a question already exists for this stage, return it instead of generating a new one
+    if (existingResponse && existingResponse.question) {
+      logger.debug('[generateNextQuestion] Question already exists for stage', nextStage);
+      return res.json({
+        stage_id: nextStage,
+        question: existingResponse.question,
+        preamble: existingResponse.preamble || 'Continuing with your next question:',
+        based_on_question_id: existingResponse.source_question_id,
+      });
     }
 
+    // Generate new question only if one doesn't exist
+    logger.debug('[generateNextQuestion] Generating new question for stage', nextStage);
+
+    // === GENERATE NEW QUESTION ===
+    // The following code only runs when we need to create a new question
+    
     // Get similar questions based on the answer
-    const similarQuestions = await searchQuestionsInRAG(req, answer_text, 20);
+    const similarQuestions = await searchQuestionsInRAG(req, searchQuery, 20);
 
     if (!Array.isArray(similarQuestions) || similarQuestions.length === 0) {
       return handleError(res, { text: 'No similar questions found for context' }, 404);
@@ -494,8 +513,7 @@ async function generateNextQuestion(req, res) {
       return {
         stage: response.stage_id,
         question: response.question || (response.stage_id === 1 ? "Tell us about an exciting project or goal you're currently working on and a meaningful challenge you're navigating through." : "Unknown question"),
-        answer: response.response_text || '',
-        selectedTags: response.selected_tags || []
+        answer: response.response_text || ''
       };
     });
 
@@ -512,15 +530,8 @@ async function generateNextQuestion(req, res) {
     const contextQuestions = await MentorQuestion.find({ _id: { $in: fileIds } }).lean();
 
     // Create OpenAI client and generate question
-    const OpenAIClient = require('~/app/clients/OpenAIClient');
-    const client = new OpenAIClient(process.env.OPENAI_API_KEY, {
-      endpoint: 'openAI',
-      modelOptions: {
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        max_tokens: 200,
-        stream: false, // Explicitly disable streaming
-      },
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
     // Build context for AI
@@ -552,7 +563,9 @@ async function generateNextQuestion(req, res) {
           - You can either choose one of the similar questions provided (use its ID for based_on_id), or craft a completely new question (use null for based_on_id)
           - If you choose an existing question, reframe it to be more actionable and specific to young women's needs
           - Generate a brief preamble (1-2 sentences) that ties their previous response to your next question
-          - Respond with JSON: {"question": "your question here", "preamble": "1-2 sentences connecting their response to your question", "based_on_id": "question_id_if_using_existing_or_null"}`,
+          - Respond with JSON: {"question": "your question here", "preamble": "1-2 sentences connecting their response to your question", "based_on_id": "question_id_if_using_existing_or_null"}
+
+          IMPORTANT: The preamble should be a STATEMENT that connects their previous answer to your next question. Do NOT include a question in the preamble - save the question for the "question" field. The preamble should sound like natural conversation flow, such as "Your insights about X really highlight the importance of Y" or "Building on what you shared about Z..."`,
       },
       {
         role: 'user',
@@ -568,16 +581,11 @@ Email: ${mentorProfile.email}`,
         role: 'user',
         content: `CONVERSATION HISTORY:
 ${conversationHistory.map(entry => `Q${entry.stage}: ${entry.question}
-A${entry.stage}: ${entry.answer}
-Tags: ${entry.selectedTags.join(', ')}`).join('\n\n')}`,
+A${entry.stage}: ${entry.answer}`).join('\n\n')}`,
       },
       {
         role: 'user',
-        content: `Current mentor answer: "${answer_text}"`,
-      },
-      {
-        role: 'user',
-        content: `Key themes the mentor selected: ${selected_tags.join(', ')}`,
+        content: `Current mentor answer: "${effectiveAnswerText}"`,
       },
       {
         role: 'assistant',
@@ -590,55 +598,60 @@ Tags: ${entry.selectedTags.join(', ')}`).join('\n\n')}`,
       },
     ];
 
-    // Add explicit non-streaming options
-    const completion = await client.sendCompletion(payload, {
-      // Ensure no streaming
-      onProgress: undefined,
-      abortController: new AbortController(),
+    // Use direct OpenAI API call to ensure no streaming
+    logger.debug('[generateNextQuestion] Making OpenAI API call with parameters:', {
+      model: 'gpt-4o-mini',
+      stream: false,
+      temperature: 0.7,
+      max_tokens: 200,
+      messagesCount: payload.length
     });
 
-    // Clean up any potential streaming artifacts
-    let cleanCompletion = completion;
-    if (typeof completion !== 'string') {
-      logger.error('[generateNextQuestion] Unexpected completion type:', typeof completion);
-      cleanCompletion = String(completion);
-    }
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: payload,
+      temperature: 0.7,
+      max_tokens: 200,
+      stream: false, // Explicitly disable streaming
+    });
 
-    // Remove any SSE prefixes or artifacts
-    cleanCompletion = cleanCompletion
-      .replace(/^data:\s*/gm, '') // Remove SSE data: prefixes
-      .replace(/^event:\s*\w+/gm, '') // Remove SSE event: lines
-      .replace(/\n\n/g, '\n') // Clean up double newlines
-      .trim();
+    logger.debug('[generateNextQuestion] OpenAI API response type:', {
+      isStream: completion instanceof ReadableStream,
+      hasChoices: !!completion.choices,
+      choicesLength: completion.choices?.length,
+      firstChoiceContent: completion.choices?.[0]?.message?.content?.substring(0, 100)
+    });
 
-    logger.debug('[generateNextQuestion] Raw completion:', completion);
-    logger.debug('[generateNextQuestion] Clean completion:', cleanCompletion);
+    // Extract the response content
+    const completionText = completion.choices[0]?.message?.content || '';
+    
+    logger.debug('[generateNextQuestion] Raw completion:', completionText);
 
     let aiResponse;
     try {
-      aiResponse = JSON.parse(cleanCompletion);
+      aiResponse = JSON.parse(completionText.trim());
     } catch (parseError) {
       logger.warn('[generateNextQuestion] JSON parse failed, trying fallback:', parseError);
       // More aggressive fallback parsing
-      const jsonMatch = cleanCompletion.match(/\{[^}]*"question"[^}]*\}/);
+      const jsonMatch = completionText.match(/\{[^}]*"question"[^}]*\}/);
       if (jsonMatch) {
         try {
           aiResponse = JSON.parse(jsonMatch[0]);
         } catch (fallbackError) {
           logger.error('[generateNextQuestion] Fallback parse also failed:', fallbackError);
           // Final fallback - extract question text manually
-          const questionMatch = cleanCompletion.match(/"question":\s*"([^"]+)"/);
+          const questionMatch = completionText.match(/"question":\s*"([^"]+)"/);
           aiResponse = {
-            question: questionMatch ? questionMatch[1] : `What aspect of ${selected_tags[0]} would you like to explore further?`,
-            preamble: `I'd love to hear more about your experience with ${selected_tags[0]}.`,
+            question: questionMatch ? questionMatch[1] : 'What specific challenge would you like to discuss next?',
+            preamble: 'Thank you for sharing your insights.',
             based_on_id: null,
           };
         }
       } else {
         // Ultimate fallback
         aiResponse = {
-          question: `Based on your interest in ${selected_tags.join(', ')}, what specific challenge would you like to discuss?`,
-          preamble: `Your insights about ${selected_tags[0]} are really valuable.`,
+          question: 'What specific challenge would you like to discuss next?',
+          preamble: 'Thank you for sharing your insights.',
           based_on_id: null,
         };
       }
@@ -646,11 +659,8 @@ Tags: ${entry.selectedTags.join(', ')}`).join('\n\n')}`,
 
     // Ensure aiResponse has a preamble field (in case AI didn't include it)
     if (!aiResponse.preamble) {
-      aiResponse.preamble = `Thank you for sharing that. Building on what you said about ${selected_tags[0]}...`;
+      aiResponse.preamble = 'Thank you for sharing your insights. Here\'s your next question:';
     }
-
-    // Calculate next stage
-    const nextStage = (previous_stage_id || 0) + 1;
 
     // Save the generated question as a new response entry (or update if exists)
     await MentorResponse.findOneAndUpdate(
@@ -661,7 +671,7 @@ Tags: ${entry.selectedTags.join(', ')}`).join('\n\n')}`,
       {
         question: aiResponse.question,
         preamble: aiResponse.preamble,
-        source_question_id: aiResponse.based_on_id,
+        source_question_id: aiResponse.based_on_id === "null" || aiResponse.based_on_id === null ? null : aiResponse.based_on_id,
         response_text: '', // Will be filled when mentor answers
         version: 1, // Reset version for new question
       },
@@ -671,56 +681,19 @@ Tags: ${entry.selectedTags.join(', ')}`).join('\n\n')}`,
       },
     );
 
-    res.json({
+    const finalResponse = {
       stage_id: nextStage,
       question: aiResponse.question,
       preamble: aiResponse.preamble,
       based_on_question_id: aiResponse.based_on_id,
-    });
+    };
+
+    logger.debug('[generateNextQuestion] Sending final response:', finalResponse);
+
+    res.json(finalResponse);
   } catch (err) {
     logger.error('[generateNextQuestion] Error:', err);
     return handleError(res, { text: 'Error generating next question' });
-  }
-}
-
-/**
- * @route POST /api/mentor-interest/:mentor_interest_id/response/:stage_id/tags
- * @desc Save selected tags for a mentor response (exactly 3 tags required)
- * @access Private (requires JWT)
- */
-async function saveMentorResponseTags(req, res) {
-  try {
-    const { mentor_interest_id, stage_id } = req.params;
-    const { selected_tags } = req.body;
-
-    if (!selected_tags || !Array.isArray(selected_tags) || selected_tags.length !== 3) {
-      return handleError(res, { text: 'Exactly 3 selected_tags are required' }, 400);
-    }
-
-    // Find and update the response
-    const response = await MentorResponse.findOneAndUpdate(
-      {
-        mentor_interest: mentor_interest_id,
-        stage_id: parseInt(stage_id),
-      },
-      {
-        selected_tags,
-        $inc: { version: 1 }, // Increment version for optimistic updates
-      },
-      {
-        new: true,
-        upsert: false, // Don't create if doesn't exist
-      },
-    );
-
-    if (!response) {
-      return handleError(res, { text: 'Mentor response not found' }, 404);
-    }
-
-    res.json(response);
-  } catch (err) {
-    logger.error('[saveMentorResponseTags] Error:', err);
-    return handleError(res, { text: 'Error saving mentor response tags' });
   }
 }
 
@@ -740,6 +713,79 @@ async function getMentorInterest(req, res) {
   }
 }
 
+/**
+ * @route POST /api/mentor-interest/:id/generate-intro
+ * @desc Generate grammatically correct personalized introduction using AI
+ * @access Public
+ */
+async function generatePersonalizedIntro(req, res) {
+  try {
+    const { id } = req.params;
+    
+    // Get mentor profile
+    const mentorProfile = await MentorInterest.findById(id);
+    if (!mentorProfile) {
+      return handleError(res, { text: 'Mentor profile not found' }, 404);
+    }
+
+    if (!mentorProfile.jobTitle || !mentorProfile.company) {
+      return handleError(res, { text: 'Job title and company are required for intro generation' }, 400);
+    }
+
+    // Create OpenAI client
+    const OpenAI = require('openai');
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const payload = [
+      {
+        role: 'system',
+        content: `You are a professional copywriter specializing in grammatically correct business introductions. Your task is to create a single, grammatically perfect sentence for mentor introductions.`,
+      },
+      {
+        role: 'user',
+        content: `Create a grammatically correct opening sentence for a mentor introduction. The mentor's job title is "${mentorProfile.jobTitle}" and they work at "${mentorProfile.company}".
+
+The sentence should follow this pattern but with proper grammar:
+"As [article] [job title] at [proper company name with correct articles], your experience offers critical insights for women in their 20s navigating the early stages of their professional journey."
+
+Grammar rules:
+- Use "a" or "an" for common job titles (e.g., "As a Marketing Manager")
+- Use "the" for unique positions (e.g., "As the CEO", "As the First Lady", "As the President")
+- Add "the" before company names when appropriate (e.g., "the White House", "the United Nations", "the New York Times")
+- Keep the ending exactly as: "your experience offers critical insights for women in their 20s navigating the early stages of their professional journey."
+
+Return ONLY the complete sentence, no extra punctuation, nothing else.`,
+      },
+    ];
+
+    // Generate the introduction
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: payload,
+      temperature: 0.3,
+      max_tokens: 150,
+      stream: false,
+    });
+
+    // Extract the response content
+    const completionText = completion.choices[0]?.message?.content || '';
+    
+    logger.debug('[generatePersonalizedIntro] Generated intro:', completionText);
+
+    res.json({
+      introduction: completionText,
+      jobTitle: mentorProfile.jobTitle,
+      company: mentorProfile.company,
+    });
+
+  } catch (err) {
+    logger.error('[generatePersonalizedIntro] Error:', err);
+    return handleError(res, { text: 'Error generating personalized introduction' });
+  }
+}
+
 module.exports = {
   storeQuestionInRAG,
   submitMentorInterest,
@@ -750,8 +796,8 @@ module.exports = {
   searchMentorQuestions,
   upsertMentorResponse,
   getMentorResponse,
-  getSimilarQuestions,
   generateNextQuestion,
-  saveMentorResponseTags,
   getMentorInterest,
+  generatePersonalizedIntro,
+  getSimilarQuestions,
 };
