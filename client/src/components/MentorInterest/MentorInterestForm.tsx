@@ -118,7 +118,7 @@ export default function MentorInterestForm() {
 
   return (
     <div className="flex flex-col items-center justify-center bg-[#F8F4EB] p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg sm:p-8">
+      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg sm:p-8">
         {/* Error Banner */}
         {submitStatus === 'error' && (
           <div

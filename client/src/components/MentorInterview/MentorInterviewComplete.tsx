@@ -7,7 +7,7 @@ const MentorInterviewComplete: React.FC = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#F8F4EB] p-4">
       {/* Card */}
-      <div className="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-lg sm:p-8">
+      <div className="w-full max-w-lg rounded-lg bg-white p-6 text-center shadow-lg sm:p-8">
         {/* Logo */}
         <div className="mb-6 flex justify-center">
           <img src="/assets/logo-b.svg" alt="MELD" className="h-8 w-auto" />
