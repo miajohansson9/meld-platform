@@ -34,33 +34,15 @@ const MentorInterviewComplete: React.FC = () => {
 
         {/* Content */}
         <div className="font-serif mb-4 text-2xl leading-snug text-[#B04A2F]">
-          Interview Complete!
+          You're done! You're Now a Part of MELD's Founding Story
         </div>
+
+        <p className="mb-6 text-base leading-relaxed text-gray-600">
+          Thank you for sharing your hard-earned insights. What you’ve contributed today isn’t just a reflection of your journey—it’s fuel for the next generation of women to lead, speak up, and trust themselves.
+        </p>
 
         <div className="mb-6 text-base leading-relaxed text-gray-600">
-          Thank you for sharing your insights and experiences. Your responses will help us
-          understand how you can best contribute to the MELD community.
-        </div>
-
-        <div className="mb-8 text-sm text-gray-500">
-          We'll review your responses and be in touch soon about next steps.
-        </div>
-
-        {/* Actions */}
-        <div className="space-y-3">
-          <button
-            onClick={() => navigate('/')}
-            className="w-full rounded-lg bg-[#B04A2F] px-6 py-3 font-medium text-white transition-colors duration-200 hover:bg-[#8F3A25]"
-          >
-            Return to Home
-          </button>
-
-          <button
-            onClick={() => navigate('/mentor-interest')}
-            className="w-full rounded-lg border border-[#B04A2F] bg-white px-6 py-3 font-medium text-[#B04A2F] transition-colors duration-200 hover:bg-[#F8F4EB]"
-          >
-            View Other Opportunities
-          </button>
+          Your experiences will be shared with ambitious young women navigating big questions—questions you've lived through. Every sentence you’ve shared is now part of a growing library of mentorship, built by women, for women.
         </div>
       </div>
     </div>

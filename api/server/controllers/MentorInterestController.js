@@ -29,9 +29,6 @@ async function storeQuestionInRAG(question, pillar, subTags, question_id, req) {
 
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    logger.debug('[storeQuestionInRAG] Missing or invalid Authorization header', {
-      headers: req.headers,
-    });
     throw new Error('User not authenticated');
   }
   const jwtToken = authHeader.split(' ')[1];
@@ -55,17 +52,8 @@ async function storeQuestionInRAG(question, pillar, subTags, question_id, req) {
   const response = await axios.post(`${process.env.RAG_API_URL}/embed`, formData, { headers });
 
   if (!response.data.status) {
-    logger.debug('[storeQuestionInRAG] RAG API returned error status', {
-      status: response.status,
-      body: response.data,
-    });
     throw new Error('Failed to store question in RAG API');
   }
-
-  logger.debug('[storeQuestionInRAG] Successfully stored question embedding', {
-    status: response.status,
-    data: response.data,
-  });
 }
 
 /**
@@ -84,9 +72,6 @@ async function searchQuestionsInRAG(req, query, k = 30) {
 
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    logger.debug('[storeQuestionInRAG] Missing or invalid Authorization header', {
-      headers: req.headers,
-    });
     throw new Error('User not authenticated');
   }
   const jwtToken = authHeader.split(' ')[1];
@@ -97,29 +82,13 @@ async function searchQuestionsInRAG(req, query, k = 30) {
     entity_id: MENTOR_QUESTIONS_INDEX,
   };
 
-  logger.debug('[searchQuestionsInRAG] Attempting to query RAG API', body);
-
   try {
     const response = await axios.post(`${process.env.RAG_API_URL}/query`, body, {
       headers: { Authorization: `Bearer ${jwtToken}`, 'Content-Type': 'application/json' },
     });
 
-    logger.debug('[searchQuestionsInRAG] RAG API response', {
-      status: response?.status,
-      statusText: response?.statusText,
-      data: response?.data,
-    });
-
     return response.data;
   } catch (error) {
-    logger.debug('[searchQuestionsInRAG] Error querying RAG API', {
-      error: error.message,
-      code: error.code,
-      url,
-      ragApiUrl: process.env.RAG_API_URL,
-      stack: error.stack,
-      response: error.response?.data,
-    });
     throw new Error(`Failed to search questions: ${error.message}`);
   }
 }
@@ -136,9 +105,6 @@ async function deleteQuestionFromRAG(file_id, req) {
 
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    logger.debug('[deleteQuestionFromRAG] Missing or invalid Authorization header', {
-      headers: req.headers,
-    });
     throw new Error('User not authenticated');
   }
   const jwtToken = authHeader.split(' ')[1];
@@ -152,13 +118,57 @@ async function deleteQuestionFromRAG(file_id, req) {
       },
       data: [file_id],
     });
-    logger.debug('[deleteQuestionFromRAG] Successfully deleted question embedding', { file_id });
   } catch (error) {
     // Log but don't throw - we'll try to create the new embedding anyway
-    logger.debug('[deleteQuestionFromRAG] Error deleting question embedding', {
-      error: error.message,
-      status: error.response?.status,
-    });
+  }
+}
+
+/**
+ * Middleware to validate access token and find mentor interest
+ * @param {import('express').Request} req 
+ * @param {import('express').Response} res 
+ * @param {import('express').NextFunction} next 
+ */
+async function validateAccessToken(req, res, next) {
+  try {
+    const { access_token } = req.params;
+
+    if (!access_token) {
+      return handleError(res, { text: 'Access token required' }, 400);
+    }
+
+    // Find mentor interest by access token (including token fields)
+    const mentorInterest = await MentorInterest.findOne({
+      accessToken: access_token
+    }).select('+accessToken +tokenExpiresAt');
+
+    if (!mentorInterest) {
+      return handleError(res, { text: 'Invalid access token' }, 404);
+    }
+
+    // Check if token is expired
+    if (mentorInterest.tokenExpiresAt && new Date() > mentorInterest.tokenExpiresAt) {
+      return handleError(res, { text: 'Access token expired' }, 403);
+    }
+
+    // Attach mentor interest to request (without token fields)
+    req.mentorInterest = {
+      _id: mentorInterest._id,
+      firstName: mentorInterest.firstName,
+      lastName: mentorInterest.lastName,
+      email: mentorInterest.email,
+      jobTitle: mentorInterest.jobTitle,
+      company: mentorInterest.company,
+      industry: mentorInterest.industry,
+      careerStage: mentorInterest.careerStage,
+      status: mentorInterest.status,
+      createdAt: mentorInterest.createdAt,
+      updatedAt: mentorInterest.updatedAt
+    };
+
+    next();
+  } catch (err) {
+    return handleError(res, { text: 'Error validating access token' });
   }
 }
 
@@ -169,7 +179,26 @@ async function submitMentorInterest(req, res) {
   try {
     const data = mentorInterestSchema.parse(req.body);
     const mentorInterest = await MentorInterest.create(data);
-    res.status(201).json(mentorInterest);
+
+    // Get the created record with access token (for returning to user)
+    const mentorInterestWithToken = await MentorInterest.findById(mentorInterest._id)
+      .select('+accessToken');
+
+    // Return the access token only on creation
+    res.status(201).json({
+      _id: mentorInterestWithToken._id,
+      firstName: mentorInterestWithToken.firstName,
+      lastName: mentorInterestWithToken.lastName,
+      email: mentorInterestWithToken.email,
+      jobTitle: mentorInterestWithToken.jobTitle,
+      company: mentorInterestWithToken.company,
+      industry: mentorInterestWithToken.industry,
+      careerStage: mentorInterestWithToken.careerStage,
+      status: mentorInterestWithToken.status,
+      accessToken: mentorInterestWithToken.accessToken, // Only returned here
+      createdAt: mentorInterestWithToken.createdAt,
+      updatedAt: mentorInterestWithToken.updatedAt
+    });
   } catch (err) {
     if (err.name === 'ZodError') {
       return handleError(res, { text: 'Invalid form data', errors: err.errors });
@@ -269,7 +298,6 @@ async function searchMentorQuestions(req, res) {
     }
 
     const hits = await searchQuestionsInRAG(req, query, k);
-    logger.debug('[searchMentorQuestions] Hits:', hits);
     if (!Array.isArray(hits) || hits.length === 0) {
       return res.json({ results: [] });
     }
@@ -313,24 +341,17 @@ async function searchMentorQuestions(req, res) {
 }
 
 /**
- * @route POST /api/mentor-interest/:mentor_interest_id/response/:stage_id
- * @desc  Create **or** update a mentor response, using a monotonically‑
- *        increasing `version` field to guarantee "newest‑wins" semantics.
- *        If the incoming version is <= the stored version, the write is
- *        ignored and the canonical copy is returned unchanged.
- * @access Public (can be auth‑gated later)
+ * @route POST /api/mentor-interview/:access_token/response/:stage_id
  */
 async function upsertMentorResponse(req, res) {
   try {
-    const { mentor_interest_id, stage_id } = req.params;
+    const { stage_id } = req.params;
     const { response_text = '', audio_url, version: incomingVersion } = req.body;
+    const mentor_interest_id = req.mentorInterest._id;
 
     const filter = { mentor_interest: mentor_interest_id, stage_id };
     const existing = await MentorResponse.findOne(filter);
 
-    // --------------------------------------------------
-    // No existing doc → create brand‑new
-    // --------------------------------------------------
     if (!existing) {
       const newData = {
         ...filter,
@@ -343,118 +364,69 @@ async function upsertMentorResponse(req, res) {
       return res.status(201).json(created);
     }
 
-    // --------------------------------------------------
-    // Version checking for optimistic updates
-    // --------------------------------------------------
     if (incomingVersion && incomingVersion <= existing.version) {
-      // Incoming version is stale, return existing without updating
       return res.json(existing);
     }
 
-    // --------------------------------------------------
-    // Update only when incoming data is different
-    // --------------------------------------------------
     let hasChanges = false;
-
     if (response_text !== existing.response_text) {
-      existing.response_text = response_text;
       hasChanges = true;
     }
-
     if (audio_url && audio_url !== existing.audio_url) {
-      existing.audio_url = audio_url;
       hasChanges = true;
     }
 
-    if (hasChanges) {
-      existing.version += 1;
-      await existing.save();
+    if (!hasChanges) {
+      return res.json(existing);
     }
 
-    return res.json(existing); // always send canonical (may be unchanged)
+    const updated = await MentorResponse.findOneAndUpdate(
+      filter,
+      {
+        response_text,
+        audio_url,
+        version: existing.version + 1,
+      },
+      { new: true }
+    );
+
+    res.json(updated);
   } catch (err) {
-    logger.error('[upsertMentorResponse] Error:', err);
     return handleError(res, { text: 'Error saving mentor response' });
   }
 }
 
 /**
- * @route GET /api/mentor-interest/:mentor_interest_id/response/:stage_id
- * @desc  Retrieve a single mentor response for this mentor & stage.
- *        Returns 404 if none exists.
- * @access Public (can be auth‑gated later)
+ * @route GET /api/mentor-interview/:access_token/response/:stage_id
  */
 async function getMentorResponse(req, res) {
   try {
-    const { mentor_interest_id, stage_id } = req.params;
+    const { stage_id } = req.params;
+    const mentor_interest_id = req.mentorInterest._id;
+
     const response = await MentorResponse.findOne({
       mentor_interest: mentor_interest_id,
       stage_id,
     });
-    if (!response) return res.status(404).end();
+
+    if (!response) {
+      return res.status(404).json({ error: 'Response not found' });
+    }
+
     res.json(response);
   } catch (err) {
-    return handleError(res, { text: 'Error retrieving mentor response' });
+    return handleError(res, { text: 'Error fetching mentor response' });
   }
 }
 
 /**
- * @route GET /api/mentor-interest/questions/similar
- * @desc Get semantically similar questions based on input text for adaptive interviewing
- * @access Private (requires JWT)
- */
-async function getSimilarQuestions(req, res) {
-  try {
-    const { text, k = 10 } = req.query;
-
-    if (!text) {
-      return handleError(res, { text: 'Query text is required' }, 400);
-    }
-
-    // Search RAG for similar questions
-    const hits = await searchQuestionsInRAG(req, text, k);
-    logger.debug('[getSimilarQuestions] RAG hits:', hits);
-
-    if (!Array.isArray(hits) || hits.length === 0) {
-      return res.json({ items: [] });
-    }
-
-    // Extract file_ids from RAG response
-    const fileIds = hits
-      .map((h) => {
-        let [jsonStr, sim] = Array.isArray(h) ? h : [h, null];
-        let obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
-        if (Array.isArray(obj)) obj = obj[0];
-        return obj.metadata?.file_id;
-      })
-      .filter(Boolean);
-
-    // Fetch matching questions from MongoDB
-    const questions = await MentorQuestion.find({ _id: { $in: fileIds } }).lean();
-
-    // Format response to match API contract
-    const items = questions.map((q) => ({
-      _id: q._id,
-      question: q.question,
-      pillar: q.pillar,
-      subTags: q.subTags || [],
-    }));
-
-    res.json({ items });
-  } catch (err) {
-    logger.error('[getSimilarQuestions] Error:', err);
-    return handleError(res, { text: 'Error retrieving similar questions' });
-  }
-}
-
-/**
- * @route POST /api/mentor-interest/:mentor_interest_id/next-question
+ * @route POST /api/mentor-interview/:access_token/generate-question
  * @desc Generate next adaptive question using AI based on previous answers and tags
- * @access Private (requires JWT)
+ * @access Public (token validated)
  */
 async function generateNextQuestion(req, res) {
   try {
-    const { mentor_interest_id } = req.params;
+    const mentor_interest_id = req.mentorInterest._id;
     const { previous_stage_id, answer_text } = req.body;
 
     // Allow empty answer_text for skipping questions
@@ -474,28 +446,17 @@ async function generateNextQuestion(req, res) {
 
     // If a question already exists for this stage, return it instead of generating a new one
     if (existingResponse && existingResponse.question) {
-      logger.debug('[generateNextQuestion] Question already exists for stage', nextStage);
       return res.json({
         stage_id: nextStage,
         question: existingResponse.question,
         preamble: existingResponse.preamble || 'Continuing with your next question:',
-        based_on_question_id: existingResponse.source_question_id,
       });
     }
 
     // Generate new question only if one doesn't exist
-    logger.debug('[generateNextQuestion] Generating new question for stage', nextStage);
 
     // === GENERATE NEW QUESTION ===
     // The following code only runs when we need to create a new question
-
-    // Get similar questions based on the answer
-    const similarQuestions = await searchQuestionsInRAG(req, searchQuery, 20);
-
-    if (!Array.isArray(similarQuestions) || similarQuestions.length === 0) {
-      return handleError(res, { text: 'No similar questions found for context' }, 404);
-    }
-
     // Get all previous questions and answers in this conversation
     const previousResponses = await MentorResponse.find({
       mentor_interest: mentor_interest_id,
@@ -503,10 +464,7 @@ async function generateNextQuestion(req, res) {
     }).sort({ stage_id: 1 });
 
     // Get mentor's profile information
-    const mentorProfile = await MentorInterest.findById(mentor_interest_id);
-    if (!mentorProfile) {
-      return handleError(res, { text: 'Mentor profile not found' }, 404);
-    }
+    const mentorProfile = req.mentorInterest;
 
     // Build conversation history
     const conversationHistory = previousResponses.map(response => {
@@ -517,28 +475,10 @@ async function generateNextQuestion(req, res) {
       };
     });
 
-    // Extract question IDs and fetch full question data
-    const fileIds = similarQuestions
-      .map((h) => {
-        let [jsonStr, sim] = Array.isArray(h) ? h : [h, null];
-        let obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
-        if (Array.isArray(obj)) obj = obj[0];
-        return obj.metadata?.file_id;
-      })
-      .filter(Boolean);
-
-    const contextQuestions = await MentorQuestion.find({ _id: { $in: fileIds } }).lean();
-
     // Create OpenAI client and generate question
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-
-    // Build context for AI
-    const contextQuestionsText = contextQuestions
-      .slice(0, 10) // Limit to top 10
-      .map((q, i) => `${i + 1}. [ID: ${q._id}] ${q.question}`)
-      .join('\n');
 
     const payload = [
       {
@@ -546,10 +486,10 @@ async function generateNextQuestion(req, res) {
         content: `
 You are MELD's mentor interviewer AI. Your job is to choose or generate follow-up questions that extract actionable or emotionally resonant advice for young women (ages 20-25) based on mentors' responses.
 
-Your goal is to sound like a smart, empathetic older sister—someone who’s strategic, curious, and grounded, but also real about what it’s like to be starting out.
+Your goal is to sound like a smart, empathetic older sister—someone who's strategic, curious, and grounded, but also real about what it's like to be starting out.
 
 ---
-Focus Areas (aligned with MELD’s 4 Pillars):
+Focus Areas (aligned with MELD's 4 Pillars):
 1. Starting Points to Success – early-career mindset, career discovery, rejection, growth, mentorship, resilience, leadership, community
 2. Profile & Presentation – interviews, first impressions, storytelling, personal brand, professional presence, visibility, online identity
 3. Financial Fluency – salary negotiation, compensation strategy, early money habits, investing, equity, financial boundaries, talking about money
@@ -557,54 +497,60 @@ Focus Areas (aligned with MELD’s 4 Pillars):
 
 ---
 How to Ask Questions:
-- Use the mentor’s specific background (title, industry, experience) to craft deeply relevant and non-generic questions
-- Aim for either actionable steps or emotional clarity—depending on what the mentor’s response calls for
+- Use the mentor's specific background (title, industry, experience) to craft deeply relevant and non-generic questions
+- Aim for either actionable steps or emotional clarity—depending on what the mentor's response calls for
 - Ask questions that a 22-year-old woman would actually ask or text her best friend about after a long day at work
+- Encourage specific stories and examples by asking about particular moments, situations, or experiences
+- Frame questions to elicit "Tell me about a time when..." or "What did that look like for you?" responses
 
 Follow-Up Behavior:
-- If the mentor's answer feels surface-level, vague, or general, ask a follow-up that digs deeper into *how* they did it, *what it looked like in action*, or *what advice they’d give their younger self*
+- If the mentor's answer feels surface-level, vague, or general, ask a follow-up that digs deeper into *how* they did it, *what it looked like in action*, or *what advice they'd give their younger self*
 - If the mentor already gave a specific, in-depth answer, move to a new topic to keep the conversation fresh
 - You are not just filling space—you are building understanding
 
 Tactics:
 - If the last answer was tactical, go emotional
 - If the last answer was emotional, go tactical
-- If the last few questions were serious, it’s okay to pivot into something lighter, more personal, or unexpected
+- If the last few questions were serious, it's okay to pivot into something lighter, more personal, or unexpected
 
 ---
 Formatting Instructions:
-Always respond in JSON with the following format:
-\`\`\`json
+IMPORTANT: Return ONLY plain JSON. Do not use markdown code blocks or any formatting. 
+Your response must be valid JSON that can be parsed directly:
+
 {
   "question": "Your question here",
-  "preamble": "A 1-2 sentence statement that connects the mentor's last response to your next question.",
-  "based_on_id": "existing_question_id_if_applicable_or_null"
+  "preamble": "A 1-2 sentence statement that connects the mentor's last response to your next question."
 }
-\`\`\`
+
+Do not wrap the JSON in \`\`\`json \`\`\` or any other formatting. Return the raw JSON object ONLY. NOTHING ELSE.
 
 ---
 What NOT to Do:
-- Don’t repeat question styles or themes already asked in the session
-- Don’t ask something the mentor already answered
-- Don’t ask vague questions like "What skills are important?"—be more specific, grounded, and situational
-- Don’t assume the user has leadership power—ask from the POV of someone just starting out
-- Don’t force a follow-up if the mentor already went deep—trust the pacing of the conversation
+- Don't repeat question styles or themes already asked in the session
+- Don't ask something the mentor already answered
+- Don't ask vague questions like "What skills are important?"—be more specific, grounded, and situational
+- Don't assume the user has leadership power—ask from the POV of someone just starting out
+- Don't force a follow-up if the mentor already went deep—trust the pacing of the conversation
 
 ---
 Great Example Questions:
-- "What’s one thing a new hire could say in a meeting to show they’re paying attention, without trying to sound overly polished?"
+- "What's one thing a new hire could say in a meeting to show they're paying attention, without trying to sound overly polished?"
 - "How do you make real friends at work without it feeling fake or forced?"
-- "If someone keeps interrupting you in meetings, what’s a respectful but firm way to push back?"
-- "What’s something you thought mattered at 22 that turned out not to matter at all?"
-- "If I’m exhausted but still want to grow, what’s one boundary I have to protect?"
+- "If someone keeps interrupting you in meetings, what's a respectful but firm way to push back?"
+- "What's something you thought mattered at 22 that turned out not to matter at all?"
+- "If I'm exhausted but still want to grow, what's one boundary I have to protect?"
+- "Tell me about a time when you had to advocate for yourself at work—what did that conversation actually sound like?"
+- "Can you walk me through a specific moment when you felt completely out of your depth? How did you handle it?"
+- "What's a mistake you made early in your career that you're actually grateful for now? What happened?"
 
 ---
 Tone: curious, confident, emotionally intelligent, honest, and helpful. You are here to get real answers for real young women trying to figure it out.
 `,
       },
-      {
-        role: 'user',
-        content: `MENTOR PROFILE:
+  {
+    role: 'user',
+      content: `MENTOR PROFILE:
 Name: ${mentorProfile.firstName} ${mentorProfile.lastName || ''}
 Job Title: ${mentorProfile.jobTitle}
 Company: ${mentorProfile.company || 'Not specified'}
@@ -612,163 +558,123 @@ Industry: ${mentorProfile.industry}
 Career Stage: ${mentorProfile.careerStage}
 Email: ${mentorProfile.email}`,
       },
-      {
-        role: 'user',
-        content: `CONVERSATION HISTORY:
+  {
+    role: 'user',
+      content: `CONVERSATION HISTORY:
 ${conversationHistory.map(entry => `Q${entry.stage}: ${entry.question}
 A${entry.stage}: ${entry.answer}`).join('\n\n')}`,
       },
-      {
-        role: 'user',
-        content: `Current mentor answer: "${effectiveAnswerText}"`,
+  {
+    role: 'user',
+      content: `Current mentor answer: "${effectiveAnswerText}"`,
       },
-      {
-        role: 'assistant',
-        content: `Here are ${contextQuestions.length} similar questions for context:\n${contextQuestionsText}`,
-      },
-      {
-        role: 'user',
-        content:
-          "Based on the mentor's profile, full conversation history, and latest answer, generate a thoughtful follow-up question that explores a NEW topic/area with actionable advice specific to their industry/role. Avoid repeating themes from previous questions.",
+  {
+    role: 'user',
+      content:
+    "Based on the mentor's profile, full conversation history, and latest answer, generate a thoughtful follow-up question that explores a NEW topic/area with actionable advice specific to their industry/role. Avoid repeating themes from previous questions.",
       },
     ];
 
-    // Use direct OpenAI API call to ensure no streaming
-    logger.debug('[generateNextQuestion] Making OpenAI API call with parameters:', {
-      model: 'gpt-4o-mini',
-      stream: false,
-      temperature: 0.7,
-      max_tokens: 200,
-      messagesCount: payload.length
-    });
+  // Use direct OpenAI API call to ensure no streaming
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: payload,
+    temperature: 0.7,
+    max_tokens: 200,
+    stream: false, // Explicitly disable streaming
+  });
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: payload,
-      temperature: 0.7,
-      max_tokens: 200,
-      stream: false, // Explicitly disable streaming
-    });
+  // Extract the response content
+  const completionText = completion.choices[0]?.message?.content || '';
 
-    logger.debug('[generateNextQuestion] OpenAI API response type:', {
-      isStream: completion instanceof ReadableStream,
-      hasChoices: !!completion.choices,
-      choicesLength: completion.choices?.length,
-      firstChoiceContent: completion.choices?.[0]?.message?.content?.substring(0, 100)
-    });
+  let aiResponse;
+  try {
+    // First, try to strip markdown code blocks if present
+    let jsonText = completionText.trim();
 
-    // Extract the response content
-    const completionText = completion.choices[0]?.message?.content || '';
+    // Remove markdown code blocks (```json ... ```) if present
+    const codeBlockMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (codeBlockMatch) {
+      jsonText = codeBlockMatch[1].trim();
+    }
 
-    logger.debug('[generateNextQuestion] Raw completion:', completionText);
-
-    let aiResponse;
-    try {
-      aiResponse = JSON.parse(completionText.trim());
-    } catch (parseError) {
-      logger.warn('[generateNextQuestion] JSON parse failed, trying fallback:', parseError);
-      // More aggressive fallback parsing
-      const jsonMatch = completionText.match(/\{[^}]*"question"[^}]*\}/);
-      if (jsonMatch) {
-        try {
-          aiResponse = JSON.parse(jsonMatch[0]);
-        } catch (fallbackError) {
-          logger.error('[generateNextQuestion] Fallback parse also failed:', fallbackError);
-          // Final fallback - extract question text manually
-          const questionMatch = completionText.match(/"question":\s*"([^"]+)"/);
-          aiResponse = {
-            question: questionMatch ? questionMatch[1] : 'What specific challenge would you like to discuss next?',
-            preamble: 'Thank you for sharing your insights.',
-            based_on_id: null,
-          };
-        }
-      } else {
-        // Ultimate fallback
+    aiResponse = JSON.parse(jsonText);
+  } catch (parseError) {
+    logger.warn('[generateNextQuestion] JSON parse failed, trying fallback:', parseError);
+    // More aggressive fallback parsing
+    const jsonMatch = completionText.match(/\{[^}]*"question"[^}]*\}/);
+    if (jsonMatch) {
+      try {
+        aiResponse = JSON.parse(jsonMatch[0]);
+      } catch (fallbackError) {
+        logger.error('[generateNextQuestion] Fallback parse also failed:', fallbackError);
+        // Final fallback - extract question text manually
+        const questionMatch = completionText.match(/"question":\s*"([^"]+)"/);
         aiResponse = {
-          question: 'What specific challenge would you like to discuss next?',
+          question: questionMatch ? questionMatch[1] : 'Failed to generate a question. Please navigate to the next question instead.',
           preamble: 'Thank you for sharing your insights.',
-          based_on_id: null,
         };
       }
+    } else {
+      logger.error('[generateNextQuestion] No valid JSON found in AI response:', completionText);
+      throw new Error('AI response did not contain valid JSON. Please refresh the page and try again.');
     }
+  }
 
-    // Ensure aiResponse has a preamble field (in case AI didn't include it)
-    if (!aiResponse.preamble) {
-      aiResponse.preamble = 'Thank you for sharing your insights. Here\'s your next question:';
-    }
+  // Ensure aiResponse has a preamble field (in case AI didn't include it)
+  if (!aiResponse.preamble) {
+    aiResponse.preamble = 'Thank you for sharing your insights. Here\'s your next question:';
+  }
 
-    // Save the generated question as a new response entry (or update if exists)
-    await MentorResponse.findOneAndUpdate(
-      {
-        mentor_interest: mentor_interest_id,
-        stage_id: nextStage,
-      },
-      {
-        question: aiResponse.question,
-        preamble: aiResponse.preamble,
-        source_question_id: aiResponse.based_on_id === "null" || aiResponse.based_on_id === null ? null : aiResponse.based_on_id,
-        response_text: '', // Will be filled when mentor answers
-        version: 1, // Reset version for new question
-      },
-      {
-        new: true,
-        upsert: true, // Create if doesn't exist
-      },
-    );
-
-    const finalResponse = {
+  // Save the generated question as a new response entry (or update if exists)
+  await MentorResponse.findOneAndUpdate(
+    {
+      mentor_interest: mentor_interest_id,
       stage_id: nextStage,
+    },
+    {
       question: aiResponse.question,
       preamble: aiResponse.preamble,
-      based_on_question_id: aiResponse.based_on_id,
-    };
+      response_text: '', // Will be filled when mentor answers
+      version: 1, // Reset version for new question
+    },
+    {
+      new: true,
+      upsert: true, // Create if doesn't exist
+    },
+  );
 
-    logger.debug('[generateNextQuestion] Sending final response:', finalResponse);
+  const finalResponse = {
+    stage_id: nextStage,
+    question: aiResponse.question,
+    preamble: aiResponse.preamble,
+  };
 
-    res.json(finalResponse);
-  } catch (err) {
-    logger.error('[generateNextQuestion] Error:', err);
-    return handleError(res, { text: 'Error generating next question' });
-  }
+  res.json(finalResponse);
+} catch (err) {
+  logger.error('[generateNextQuestion] Error:', err);
+  return handleError(res, { text: 'Error generating next question' });
+}
 }
 
 /**
- * @route GET /api/mentor-interest/:id
+ * @route GET /api/mentor-interview/:access_token
  */
 async function getMentorInterest(req, res) {
   try {
-    const { id } = req.params;
-    const interest = await MentorInterest.findById(id);
-    if (!interest) {
-      return handleError(res, { text: 'Mentor interest not found' }, 404);
-    }
-    res.json(interest);
+    res.json(req.mentorInterest);
   } catch (err) {
     return handleError(res, { text: 'Error fetching mentor interest' });
   }
 }
 
 /**
- * @route POST /api/mentor-interest/:id/generate-intro
- * @desc Generate grammatically correct personalized introduction using AI
- * @access Public
+ * @route POST /api/mentor-interview/:access_token/generate-intro
  */
 async function generatePersonalizedIntro(req, res) {
   try {
-    const { id } = req.params;
+    const mentorProfile = req.mentorInterest;
 
-    // Get mentor profile
-    const mentorProfile = await MentorInterest.findById(id);
-    if (!mentorProfile) {
-      return handleError(res, { text: 'Mentor profile not found' }, 404);
-    }
-
-    if (!mentorProfile.jobTitle || !mentorProfile.company) {
-      return handleError(res, { text: 'Job title and company are required for intro generation' }, 400);
-    }
-
-    // Create OpenAI client
-    const OpenAI = require('openai');
     const client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -797,27 +703,159 @@ Return ONLY the complete sentence, no extra punctuation, nothing else.`,
 
     // Generate the introduction
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-3.5-turbo',
       messages: payload,
-      temperature: 0.3,
+      temperature: 0.1,
       max_tokens: 150,
       stream: false,
     });
 
-    // Extract the response content
-    const completionText = completion.choices[0]?.message?.content || '';
+    const intro = completion.choices[0]?.message?.content?.trim();
 
-    logger.debug('[generatePersonalizedIntro] Generated intro:', completionText);
+    if (!intro) {
+      return handleError(res, { text: 'Failed to generate personalized introduction' });
+    }
 
-    res.json({
-      introduction: completionText,
-      jobTitle: mentorProfile.jobTitle,
-      company: mentorProfile.company,
-    });
-
+    res.json({ introduction: intro });
   } catch (err) {
     logger.error('[generatePersonalizedIntro] Error:', err);
     return handleError(res, { text: 'Error generating personalized introduction' });
+  }
+}
+
+/**
+ * @route GET /api/mentor-interview/:access_token/responses
+ * @desc Get all mentor responses for review
+ * @access Public (token validated)
+ */
+async function getAllMentorResponses(req, res) {
+  try {
+    const mentor_interest_id = req.mentorInterest._id;
+    const { all } = req.query;
+
+    let filter = { mentor_interest: mentor_interest_id };
+
+    if (!all) {
+      filter.status = 'pending';
+    }
+
+    const responses = await MentorResponse.find(filter)
+      .sort({ stage_id: 1 })
+      .lean();
+
+    res.json(responses);
+  } catch (err) {
+    return handleError(res, { text: 'Error fetching mentor responses' });
+  }
+}
+
+/**
+ * @route POST /api/mentor-interview/:access_token/grammar-fix
+ * @desc Return AI-cleaned versions of mentor responses
+ * @access Public (token validated)
+ */
+async function grammarFixMentorResponses(req, res) {
+  try {
+    const { answers } = req.body;
+
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return handleError(res, { text: 'Answers array is required' }, 400);
+    }
+
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const cleanedItems = [];
+
+    for (const { stage_id, text } of answers) {
+      if (!text || text.trim().length === 0) {
+        cleanedItems.push({ stage_id, cleaned: '' });
+        continue;
+      }
+
+      try {
+        const prompt = `Please fix grammar, spelling, and speech-to-text errors in this mentor response:
+
+${text}
+
+Return only the cleaned text.`;
+
+        const completion = await client.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.1,
+          max_tokens: text.length * 2,
+          stream: false,
+        });
+
+        const cleanedText = completion.choices[0]?.message?.content?.trim();
+
+        // If we got a valid response, use it; otherwise fall back to original
+        if (cleanedText && cleanedText.length > 0) {
+          cleanedItems.push({ stage_id, cleaned: cleanedText });
+        } else {
+          logger.warn(`[grammarFixMentorResponses] Empty response for stage ${stage_id}, using original text`);
+          cleanedItems.push({ stage_id, cleaned: text });
+        }
+      } catch (aiError) {
+        // Log the specific AI error but continue with original text
+        logger.warn(`[grammarFixMentorResponses] AI cleaning failed for stage ${stage_id}:`, {
+          error: aiError.message,
+          textLength: text.length,
+          stage_id
+        });
+
+        // Return original text when AI cleaning fails
+        cleanedItems.push({ stage_id, cleaned: text });
+      }
+    }
+
+    res.json({ items: cleanedItems });
+  } catch (err) {
+    logger.error('[grammarFixMentorResponses] Error:', err);
+    return handleError(res, { text: 'Error fixing grammar' });
+  }
+}
+
+/**
+ * @route POST /api/mentor-interview/:access_token/submit
+ * @desc Persist final text and set status=submitted
+ * @access Public (token validated)
+ */
+async function submitMentorResponses(req, res) {
+  try {
+    const { answers } = req.body;
+
+    if (!answers || !Array.isArray(answers)) {
+      return handleError(res, { text: 'Invalid answers format' }, 400);
+    }
+
+    // Update each response with final text and mark as submitted
+    for (const answer of answers) {
+      const { stage_id, text } = answer;
+
+      // Find and update the response
+      await MentorResponse.findOneAndUpdate(
+        {
+          mentor_interest: req.mentorInterest._id,
+          stage_id: stage_id
+        },
+        {
+          response_text: text || '',
+          status: 'submitted'
+        },
+        { new: true }
+      );
+    }
+
+    // Success response
+    res.json({ status: 'ok' });
+  } catch (err) {
+    logger.error('[submitMentorResponses] Error:', err);
+    return handleError(res, { text: 'Error submitting responses' });
   }
 }
 
@@ -834,5 +872,8 @@ module.exports = {
   generateNextQuestion,
   getMentorInterest,
   generatePersonalizedIntro,
-  getSimilarQuestions,
+  getAllMentorResponses,
+  grammarFixMentorResponses,
+  submitMentorResponses,
+  validateAccessToken,
 };

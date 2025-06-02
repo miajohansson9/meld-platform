@@ -61,9 +61,6 @@ function AuthLayout({
     <div className="relative flex min-h-screen flex-col bg-theme-cream dark:bg-gray-900">
       <Banner />
       <DisplayError />
-      <div className="absolute bottom-0 left-0 md:m-4">
-        <ThemeSelector />
-      </div>
 
       <div className="flex flex-grow flex-col items-center justify-center">
         <BlinkAnimation active={isFetching}>
@@ -71,7 +68,7 @@ function AuthLayout({
             <img src="/assets/logo-b.svg" alt="MELD" className="h-7 w-auto" />
           </div>
         </BlinkAnimation>
-        <div className="flex w-authPageWidth max-w-full flex-col gap-4 overflow-hidden rounded-lg dark:bg-gray-900">
+        <div className="flex max-w-lg max-w-full flex-col gap-4 overflow-hidden rounded-lg dark:bg-gray-900">
           {!hasStartupConfigError && !isFetching && (
             <h1
               className="font-serif text-center text-3xl font-medium leading-snug tracking-wide text-black dark:text-white sm:text-4xl"

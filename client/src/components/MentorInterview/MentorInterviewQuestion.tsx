@@ -1,10 +1,9 @@
 /* eslint-disable i18next/no-literal-string */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuthContext } from '~/hooks/AuthContext';
 import MentorAudioTextInput from './MentorAudioTextInput';
 
-const TOTAL_QUESTIONS = 10; // 10 questions total
+const TOTAL_QUESTIONS = 6; // 6 questions total
 
 interface Question {
   question: string;
@@ -25,9 +24,8 @@ const firstQuestion: Question = {
 };
 
 const MentorInterviewQuestion: React.FC = () => {
-  const { step, mentor_interest_id } = useParams<{ step?: string; mentor_interest_id?: string }>();
+  const { step, access_token } = useParams<{ step?: string; access_token?: string }>();
   const navigate = useNavigate();
-  const { token } = useAuthContext();
   const currentStep = Number(step) || 1;
   const [transcript, setTranscript] = useState('');
   const [paused, setPaused] = useState(false);
@@ -55,7 +53,7 @@ const MentorInterviewQuestion: React.FC = () => {
       setCurrentQuestion(null);
       
       try {
-        const response = await fetch(`/api/mentor-interest/${mentor_interest_id}/response/${currentStep}`);
+        const response = await fetch(`/api/mentor-interview/${access_token}/response/${currentStep}`);
         if (response.ok) {
           const data = await response.json();
           setCurrentQuestion({
@@ -83,7 +81,7 @@ const MentorInterviewQuestion: React.FC = () => {
     };
 
     loadQuestion();
-  }, [currentStep, mentor_interest_id, getQuestionPreamble]);
+  }, [currentStep, access_token, getQuestionPreamble]);
 
   const onInputStateChange = useCallback(
     ({ paused: p, transcript: t }: { paused: boolean; transcript: string }) => {
@@ -100,11 +98,11 @@ const MentorInterviewQuestion: React.FC = () => {
   const goBack = useCallback(() => {
     setIsLoadingQuestion(true);
     if (currentStep > 1) {
-      navigate(`/${mentor_interest_id}/mentor-interview/question/${currentStep - 1}`);
+      navigate(`/mentor-interview/${access_token}/question/${currentStep - 1}`);
     } else {
-      navigate(`/${mentor_interest_id}/mentor-interview/start`);
+      navigate(`/mentor-interview/${access_token}/start`);
     }
-  }, [navigate, mentor_interest_id, currentStep]);
+  }, [navigate, access_token, currentStep]);
 
   // Unified action handler - handles all continue/skip/finish actions
   const handleAction = useCallback(async (actionType: 'continue' | 'skip' | 'finish') => {
@@ -117,16 +115,15 @@ const MentorInterviewQuestion: React.FC = () => {
       }
       
       if (actionType === 'finish') {
-        navigate('/mentor-interview/complete');
+        navigate(`/mentor-interview/${access_token}/review`);
         return;
       }
 
       // Generate next question (continue or skip)
-      const response = await fetch(`/api/mentor-interest/${mentor_interest_id}/next-question`, {
+      const response = await fetch(`/api/mentor-interview/${access_token}/generate-question`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           previous_stage_id: currentStep,
@@ -147,7 +144,7 @@ const MentorInterviewQuestion: React.FC = () => {
         if (nextQuestionData.stage_id) {
           // Navigate to next question
           setIsLoadingQuestion(true);
-          navigate(`/${mentor_interest_id}/mentor-interview/question/${currentStep + 1}`);
+          navigate(`/mentor-interview/${access_token}/question/${currentStep + 1}`);
         } else {
           alert('Received incomplete response from server. Please try again.');
         }
@@ -160,9 +157,9 @@ const MentorInterviewQuestion: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentStep, transcript, navigate, mentor_interest_id, token]);
+  }, [currentStep, transcript, navigate, access_token]);
 
-  if (!mentor_interest_id || !currentQuestion) return null;
+  if (!access_token || !currentQuestion) return null;
 
   const hasContent = transcript.trim().length > 0;
   const isFinalQuestion = currentStep === TOTAL_QUESTIONS;
@@ -220,7 +217,7 @@ const MentorInterviewQuestion: React.FC = () => {
         ) : (
           <div className="mt-4 flex w-full flex-col items-center">
             <MentorAudioTextInput
-              mentorInterestId={mentor_interest_id}
+              accessToken={access_token}
               stageId={currentStep}
               onStateChange={onInputStateChange}
               onSave={(saveFn) => {
@@ -235,15 +232,30 @@ const MentorInterviewQuestion: React.FC = () => {
         {!isLoadingQuestion && (
           <div className="mt-8">
             {isFinalQuestion ? (
-              // Final question: Just finish button
+              // Final question: Review Answers button as per MentorReviewSubmitSpec.md
               <>
                 <div className="mb-6">
                   <button
-                    className="w-full rounded-md bg-[#B04A2F] py-3 px-4 text-base font-medium text-white transition hover:bg-[#8a3a23] focus:outline-none focus:ring-2 focus:ring-[#B04A2F] focus:ring-offset-2"
+                    className="w-full rounded-md bg-[#B04A2F] py-3 px-4 text-base font-medium text-white transition hover:bg-[#8a3a23] focus:outline-none focus:ring-2 focus:ring-[#B04A2F] focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     onClick={() => handleAction('finish')}
                     disabled={isLoading}
                   >
-                    {isLoading ? 'Finishing...' : '✓ Finish Interview'}
+                    {isLoading ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="relative">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+                          <div className="absolute inset-0 rounded-full h-5 w-5 border-2 border-transparent border-t-white animate-pulse"></div>
+                        </div>
+                        <span className="animate-pulse">Preparing your review...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Review Your Answers
+                      </div>
+                    )}
                   </button>
                 </div>
                 
@@ -258,7 +270,7 @@ const MentorInterviewQuestion: React.FC = () => {
                 </div>
               </>
             ) : (
-              // Questions 1-2: Continue to next question
+              // Questions 1-9: Continue to next question
               <div className="flex items-center justify-between">
                 <button 
                   className="text-sm text-gray-500 hover:text-gray-700 underline"
@@ -270,11 +282,36 @@ const MentorInterviewQuestion: React.FC = () => {
 
                 {(hasContent || currentStep > 1) && (
                   <button
-                    className="text-sm text-[#B04A2F] hover:text-[#8a3a23] underline font-medium"
+                    className="text-sm text-[#B04A2F] hover:text-[#8a3a23] underline font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
                     onClick={() => handleAction(hasContent ? 'continue' : 'skip')}
                     disabled={isLoading || (!hasContent && !paused)}
                   >
-                    {isLoading ? 'Processing...' : (hasContent ? 'Continue →' : 'Skip question →')}
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <span className="animate-pulse">
+                          {hasContent ? 'Saving Answer' : 'Moving ahead'}
+                        </span>
+                        <div className="animate-spin rounded-full h-3 w-3 border border-[#B04A2F]/30 border-t-[#B04A2F]"></div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        {hasContent ? (
+                          <>
+                            <span>Continue</span>
+                            <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            <span>Skip question</span>
+                            <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </button>
                 )}
               </div>

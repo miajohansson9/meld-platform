@@ -34,6 +34,14 @@ const mentorResponseSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    status: {
+      type: String,
+      enum: ['pending', 'submitted'],
+      default: 'pending',
+    },
+    submitted_at: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

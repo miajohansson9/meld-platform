@@ -12,10 +12,56 @@ const {
   generateNextQuestion,
   getMentorInterest,
   generatePersonalizedIntro,
-  getSimilarQuestions,
+  getAllMentorResponses,
+  grammarFixMentorResponses,
+  submitMentorResponses,
+  validateAccessToken,
 } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
+
+// ============================================
+// ADMIN/AUTHENTICATED ROUTES (require JWT)
+// ============================================
+
+/**
+ * @route GET /api/mentor-interest
+ * @desc Get all mentor interest responses (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.get('/', requireJwtAuth, getMentorInterests);
+
+/**
+ * @route GET /api/mentor-interest/questions
+ * @desc Get all mentor questions (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.get('/questions', requireJwtAuth, getMentorQuestions);
+
+/**
+ * @route POST /api/mentor-interest/questions
+ * @desc Add a new mentor question (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.post('/questions', requireJwtAuth, addMentorQuestion);
+
+/**
+ * @route PUT /api/mentor-interest/questions/:id
+ * @desc Update an existing mentor question (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.put('/questions/:id', requireJwtAuth, updateMentorQuestion);
+
+/**
+ * @route POST /api/mentor-interest/questions/search
+ * @desc Search all mentor questions (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
+
+// ============================================
+// PUBLIC ROUTES (no authentication required)
+// ============================================
 
 /**
  * @route POST /api/mentor-interest
@@ -24,80 +70,64 @@ const router = express.Router();
  */
 router.post('/', submitMentorInterest);
 
-/**
- * @route GET /api/mentor-interest
- * @desc Get all mentor interest responses
- * @access Admin (for now, public)
- */
-router.get('/', getMentorInterests);
+// ============================================
+// MENTOR INTERVIEW ROUTES (access token required)
+// ============================================
 
 /**
- * @route GET /api/mentor-interest/questions
- * @desc Get all mentor questions
- * @access Admin (for now, public)
+ * @route GET /api/mentor-interview/:access_token
+ * @desc Get mentor interest data by access token
+ * @access Public (token validated)
  */
-router.get('/questions', getMentorQuestions);
+router.get('/:access_token', validateAccessToken, getMentorInterest);
 
 /**
- * @route GET /api/mentor-interest/questions/similar
- * @desc Get semantically similar questions based on input text
- * @access Private (requires JWT)
+ * @route POST /api/mentor-interview/:access_token/generate-intro
+ * @desc Generate personalized introduction using AI
+ * @access Public (token validated)
  */
-router.get('/questions/similar', requireJwtAuth, getSimilarQuestions);
+router.post('/:access_token/generate-intro', validateAccessToken, generatePersonalizedIntro);
 
 /**
- * @route POST /api/mentor-interest/questions
- * @desc Add a new mentor question
- * @access Admin (for now, public)
- */
-router.post('/questions', requireJwtAuth, addMentorQuestion);
-
-/**
- * @route PUT /api/mentor-interest/questions/:id
- * @desc Update an existing mentor question
- * @access Admin (for now, public)
- */
-router.put('/questions/:id', requireJwtAuth, updateMentorQuestion);
-
-/**
- * @route POST /api/mentor-interest/questions/search
- * @desc  Search all mentor questions (requires auth)
- */
-router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
-
-/**
- * @route GET /api/mentor-interest/:id
- * @desc Get a single mentor interest by ID
- * @access Public (can be auth-gated later)
- */
-router.get('/:id', getMentorInterest);
-
-/**
- * @route POST /api/mentor-interest/:id/generate-intro
- * @desc Generate grammatically correct personalized introduction using AI
- * @access Public
- */
-router.post('/:id/generate-intro', generatePersonalizedIntro);
-
-/**
- * @route POST /api/mentor-interest/:mentor_interest_id/next-question
+ * @route POST /api/mentor-interview/:access_token/generate-question
  * @desc Generate next adaptive question using AI
- * @access Private (requires JWT)
+ * @access Public (token validated)
  */
-router.post('/:mentor_interest_id/next-question', requireJwtAuth, generateNextQuestion);
+router.post('/:access_token/generate-question', validateAccessToken, generateNextQuestion);
 
 /**
- * @route POST /api/mentor-interest/:mentor_interest_id/response/:stage_id
+ * @route POST /api/mentor-interview/:access_token/response/:stage_id
  * @desc Add or update a mentor response
- * @access Public
+ * @access Public (token validated)
  */
-router.post('/:mentor_interest_id/response/:stage_id', upsertMentorResponse);
+router.post('/:access_token/response/:stage_id', validateAccessToken, upsertMentorResponse);
 
 /**
- * @route GET /api/mentor-interest/:mentor_interest_id/response/:stage_id
- * @desc  Retrieve a single mentor response for this mentor & stage.
- * @access Public
+ * @route GET /api/mentor-interview/:access_token/response/:stage_id
+ * @desc Retrieve a single mentor response
+ * @access Public (token validated)
  */
-router.get('/:mentor_interest_id/response/:stage_id', getMentorResponse);
+router.get('/:access_token/response/:stage_id', validateAccessToken, getMentorResponse);
+
+/**
+ * @route GET /api/mentor-interview/:access_token/responses
+ * @desc Get all mentor responses for review
+ * @access Public (token validated)
+ */
+router.get('/:access_token/responses', validateAccessToken, getAllMentorResponses);
+
+/**
+ * @route POST /api/mentor-interview/:access_token/grammar-fix
+ * @desc Return AI-cleaned versions of mentor responses
+ * @access Public (token validated)
+ */
+router.post('/:access_token/grammar-fix', validateAccessToken, grammarFixMentorResponses);
+
+/**
+ * @route POST /api/mentor-interview/:access_token/submit
+ * @desc Submit final mentor responses
+ * @access Public (token validated)
+ */
+router.post('/:access_token/submit', validateAccessToken, submitMentorResponses);
 
 module.exports = router;

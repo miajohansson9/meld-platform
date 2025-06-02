@@ -9,7 +9,7 @@ import React, {
 import { useSpeechToTextIncremental } from '~/hooks';
 
 interface MentorAudioTextInputProps {
-  mentorInterestId: string;
+  accessToken: string;
   stageId: number;
   onStateChange?: (s: { paused: boolean; transcript: string }) => void;
   onSave?: (saveFn: () => Promise<void>) => void;
@@ -17,7 +17,7 @@ interface MentorAudioTextInputProps {
 }
 
 const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
-  mentorInterestId,
+  accessToken,
   stageId,
   onStateChange,
   onSave,
@@ -36,14 +36,14 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
   useEffect(() => {
     (async () => {
       const res = await fetch(
-        `/api/mentor-interest/${mentorInterestId}/response/${stageId}`,
+        `/api/mentor-interview/${accessToken}/response/${stageId}`,
       );
       if (!res.ok) return;
       const { response_text = '' } = await res.json();
       savedRef.current = response_text;
       setTranscript(response_text);
     })().catch(console.error);
-  }, [mentorInterestId, stageId]);
+  }, [accessToken, stageId]);
 
   /* ───────── save ───────── */
   const saveTranscript = useCallback(async () => {
@@ -55,7 +55,7 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
     if (text === savedRef.current) return;
 
     const res = await fetch(
-      `/api/mentor-interest/${mentorInterestId}/response/${stageId}`,
+      `/api/mentor-interview/${accessToken}/response/${stageId}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ const MentorAudioTextInput: React.FC<MentorAudioTextInputProps> = ({
       savedRef.current = response_text;
       onSaveComplete?.(response_text);
     }
-  }, [mentorInterestId, stageId, transcript, onSaveComplete]);
+  }, [accessToken, stageId, transcript, onSaveComplete]);
 
   /* expose save → parent */
   useEffect(() => {

@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 const MentorInterviewStart: React.FC = () => {
   const navigate = useNavigate();
-  const { mentor_interest_id } = useParams();
+  const { access_token } = useParams();
   const [mentorName, setMentorName] = useState<string>('');
   const [mentorProfile, setMentorProfile] = useState<any>(null);
   const [personalizedIntro, setPersonalizedIntro] = useState<string>('');
@@ -12,10 +12,12 @@ const MentorInterviewStart: React.FC = () => {
   const [isGeneratingIntro, setIsGeneratingIntro] = useState(false);
 
   // Generate personalized introduction using the backend endpoint
-  const generatePersonalizedIntro = async (mentorId: string) => {
+  const generatePersonalizedIntro = async () => {
+    if (!access_token) return;
+    
     setIsGeneratingIntro(true);
     try {
-      const response = await fetch(`/api/mentor-interest/${mentorId}/generate-intro`, {
+      const response = await fetch(`/api/mentor-interview/${access_token}/generate-intro`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -26,14 +28,11 @@ const MentorInterviewStart: React.FC = () => {
         const data = await response.json();
         setPersonalizedIntro(data.introduction);
       } else {
-        // Fallback to the original template if API fails
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Error generating intro:', errorData);
+        console.error('Error generating intro:', await response.json().catch(() => ({})));
         setPersonalizedIntro('');
       }
     } catch (error) {
       console.error('Error generating personalized intro:', error);
-      // Fallback - let the component use the original template
       setPersonalizedIntro('');
     } finally {
       setIsGeneratingIntro(false);
@@ -43,34 +42,70 @@ const MentorInterviewStart: React.FC = () => {
   // Fetch mentor's name when component mounts
   useEffect(() => {
     const fetchMentorInfo = async () => {
-      if (!mentor_interest_id) return;
+      console.log('=== FETCH MENTOR INFO DEBUG ===');
+      console.log('access_token value:', access_token);
+      console.log('access_token type:', typeof access_token);
+      console.log('access_token length:', access_token?.length);
+      
+      if (!access_token) {
+        console.error('No access_token found:', access_token);
+        return;
+      }
+
+      console.log('Fetching mentor info for token:', access_token);
+      const apiUrl = `/api/mentor-interview/${access_token}`;
+      console.log('Full API URL:', apiUrl);
 
       try {
-        const response = await fetch(`/api/mentor-interest/${mentor_interest_id}`);
+        console.log('About to make fetch request...');
+        const response = await fetch(apiUrl);
+        console.log('Fetch completed. Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        console.log('Response ok:', response.ok);
+        
         if (response.ok) {
-          const mentorData = await response.json();
-          setMentorName(mentorData.firstName || 'there');
-          setMentorProfile(mentorData);
+          console.log('Response is OK, parsing JSON...');
+          const responseText = await response.text();
+          console.log('Raw response text:', responseText);
+          console.log('Response text length:', responseText.length);
+          console.log('First 200 characters:', responseText.substring(0, 200));
           
-          // Generate personalized intro if we have job title and company
-          if (mentorData.jobTitle && mentorData.company) {
-            await generatePersonalizedIntro(mentor_interest_id);
+          try {
+            const mentorData = JSON.parse(responseText);
+            console.log('Mentor profile data received:', mentorData);
+            
+            setMentorName(mentorData.firstName || 'there');
+            setMentorProfile(mentorData);
+            
+            // Generate personalized intro if we have job title and company
+            if (mentorData.jobTitle && mentorData.company) {
+              console.log('Generating personalized intro for:', mentorData.jobTitle, 'at', mentorData.company);
+              await generatePersonalizedIntro();
+            } else {
+              console.log('No jobTitle/company found, using default intro. JobTitle:', mentorData.jobTitle, 'Company:', mentorData.company);
+            }
+          } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            console.error('Response was not valid JSON. This suggests the backend is returning HTML instead of JSON.');
+            setMentorName('there');
           }
         } else {
-          setMentorName('there'); // Fallback greeting
+          const errorText = await response.text();
+          console.error('Error fetching mentor profile:', response.status, errorText);
+          setMentorName('there');
         }
       } catch (error) {
         console.error('Error fetching mentor info:', error);
-        setMentorName('there'); // Fallback greeting
+        console.error('Error details:', (error as Error).message, (error as Error).stack);
+        setMentorName('there');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchMentorInfo();
-  }, [mentor_interest_id]);
+  }, [access_token]);
 
-  // Show loading state while fetching mentor data
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#F8F4EB] p-4">
@@ -83,7 +118,7 @@ const MentorInterviewStart: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center bg-[#F8F4EB] p-4">
+    <div className="flex flex-col items-center justify-center bg-[#F8F4EB]">
       <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg sm:p-8">
         {/* MELD Logo */}
         <div className="mb-4 flex justify-start">
@@ -129,7 +164,7 @@ const MentorInterviewStart: React.FC = () => {
         {/* Ready Button */}
         <button
           className="mb-6 w-full rounded-md bg-[#B04A2F] py-3 text-lg text-white transition hover:bg-[#8a3a23]"
-          onClick={() => navigate(`/${mentor_interest_id}/mentor-interview/question/1`)}
+          onClick={() => navigate(`/mentor-interview/${access_token}/question/1`)}
         >
           I'm ready &rarr;
         </button>
@@ -148,7 +183,7 @@ const MentorInterviewStart: React.FC = () => {
             <path d="M16 3v4M8 3v4M3 9h18" strokeWidth="2" />
           </svg>
           <span className="text-base">
-            Don't have time now? Schedule a time to complete the interview.
+            Don't have time now? Bookmark this page and come back later.
           </span>
         </div>
       </div>

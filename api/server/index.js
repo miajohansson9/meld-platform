@@ -95,6 +95,7 @@ const startServer = async () => {
   app.use('/api/convos', routes.convos);
   app.use('/api/presets', routes.presets);
   app.use('/api/mentor-interest', routes.mentorInterest);
+  app.use('/api/mentor-interview', routes.mentorInterest);
   app.use('/api/prompts', routes.prompts);
   app.use('/api/categories', routes.categories);
   app.use('/api/tokenizer', routes.tokenizer);

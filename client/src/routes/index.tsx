@@ -22,6 +22,7 @@ import MentorInterview from './Layouts/MentorInterview';
 import MentorInterviewStart from '~/components/MentorInterview/MentorInterviewStart';
 import MentorInterviewQuestion from '~/components/MentorInterview/MentorInterviewQuestion';
 import MentorInterviewComplete from '~/components/MentorInterview/MentorInterviewComplete';
+import MentorInterviewReview from '~/components/MentorInterview/MentorInterviewReview';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -64,6 +65,31 @@ export const router = createBrowserRouter([
     element: <VerifyEmail />,
     errorElement: <RouteErrorBoundary />,
   },
+  // SECURE mentor interview routes - access token required (REMOVED OLD ROUTES)
+  {
+    path: '/mentor-interview/:access_token',
+    element: <MentorInterview />,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        path: 'start',
+        element: <MentorInterviewStart />,
+      },
+      {
+        path: 'question/:step',
+        element: <MentorInterviewQuestion />,
+      },
+      {
+        path: 'review',
+        element: <MentorInterviewReview />,
+      },
+    ],
+  },
+  {
+    path: '/mentor-interview/complete',
+    element: <MentorInterviewComplete />,
+    errorElement: <RouteErrorBoundary />,
+  },
   {
     element: <AuthLayout />,
     errorElement: <RouteErrorBoundary />,
@@ -100,24 +126,6 @@ export const router = createBrowserRouter([
             element: <Search />,
           },
         ],
-      },
-      {
-        path: '/:mentor_interest_id/mentor-interview',
-        element: <MentorInterview />,
-        children: [
-          {
-            path: 'start',
-            element: <MentorInterviewStart />,
-          },
-          {
-            path: 'question/:step',
-            element: <MentorInterviewQuestion />,
-          },
-        ],
-      },
-      {
-        path: '/mentor-interview/complete',
-        element: <MentorInterviewComplete />,
       },
     ],
   },
