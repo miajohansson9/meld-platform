@@ -79,7 +79,7 @@ const useSpeechToTextBrowser = (
 
     if (!isMicrophoneAvailable) {
       showToast({
-        message: 'Microphone is not available',
+        message: 'Microphone is not available. Please open in Safari',
         status: 'error',
       });
       return;

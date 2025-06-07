@@ -16,6 +16,9 @@ const {
   grammarFixMentorResponses,
   submitMentorResponses,
   validateAccessToken,
+  deleteMentorInterest,
+  generateAccessToken,
+  getAdminMentorResponses,
 } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
@@ -32,11 +35,25 @@ const router = express.Router();
 router.get('/', requireJwtAuth, getMentorInterests);
 
 /**
+ * @route DELETE /api/mentor-interest/:id
+ * @desc Delete a mentor interest submission (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.delete('/:id', requireJwtAuth, deleteMentorInterest);
+
+/**
  * @route GET /api/mentor-interest/questions
  * @desc Get all mentor questions (ADMIN)
  * @access Private (requires JWT)
  */
 router.get('/questions', requireJwtAuth, getMentorQuestions);
+
+/**
+ * @route GET /api/mentor-interest/admin-responses
+ * @desc Get all mentor responses with mentor details (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.get('/admin-responses', requireJwtAuth, getAdminMentorResponses);
 
 /**
  * @route POST /api/mentor-interest/questions
@@ -58,6 +75,13 @@ router.put('/questions/:id', requireJwtAuth, updateMentorQuestion);
  * @access Private (requires JWT)
  */
 router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
+
+/**
+ * @route POST /api/mentor-interest/:id/generate-token
+ * @desc Generate access token for existing mentor interest submission (ADMIN)
+ * @access Private (requires JWT)
+ */
+router.post('/:id/generate-token', requireJwtAuth, generateAccessToken);
 
 // ============================================
 // PUBLIC ROUTES (no authentication required)

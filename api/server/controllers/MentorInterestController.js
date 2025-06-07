@@ -212,7 +212,25 @@ async function submitMentorInterest(req, res) {
  */
 async function getMentorInterests(req, res) {
   try {
-    const interests = await MentorInterest.find().sort({ createdAt: -1 });
+    // Use aggregation to include accessToken only if it exists in the document
+    const interests = await MentorInterest.aggregate([
+      {
+        $addFields: {
+          // Only include accessToken if the field exists in the document
+          accessToken: {
+            $cond: {
+              if: { $ifNull: ["$accessToken", false] },
+              then: "$accessToken",
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $sort: { createdAt: -1 }
+      }
+    ]);
+    
     res.json(interests);
   } catch (err) {
     return handleError(res, { text: 'Error fetching mentor interests' });
@@ -859,6 +877,145 @@ async function submitMentorResponses(req, res) {
   }
 }
 
+/**
+ * @route DELETE /api/mentor-interest/:id
+ * @desc Delete a mentor interest submission (ADMIN)
+ * @access Private (requires JWT)
+ */
+async function deleteMentorInterest(req, res) {
+  try {
+    const { id } = req.params;
+    
+    // Find the mentor interest to check if it exists
+    const mentorInterest = await MentorInterest.findById(id);
+    if (!mentorInterest) {
+      return handleError(res, { text: 'Mentor interest submission not found' }, 404);
+    }
+    
+    // Count associated mentor responses before deletion
+    const responseCount = await MentorResponse.countDocuments({ mentor_interest: id });
+    logger.debug(`[deleteMentorInterest] Found ${responseCount} associated mentor responses for mentor interest ${id}`);
+    
+    // Delete all associated mentor responses first
+    const deleteResponsesResult = await MentorResponse.deleteMany({ mentor_interest: id });
+    logger.debug(`[deleteMentorInterest] Deleted ${deleteResponsesResult.deletedCount} mentor responses for mentor interest ${id}`);
+    
+    // Delete the mentor interest submission
+    await MentorInterest.findByIdAndDelete(id);
+    logger.debug(`[deleteMentorInterest] Successfully deleted mentor interest ${id} and ${deleteResponsesResult.deletedCount} associated responses`);
+    
+    res.json({ 
+      status: 'ok', 
+      message: `Mentor interest submission and ${deleteResponsesResult.deletedCount} associated responses deleted successfully`,
+      deletedResponses: deleteResponsesResult.deletedCount
+    });
+  } catch (err) {
+    logger.error('[deleteMentorInterest] Error:', err);
+    return handleError(res, { text: 'Error deleting mentor interest submission' });
+  }
+}
+
+/**
+ * @route POST /api/mentor-interest/:id/generate-token
+ * @desc Generate access token for existing mentor interest submission (ADMIN)
+ * @access Private (requires JWT)
+ */
+async function generateAccessToken(req, res) {
+  try {
+    const { id } = req.params;
+    
+    // Find the mentor interest submission
+    const mentorInterest = await MentorInterest.findById(id);
+    if (!mentorInterest) {
+      return handleError(res, { text: 'Mentor interest submission not found' }, 404);
+    }
+    
+    // Generate new access token and expiration
+    const crypto = require('crypto');
+    const newAccessToken = crypto.randomBytes(32).toString('hex');
+    const newTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    
+    // Update the submission with new token
+    const updatedMentorInterest = await MentorInterest.findByIdAndUpdate(
+      id,
+      {
+        accessToken: newAccessToken,
+        tokenExpiresAt: newTokenExpiresAt
+      },
+      { new: true }
+    ).select('+accessToken +tokenExpiresAt');
+    
+    logger.info(`[generateAccessToken] Generated new access token for mentor interest ${id}`);
+    
+    res.json({
+      status: 'ok',
+      message: 'Access token generated successfully',
+      accessToken: updatedMentorInterest.accessToken,
+      tokenExpiresAt: updatedMentorInterest.tokenExpiresAt
+    });
+  } catch (err) {
+    logger.error('[generateAccessToken] Error:', err);
+    return handleError(res, { text: 'Error generating access token' });
+  }
+}
+
+/**
+ * @route GET /api/mentor-interest/admin-responses
+ * @desc Get all mentor responses with mentor details (ADMIN)
+ * @access Private (requires JWT)
+ */
+async function getAdminMentorResponses(req, res) {
+  try {
+    // Use aggregation to join mentor responses with mentor interest data
+    const responses = await MentorResponse.aggregate([
+      {
+        $lookup: {
+          from: 'mentorinterests', // MongoDB collection name (lowercase + 's')
+          localField: 'mentor_interest',
+          foreignField: '_id',
+          as: 'mentor'
+        }
+      },
+      {
+        $unwind: '$mentor' // Flatten the mentor array
+      },
+      {
+        $match: {
+          response_text: { $exists: true, $ne: '' } // Only include responses with actual text
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          stage_id: 1,
+          question: 1,
+          preamble: 1,
+          response_text: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          mentor_id: '$mentor._id',
+          mentor_name: {
+            $concat: ['$mentor.firstName', ' ', { $ifNull: ['$mentor.lastName', ''] }]
+          },
+          mentor_email: '$mentor.email',
+          mentor_jobTitle: '$mentor.jobTitle',
+          mentor_company: '$mentor.company',
+          mentor_accessToken: '$mentor.accessToken' // Include access token for direct links
+        }
+      },
+      {
+        $sort: { 'mentor.createdAt': -1, stage_id: 1 } // Sort by mentor creation date, then stage
+      }
+    ]);
+
+    res.json(responses);
+  } catch (err) {
+    logger.error('[getAdminMentorResponses] Error:', err);
+    return handleError(res, { text: 'Error fetching mentor responses' });
+  }
+}
+
 module.exports = {
   storeQuestionInRAG,
   submitMentorInterest,
@@ -876,4 +1033,7 @@ module.exports = {
   grammarFixMentorResponses,
   submitMentorResponses,
   validateAccessToken,
+  deleteMentorInterest,
+  generateAccessToken,
+  getAdminMentorResponses,
 };
