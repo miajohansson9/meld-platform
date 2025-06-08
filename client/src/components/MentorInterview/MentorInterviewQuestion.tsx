@@ -2,8 +2,14 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MentorAudioTextInput from './MentorAudioTextInput';
+import MentorQuestionCard from './MentorQuestionCard';
+import BackgroundTranscriptionIndicator from './BackgroundTranscriptionIndicator';
+import { useTranscriptionStatus } from '~/hooks/Input/useTranscriptionStatus';
 
 const TOTAL_QUESTIONS = 6; // 6 questions total
+
+// Feature flag for background transcription
+const ENABLE_BACKGROUND_TRANSCRIPTION = true
 
 interface Question {
   question: string;
@@ -29,10 +35,22 @@ const MentorInterviewQuestion: React.FC = () => {
   const currentStep = Number(step) || 1;
   const [transcript, setTranscript] = useState('');
   const [paused, setPaused] = useState(false);
+  const [hasAudio, setHasAudio] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const saveRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Background transcription status tracking
+  const {
+    hasBackgroundProcessing,
+    pendingStages,
+    refresh: refreshTranscriptionStatus,
+  } = useTranscriptionStatus(
+    access_token,
+    ENABLE_BACKGROUND_TRANSCRIPTION, // Only enable polling if feature is enabled
+    3000 // Poll every 3 seconds
+  );
 
   // Helper function to generate question preamble
   const getQuestionPreamble = useCallback((step: number) => {
@@ -84,9 +102,12 @@ const MentorInterviewQuestion: React.FC = () => {
   }, [currentStep, access_token, getQuestionPreamble]);
 
   const onInputStateChange = useCallback(
-    ({ paused: p, transcript: t }: { paused: boolean; transcript: string }) => {
+    ({ paused: p, transcript: t, hasAudio: a }: { paused: boolean; transcript: string; hasAudio?: boolean }) => {
       setPaused(p);
       setTranscript(t);
+      if (a !== undefined) {
+        setHasAudio(a);
+      }
     },
     [],
   );
@@ -104,7 +125,24 @@ const MentorInterviewQuestion: React.FC = () => {
     }
   }, [navigate, access_token, currentStep]);
 
-  // Unified action handler - handles all continue/skip/finish actions
+  // Handle immediate navigation after audio upload
+  const handleContinueImmediate = useCallback(() => {
+    if (currentStep === TOTAL_QUESTIONS) {
+      // Final question - navigate to review
+      navigate(`/mentor-interview/${access_token}/review`);
+    } else {
+      // Navigate to next question immediately
+      setIsLoadingQuestion(true);
+      navigate(`/mentor-interview/${access_token}/question/${currentStep + 1}`);
+    }
+  }, [currentStep, navigate, access_token]);
+
+  // Handle final question completion (after transcription or timeout)
+  const handleFinalQuestionComplete = useCallback(() => {
+    navigate(`/mentor-interview/${access_token}/review`);
+  }, [navigate, access_token]);
+
+  // Legacy unified action handler for old component
   const handleAction = useCallback(async (actionType: 'continue' | 'skip' | 'finish') => {
     setIsLoading(true);
     
@@ -164,8 +202,20 @@ const MentorInterviewQuestion: React.FC = () => {
   const hasContent = transcript.trim().length > 0;
   const isFinalQuestion = currentStep === TOTAL_QUESTIONS;
 
+  // Determine which recording component to use
+  const RecordingComponent = ENABLE_BACKGROUND_TRANSCRIPTION ? MentorQuestionCard : MentorAudioTextInput;
+
   return (
     <div className="flex flex-col items-center justify-center gap-6 bg-[#F8F4EB] p-4">
+      {/* Background Transcription Indicator */}
+      {ENABLE_BACKGROUND_TRANSCRIPTION && (
+        <BackgroundTranscriptionIndicator
+          hasBackgroundProcessing={hasBackgroundProcessing}
+          pendingStages={pendingStages}
+          isVisible={currentStep > 1} // Only show from question 2 onwards
+        />
+      )}
+
       {/* Progress Rail */}
       <div className="flex w-full flex-row items-center gap-4">
         <div className="w-px flex-1 bg-[#C9C9B6]" />
@@ -216,20 +266,35 @@ const MentorInterviewQuestion: React.FC = () => {
           </div>
         ) : (
           <div className="mt-4 flex w-full flex-col items-center">
-            <MentorAudioTextInput
-              accessToken={access_token}
-              stageId={currentStep}
-              onStateChange={onInputStateChange}
-              onSave={(saveFn) => {
-                saveRef.current = saveFn;
-              }}
-              onSaveComplete={onSaveComplete}
-            />
+            {ENABLE_BACKGROUND_TRANSCRIPTION ? (
+              <MentorQuestionCard
+                accessToken={access_token}
+                stageId={currentStep}
+                isFinalQuestion={isFinalQuestion}
+                onStateChange={onInputStateChange}
+                onSave={(saveFn) => {
+                  saveRef.current = saveFn;
+                }}
+                onSaveComplete={onSaveComplete}
+                onContinue={handleContinueImmediate}
+                onFinalComplete={handleFinalQuestionComplete}
+              />
+            ) : (
+              <MentorAudioTextInput
+                accessToken={access_token}
+                stageId={currentStep}
+                onStateChange={onInputStateChange}
+                onSave={(saveFn) => {
+                  saveRef.current = saveFn;
+                }}
+                onSaveComplete={onSaveComplete}
+              />
+            )}
           </div>
         )}
 
-        {/* Simplified Navigation */}
-        {!isLoadingQuestion && (
+        {/* Navigation - Only for legacy component */}
+        {!isLoadingQuestion && !ENABLE_BACKGROUND_TRANSCRIPTION && (
           <div className="mt-8">
             {isFinalQuestion ? (
               // Final question: Review Answers button as per MentorReviewSubmitSpec.md
@@ -316,6 +381,19 @@ const MentorInterviewQuestion: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Back button for new component */}
+        {!isLoadingQuestion && ENABLE_BACKGROUND_TRANSCRIPTION && (
+          <div className="mt-4 flex justify-center border-t border-gray-200 pt-4">
+            <button 
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+              onClick={goBack}
+              disabled={isLoading}
+            >
+              ← Go back to previous question
+            </button>
           </div>
         )}
       </div>

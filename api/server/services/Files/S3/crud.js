@@ -453,6 +453,40 @@ async function refreshS3Url(fileObj, bufferSeconds = 3600) {
   }
 }
 
+/**
+ * Generates a presigned URL for uploading files directly to S3.
+ *
+ * @param {Object} params
+ * @param {string} params.userId - The user's unique identifier.
+ * @param {string} params.fileName - The file name to use in S3.
+ * @param {string} params.contentType - The MIME type of the file.
+ * @param {string} [params.basePath='images'] - The base path in the bucket.
+ * @param {number} [params.expiresIn=3600] - URL expiration time in seconds (default 1 hour).
+ * @returns {Promise<string>} Presigned URL for uploading.
+ */
+async function getSignedUploadUrl({ 
+  userId, 
+  fileName, 
+  contentType, 
+  basePath = defaultBasePath, 
+  expiresIn = 3600 
+}) {
+  const key = getS3Key(basePath, userId, fileName);
+  const params = { 
+    Bucket: bucketName, 
+    Key: key,
+    ContentType: contentType,
+  };
+
+  try {
+    const s3 = initializeS3();
+    return await getSignedUrl(s3, new PutObjectCommand(params), { expiresIn });
+  } catch (error) {
+    logger.error('[getSignedUploadUrl] Error generating presigned upload URL:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   saveBufferToS3,
   saveURLToS3,
@@ -464,4 +498,5 @@ module.exports = {
   refreshS3Url,
   needsRefresh,
   getNewS3URL,
+  getSignedUploadUrl,
 };

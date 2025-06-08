@@ -26,6 +26,10 @@ const mentorResponseSchema = new mongoose.Schema(
     audio_url: {
       type: String,
     },
+    duration_ms: {
+      type: Number,
+      required: false,
+    },
     source_question_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'MentorQuestion',
@@ -36,8 +40,12 @@ const mentorResponseSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'submitted'],
+      enum: ['pending', 'transcribed', 'submitted'],
       default: 'pending',
+    },
+    whisper_model: {
+      type: String,
+      required: false,
     },
     submitted_at: {
       type: Date,

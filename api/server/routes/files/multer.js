@@ -51,6 +51,11 @@ const createFileFilter = (customFileConfig) => {
       return cb(null, true);
     }
 
+    // Allow audio files for mentor interview routes
+    if (req.originalUrl.includes('/mentor-interview/') && req.originalUrl.endsWith('/upload-audio') && file.mimetype.startsWith('audio/')) {
+      return cb(null, true);
+    }
+
     const endpoint = req.body.endpoint;
     const supportedTypes =
       customFileConfig?.endpoints?.[endpoint]?.supportedMimeTypes ??

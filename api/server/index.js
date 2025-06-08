@@ -54,6 +54,9 @@ const startServer = async () => {
   app.use(staticCache(app.locals.paths.dist));
   app.use(staticCache(app.locals.paths.fonts));
   app.use(staticCache(app.locals.paths.assets));
+  
+  // Serve uploaded files (audio, etc.) as static files
+  app.use('/uploads', express.static(app.locals.paths.uploads));
   app.set('trust proxy', trusted_proxy);
   app.use(cors());
   app.use(cookieParser());
@@ -138,6 +141,42 @@ const startServer = async () => {
       logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
     }
   });
+
+  // Start transcription worker if Redis is enabled and OpenAI API key is available
+  await startTranscriptionWorker();
+};
+
+/**
+ * Start the background transcription worker
+ */
+async function startTranscriptionWorker() {
+  try {
+    // Check if transcription should be enabled
+    if (!isEnabled(process.env.USE_REDIS)) {
+      logger.info('[TranscriptionWorker] Skipping - Redis not enabled');
+      return;
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      logger.info('[TranscriptionWorker] Skipping - OPENAI_API_KEY not configured');
+      return;
+    }
+
+    logger.info('[TranscriptionWorker] Starting background transcription worker...');
+
+    // Import and start the simple transcription worker
+    const SimpleTranscriptionWorker = require('~/server/simple-transcription-worker');
+    const worker = new SimpleTranscriptionWorker();
+    
+    // Start the worker (non-blocking)
+    worker.start().catch((error) => {
+      logger.error('[TranscriptionWorker] Failed to start:', error);
+    });
+
+    logger.info('[TranscriptionWorker] Background worker started successfully');
+  } catch (error) {
+    logger.error('[TranscriptionWorker] Error starting background worker:', error);
+  }
 };
 
 startServer();

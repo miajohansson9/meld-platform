@@ -11,3 +11,4 @@ export { default as useSpeechToText } from './useSpeechToText';
 export { default as useSpeechToTextIncremental } from './useSpeechToTextIncremental';
 export { default as useTextToSpeech } from './useTextToSpeech';
 export { default as useGetAudioSettings } from './useGetAudioSettings';
+export { useTranscriptionStatus } from './useTranscriptionStatus';

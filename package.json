@@ -36,6 +36,7 @@
     "delete-banner": "node config/delete-banner.js",
     "backend": "cross-env NODE_ENV=production node api/server/index.js",
     "backend:dev": "cross-env NODE_ENV=development npx nodemon api/server/index.js",
+    "backend:transcription": "./start-with-transcription.sh",
     "backend:stop": "node config/stop-backend.js",
     "build:data-provider": "cd packages/data-provider && npm run build",
     "build:mcp": "cd packages/mcp && npm run build",

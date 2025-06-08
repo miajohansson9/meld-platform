@@ -31,6 +31,7 @@ const {
   deleteFileFromS3,
   processS3Avatar,
   uploadFileToS3,
+  getSignedUploadUrl,
 } = require('./S3');
 const {
   saveBufferToAzure,
@@ -94,6 +95,7 @@ const s3Strategy = () => ({
   processAvatar: processS3Avatar,
   handleImageUpload: uploadImageToS3,
   getDownloadStream: getS3FileStream,
+  getSignedUploadUrl,
 });
 
 /**
