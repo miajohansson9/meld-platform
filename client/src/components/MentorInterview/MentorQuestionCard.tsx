@@ -107,10 +107,6 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
     };
   }, [recordingState]);
 
-
-
-
-
   /* ───────── save text ───────── */
   const saveTranscript = useCallback(async () => {
     const textareaValue = textareaRef.current?.value;
@@ -184,7 +180,12 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
       
     } catch (error) {
       console.error('Error starting recording:', error);
-      alert('Unable to access microphone. Please check permissions.');
+      alert(
+        'Microphone access is off.\n\n' +
+        'Use Safari instead or enable microphone access by following these steps:\n' +
+        '• Open the iOS Settings app ▸ Chrome ▸ Microphone (and Speech Recognition) ▸ Allow.\n' +
+        '• Return here and tap “Record”.'
+      );
     }
   }, []);
 
