@@ -125,21 +125,32 @@ const MentorInterviewQuestion: React.FC = () => {
     }
   }, [navigate, access_token, currentStep]);
 
-  // Handle immediate navigation after audio upload
+  // Handle navigation after question preloading is complete
   const handleContinueImmediate = useCallback(() => {
     if (currentStep === TOTAL_QUESTIONS) {
-      // Final question - navigate to review
-      navigate(`/mentor-interview/${access_token}/review`);
+      // Final question - navigate to complete page with insights
+      // Store access token for the complete page
+      if (access_token) {
+        localStorage.setItem('mentor_access_token', access_token);
+      }
+      navigate('/mentor-interview/complete', { 
+        state: { access_token } 
+      });
     } else {
-      // Navigate to next question immediately
-      setIsLoadingQuestion(true);
+      // Navigate to next question (preloading already handled by button)
       navigate(`/mentor-interview/${access_token}/question/${currentStep + 1}`);
     }
   }, [currentStep, navigate, access_token]);
 
   // Handle final question completion (after transcription or timeout)
   const handleFinalQuestionComplete = useCallback(() => {
-    navigate(`/mentor-interview/${access_token}/review`);
+    // Store access token for the complete page
+    if (access_token) {
+      localStorage.setItem('mentor_access_token', access_token);
+    }
+    navigate('/mentor-interview/complete', { 
+      state: { access_token } 
+    });
   }, [navigate, access_token]);
 
   // Legacy unified action handler for old component
@@ -153,7 +164,13 @@ const MentorInterviewQuestion: React.FC = () => {
       }
       
       if (actionType === 'finish') {
-        navigate(`/mentor-interview/${access_token}/review`);
+        // Store access token for the complete page
+        if (access_token) {
+          localStorage.setItem('mentor_access_token', access_token);
+        }
+        navigate('/mentor-interview/complete', { 
+          state: { access_token } 
+        });
         return;
       }
 

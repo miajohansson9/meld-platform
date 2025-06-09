@@ -52,7 +52,9 @@ const createFileFilter = (customFileConfig) => {
     }
 
     // Allow audio files for mentor interview routes
-    if (req.originalUrl.includes('/mentor-interview/') && req.originalUrl.endsWith('/upload-audio') && file.mimetype.startsWith('audio/')) {
+    if (req.originalUrl.includes('/mentor-interview/') && 
+        (req.originalUrl.endsWith('/upload-audio') || req.originalUrl.includes('/response/')) && 
+        file.mimetype.startsWith('audio/')) {
       return cb(null, true);
     }
 

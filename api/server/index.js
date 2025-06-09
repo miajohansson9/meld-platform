@@ -142,41 +142,7 @@ const startServer = async () => {
     }
   });
 
-  // Start transcription worker if Redis is enabled and OpenAI API key is available
-  await startTranscriptionWorker();
-};
 
-/**
- * Start the background transcription worker
- */
-async function startTranscriptionWorker() {
-  try {
-    // Check if transcription should be enabled
-    if (!isEnabled(process.env.USE_REDIS)) {
-      logger.info('[TranscriptionWorker] Skipping - Redis not enabled');
-      return;
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      logger.info('[TranscriptionWorker] Skipping - OPENAI_API_KEY not configured');
-      return;
-    }
-
-    logger.info('[TranscriptionWorker] Starting background transcription worker...');
-
-    // Import and start the simple transcription worker
-    const SimpleTranscriptionWorker = require('~/server/simple-transcription-worker');
-    const worker = new SimpleTranscriptionWorker();
-    
-    // Start the worker (non-blocking)
-    worker.start().catch((error) => {
-      logger.error('[TranscriptionWorker] Failed to start:', error);
-    });
-
-    logger.info('[TranscriptionWorker] Background worker started successfully');
-  } catch (error) {
-    logger.error('[TranscriptionWorker] Error starting background worker:', error);
-  }
 };
 
 startServer();

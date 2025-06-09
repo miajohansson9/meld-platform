@@ -10,7 +10,6 @@ const FormData = require('form-data');
 const MENTOR_QUESTIONS_INDEX = 'mentor_questions';
 const MentorResponse = require('../../models/MentorResponse');
 const { OpenAI } = require('openai');
-const { getTranscriptionQueue } = require('~/server/services/transcriptionQueue');
 
 /**
  * Store (or re-store) a question embedding in the RAG API by uploading it
@@ -365,150 +364,160 @@ async function searchMentorQuestions(req, res) {
 async function upsertMentorResponse(req, res) {
   try {
     const { stage_id } = req.params;
-    const { 
-      response_text = '', 
-      audio_url, 
-      duration_ms,
-      status = 'pending',
-      whisper_model,
-      version: incomingVersion 
-    } = req.body;
     const mentor_interest_id = req.mentorInterest._id;
+    const fs = require('fs').promises;
 
-    const filter = { mentor_interest: mentor_interest_id, stage_id };
-    const existing = await MentorResponse.findOne(filter);
-
-    if (!existing) {
-      const newData = {
-        ...filter,
-        response_text,
-        status,
-        version: 1,
-      };
-      if (audio_url) newData.audio_url = audio_url;
-      if (duration_ms) newData.duration_ms = duration_ms;
-      if (whisper_model) newData.whisper_model = whisper_model;
-
-      const created = await MentorResponse.create(newData);
-
-      // Enqueue transcription job if audio_url is provided
-      if (audio_url && status === 'pending') {
-        try {
-          const { getTranscriptionQueue } = require('~/server/services/transcriptionQueue');
-          const transcriptionQueue = getTranscriptionQueue();
-          
-          logger.debug('[upsertMentorResponse] Enqueueing transcription job:', {
-            mentorResponseId: created._id,
-            audioUrl: audio_url,
-            stageId: stage_id,
-            accessToken: req.params.access_token.substring(0, 8) + '...',
-            queueAvailable: !!transcriptionQueue
-          });
-          const job = await transcriptionQueue.addJob(
-            created._id.toString(),
-            audio_url,
-            parseInt(stage_id),
-            req.params.access_token,
-            duration_ms || 0
-          );
-
-          if (job) {
-            logger.info('[upsertMentorResponse] Transcription job enqueued:', {
-              jobId: job.id,
-              mentorResponseId: created._id,
-              stageId: stage_id,
-            });
-          } else {
-            logger.warn('[upsertMentorResponse] Failed to enqueue transcription job - queue unavailable');
-          }
-        } catch (error) {
-          logger.error('[upsertMentorResponse] Error enqueuing transcription job:', error);
-          // Don't fail the response creation if queue fails
-        }
-      }
-
-      return res.status(201).json(created);
-    }
-
-    if (incomingVersion && incomingVersion <= existing.version) {
-      return res.json(existing);
-    }
-
-    let hasChanges = false;
-    const updateData = {};
-
-    if (response_text !== existing.response_text) {
-      hasChanges = true;
-      updateData.response_text = response_text;
-    }
-    if (audio_url && audio_url !== existing.audio_url) {
-      hasChanges = true;
-      updateData.audio_url = audio_url;
-    }
-    if (duration_ms !== undefined && duration_ms !== existing.duration_ms) {
-      hasChanges = true;
-      updateData.duration_ms = duration_ms;
-    }
-    if (status && status !== existing.status) {
-      hasChanges = true;
-      updateData.status = status;
-    }
-    if (whisper_model && whisper_model !== existing.whisper_model) {
-      hasChanges = true;
-      updateData.whisper_model = whisper_model;
-    }
-
-    if (!hasChanges) {
-      return res.json(existing);
-    }
-
-    updateData.version = existing.version + 1;
-
-    const updated = await MentorResponse.findOneAndUpdate(
-      filter,
-      updateData,
-      { new: true }
-    );
-
-    // Enqueue transcription job if new audio_url is provided
-    if (audio_url && audio_url !== existing.audio_url && status === 'pending') {
+    // Handle multipart form data with audio blob (NEW SYNCHRONOUS FLOW)
+    if (req.file) {
       try {
-        const { getTranscriptionQueue } = require('~/server/services/transcriptionQueue');
-        const transcriptionQueue = getTranscriptionQueue();
-        
-        logger.debug('[upsertMentorResponse] Enqueueing transcription job for update:', {
-          mentorResponseId: updated._id,
-          audioUrl: audio_url,
-          stageId: stage_id,
-          accessToken: req.params.access_token.substring(0, 8) + '...',
-          queueAvailable: !!transcriptionQueue
+        logger.debug('[upsertMentorResponse] Processing audio upload for immediate transcription:', {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+          stageId: stage_id
         });
-        const job = await transcriptionQueue.addJob(
-          updated._id.toString(),
-          audio_url,
-          parseInt(stage_id),
-          req.params.access_token,
-          duration_ms || 0
+
+        // Read audio buffer from uploaded file
+        const audioBuffer = await fs.readFile(req.file.path);
+        
+        // Create audio file metadata for STTService
+        const audioFile = {
+          originalname: req.file.originalname || 'recording.webm',
+          mimetype: req.file.mimetype || 'audio/webm',
+          size: req.file.size || audioBuffer.length
+        };
+
+        // Use OpenAI Whisper API directly for immediate transcription
+        const FormData = require('form-data');
+        const axios = require('axios');
+        
+        if (!process.env.OPENAI_API_KEY) {
+          throw new Error('OPENAI_API_KEY not configured');
+        }
+        
+        logger.debug('[upsertMentorResponse] Starting transcription with OpenAI Whisper');
+        
+        // Create form data for OpenAI API
+        const formData = new FormData();
+        formData.append('file', audioBuffer, {
+          filename: audioFile.originalname,
+          contentType: audioFile.mimetype,
+        });
+        formData.append('model', 'whisper-1');
+        
+        // Call OpenAI Whisper API directly
+        const transcriptionResponse = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            ...formData.getHeaders(),
+          },
+          timeout: 60000 // 60 second timeout
+        });
+        
+        const transcribedText = transcriptionResponse.data.text?.trim();
+        
+        if (!transcribedText) {
+          throw new Error('No transcription text returned from OpenAI API');
+        }
+
+        logger.info('[upsertMentorResponse] Transcription completed:', {
+          stageId: stage_id,
+          textLength: transcribedText.length,
+          model: 'whisper-1'
+        });
+
+        // Extract duration from request body
+        const duration_ms = parseInt(req.body.duration_ms) || 0;
+
+        // Save transcribed response to database
+        const mentorResponse = await MentorResponse.findOneAndUpdate(
+          { mentor_interest: mentor_interest_id, stage_id: parseInt(stage_id) },
+          { 
+            response_text: transcribedText,
+            duration_ms,
+            status: 'transcribed',
+            whisper_model: 'whisper-1',
+            version: 1
+          },
+          { upsert: true, new: true }
         );
 
-        if (job) {
-          logger.info('[upsertMentorResponse] Transcription job enqueued for update:', {
-            jobId: job.id,
-            mentorResponseId: updated._id,
-            stageId: stage_id,
-          });
-        } else {
-          logger.warn('[upsertMentorResponse] Failed to enqueue transcription job - queue unavailable');
+        // Clean up temporary file
+        try {
+          await fs.unlink(req.file.path);
+          logger.debug('[upsertMentorResponse] Temporary audio file cleaned up');
+        } catch (unlinkError) {
+          logger.warn('[upsertMentorResponse] Failed to clean up temporary file:', unlinkError);
         }
-      } catch (error) {
-        logger.error('[upsertMentorResponse] Error enqueuing transcription job:', error);
-        // Don't fail the response update if queue fails
+
+        return res.json({
+          success: true,
+          response_text: transcribedText,
+          duration_ms: mentorResponse.duration_ms,
+          stage_id: mentorResponse.stage_id,
+          status: mentorResponse.status
+        });
+
+      } catch (transcriptionError) {
+        logger.error('[upsertMentorResponse] Transcription failed:', transcriptionError);
+        
+        // Clean up temporary file on error
+        if (req.file && req.file.path) {
+          try {
+            await fs.unlink(req.file.path);
+          } catch (unlinkError) {
+            logger.warn('[upsertMentorResponse] Failed to clean up temp file after error:', unlinkError);
+          }
+        }
+
+        return res.status(500).json({
+          success: false,
+          error: 'Transcription failed: ' + transcriptionError.message
+        });
       }
+    } 
+    
+    // Handle text-only updates (EXISTING FLOW - simplified)
+    else {
+      const { response_text = '', status = 'transcribed', version: incomingVersion } = req.body;
+      
+      const filter = { mentor_interest: mentor_interest_id, stage_id: parseInt(stage_id) };
+      const existing = await MentorResponse.findOne(filter);
+
+      if (!existing) {
+        const created = await MentorResponse.create({
+          ...filter,
+          response_text,
+          status,
+          version: 1
+        });
+        return res.status(201).json(created);
+      }
+
+      if (incomingVersion && incomingVersion <= existing.version) {
+        return res.json(existing);
+      }
+
+      if (response_text === existing.response_text && status === existing.status) {
+        return res.json(existing);
+      }
+
+      const updated = await MentorResponse.findOneAndUpdate(
+        filter,
+        { 
+          response_text,
+          status,
+          version: existing.version + 1
+        },
+        { new: true }
+      );
+
+      return res.json(updated);
     }
 
-    res.json(updated);
   } catch (err) {
-    return handleError(res, { text: 'Error saving mentor response' });
+    logger.error('[upsertMentorResponse] Error:', err);
+    return handleError(res, { text: 'Error saving mentor response: ' + err.message });
   }
 }
 
@@ -866,41 +875,92 @@ async function getAllMentorResponses(req, res) {
 }
 
 /**
- * @route POST /api/mentor-interview/:access_token/submit
- * @desc Persist final text and set status=submitted
+ * @route POST /api/mentor-interview/:access_token/generate-insights
+ * @desc Generate personalized insights summary from responses
  * @access Public (token validated)
  */
-async function submitMentorResponses(req, res) {
+async function generateInsights(req, res) {
   try {
-    const { answers } = req.body;
+    // Get all responses for this mentor
+    const responses = await MentorResponse.find({
+      mentor_interest: req.mentorInterest._id,
+      response_text: { $exists: true, $ne: '' }
+    }).sort({ stage_id: 1 });
 
-    if (!answers || !Array.isArray(answers)) {
-      return handleError(res, { text: 'Invalid answers format' }, 400);
+    if (responses.length === 0) {
+      return handleError(res, { text: 'No responses found to analyze' }, 400);
     }
 
-    // Update each response with final text and mark as submitted
-    for (const answer of answers) {
-      const { stage_id, text } = answer;
+    // Prepare the data for ChatGPT
+    const responseTexts = responses.map((r, index) => 
+      `Question ${index + 1}: ${r.question}\nResponse: ${r.response_text}`
+    ).join('\n\n');
 
-      // Find and update the response
-      await MentorResponse.findOneAndUpdate(
-        {
-          mentor_interest: req.mentorInterest._id,
-          stage_id: stage_id
-        },
-        {
-          response_text: text || '',
-          status: 'submitted'
-        },
-        { new: true }
-      );
+    const mentorInfo = req.mentorInterest;
+    const mentorName = mentorInfo.firstName || 'this mentor';
+
+    // Create the prompt for ChatGPT
+    const prompt = `You are a thoughtful human interviewer concluding a mentorship interview with ${mentorName}, a ${mentorInfo.jobTitle || 'professional'} at ${mentorInfo.company || 'their company'}. 
+
+Write a warm, personal closing response (max 80-100 words) that:
+1. STARTS with a direct response to their last/final answer
+2. Briefly acknowledges 1-2 key insights from their overall responses
+3. Thanks them for sharing their experiences
+4. Sounds conversational and human, like you're concluding a meaningful conversation
+
+Be concise and genuine. Start by responding to what they just shared in their final answer.
+
+Here are their responses:
+
+${responseTexts}
+
+Write your brief closing response as their interviewer.`;
+
+    // Call ChatGPT API
+    const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a warm, empathetic human interviewer who has just conducted a meaningful mentorship interview. You speak conversationally and personally, as if you are genuinely moved by what the interviewee has shared.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 400
+      })
+    });
+
+    if (!chatResponse.ok) {
+      throw new Error(`ChatGPT API error: ${chatResponse.status}`);
     }
 
-    // Success response
-    res.json({ status: 'ok' });
+    const chatData = await chatResponse.json();
+    const insights = chatData.choices[0]?.message?.content || 'Thank you for your valuable insights!';
+
+    // Mark all responses as submitted
+    await MentorResponse.updateMany(
+      { mentor_interest: req.mentorInterest._id },
+      { status: 'submitted' }
+    );
+
+    res.json({ 
+      insights,
+      mentor_name: mentorName,
+      response_count: responses.length
+    });
   } catch (err) {
-    logger.error('[submitMentorResponses] Error:', err);
-    return handleError(res, { text: 'Error submitting responses' });
+    logger.error('[generateInsights] Error:', err);
+    return handleError(res, { text: 'Error generating insights' });
   }
 }
 
@@ -1043,216 +1103,11 @@ async function getAdminMentorResponses(req, res) {
   }
 }
 
-/**
- * @route PATCH /api/mentor-interview/:access_token/response/:stage_id
- * @desc Update mentor response with transcription (WORKER ENDPOINT)
- * @access Public (token validated)
- */
-async function updateMentorResponseTranscription(req, res) {
-  try {
-    const { stage_id } = req.params;
-    const { response_text, status, whisper_model } = req.body;
-    const mentor_interest_id = req.mentorInterest._id;
 
-    if (!response_text || !status || !whisper_model) {
-      return handleError(res, { text: 'Missing required fields: response_text, status, whisper_model' }, 400);
-    }
 
-    const filter = { mentor_interest: mentor_interest_id, stage_id };
-    const updateData = {
-      response_text,
-      status,
-      whisper_model,
-      $inc: { version: 1 }
-    };
 
-    const updated = await MentorResponse.findOneAndUpdate(
-      filter,
-      updateData,
-      { new: true }
-    );
 
-    if (!updated) {
-      return handleError(res, { text: 'Response not found' }, 404);
-    }
 
-    logger.info(`[updateMentorResponseTranscription] Updated stage ${stage_id} for mentor ${mentor_interest_id} with status ${status}`);
-
-    res.json(updated);
-  } catch (err) {
-    logger.error('[updateMentorResponseTranscription] Error:', err);
-    return handleError(res, { text: 'Error updating mentor response transcription' });
-  }
-}
-
-/**
- * @route GET /api/mentor-interview/:access_token/progress
- * @desc Get transcription progress for all mentor responses
- * @access Public (token validated)
- */
-async function getMentorTranscriptionProgress(req, res) {
-  try {
-    const mentor_interest_id = req.mentorInterest._id;
-    const access_token = req.params.access_token;
-
-    // Get responses from database
-    const responses = await MentorResponse.find({
-      mentor_interest: mentor_interest_id,
-      audio_url: { $exists: true, $ne: null } // Only responses with audio
-    })
-    .select('stage_id status duration_ms whisper_model createdAt updatedAt')
-    .sort({ stage_id: 1 })
-    .lean();
-
-    // Get job statuses from queue
-    let queueStatuses = [];
-    try {
-      const transcriptionQueue = getTranscriptionQueue();
-      queueStatuses = await transcriptionQueue.getJobStatuses(access_token);
-    } catch (error) {
-      logger.warn('[getMentorTranscriptionProgress] Error getting queue statuses:', error.message);
-    }
-
-    // Merge database and queue information
-    const progress = responses.map(response => {
-      // Find matching queue job
-      const queueJob = queueStatuses.find(job => job.stage_id === response.stage_id);
-      
-      // Use queue status if available and more recent, otherwise use database status
-      const effectiveStatus = queueJob && queueJob.status !== 'unknown' 
-        ? queueJob.status 
-        : response.status;
-
-      return {
-        stage_id: response.stage_id,
-        status: effectiveStatus,
-        duration_ms: response.duration_ms,
-        whisper_model: response.whisper_model,
-        created_at: response.createdAt,
-        updated_at: response.updatedAt,
-        // Include queue-specific information if available
-        ...(queueJob && {
-          queue_progress: queueJob.progress,
-          job_created_at: queueJob.created_at
-        })
-      };
-    });
-
-    res.json(progress);
-  } catch (err) {
-    logger.error('[getMentorTranscriptionProgress] Error:', err);
-    return handleError(res, { text: 'Error fetching transcription progress' });
-  }
-}
-
-/**
- * @route POST /api/mentor-interview/:access_token/transcribe/:stage_id
- * @desc Trigger transcription and wait for completion (synchronous)
- * @access Public (token validated)
- */
-async function transcribeAndWait(req, res) {
-  try {
-    const { access_token, stage_id } = req.params;
-    const stageId = parseInt(stage_id);
-
-    if (!stageId || stageId < 1) {
-      return handleError(res, { text: 'Invalid stage_id' }, 400);
-    }
-
-    logger.info('[transcribeAndWait] Starting synchronous transcription for stage:', stageId);
-
-    // 1. Find the mentor response
-    const mentorResponse = await MentorResponse.findOne({
-      mentor_interest: req.mentorInterest._id,
-      stage_id: stageId,
-    });
-
-    if (!mentorResponse) {
-      return handleError(res, { text: 'Mentor response not found' }, 404);
-    }
-
-    // Check if already transcribed
-    if (mentorResponse.status === 'transcribed' && mentorResponse.response_text) {
-      logger.info('[transcribeAndWait] Already transcribed, returning existing text');
-      return res.json({
-        success: true,
-        response_text: mentorResponse.response_text,
-        already_transcribed: true
-      });
-    }
-
-    // Check if we have an audio file to transcribe
-    if (!mentorResponse.audio_url) {
-      return handleError(res, { text: 'No audio file found for transcription' }, 400);
-    }
-
-    // 2. Queue transcription job
-    const { getTranscriptionQueue } = require('~/server/services/transcriptionQueue');
-    const transcriptionQueue = getTranscriptionQueue();
-
-    if (!transcriptionQueue) {
-      return handleError(res, { text: 'Transcription service not available' }, 503);
-    }
-
-    const jobData = {
-      mentor_interest_id: req.mentorInterest._id.toString(),
-      stage_id: stageId,
-      audio_url: mentorResponse.audio_url,
-      access_token: access_token
-    };
-
-    logger.info('[transcribeAndWait] Queueing transcription job:', jobData);
-    
-    const job = await transcriptionQueue.addJob(jobData);
-    const jobId = job.id;
-
-    logger.info('[transcribeAndWait] Job queued with ID:', jobId);
-
-    // 3. Poll for completion (max 2 minutes)
-    const maxWaitTime = 120000; // 2 minutes
-    const pollInterval = 2000; // 2 seconds
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < maxWaitTime) {
-      // Check if transcription is complete in database
-      const updatedResponse = await MentorResponse.findById(mentorResponse._id);
-      
-      if (updatedResponse.status === 'transcribed' && updatedResponse.response_text) {
-        logger.info('[transcribeAndWait] Transcription completed successfully');
-        return res.json({
-          success: true,
-          response_text: updatedResponse.response_text,
-          duration_ms: updatedResponse.duration_ms || 0,
-          job_id: jobId
-        });
-      }
-
-      // Check if job failed
-      const jobStatus = await transcriptionQueue.getJobStatusById(jobId);
-      if (jobStatus && (jobStatus.state === 'failed' || jobStatus.state === 'stalled')) {
-        logger.error('[transcribeAndWait] Transcription job failed:', jobStatus);
-        return handleError(res, { 
-          text: 'Transcription failed', 
-          job_status: jobStatus 
-        }, 500);
-      }
-
-      // Wait before next poll
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-    }
-
-    // Timeout - transcription taking too long
-    logger.warn('[transcribeAndWait] Transcription timeout after 2 minutes');
-    return handleError(res, { 
-      text: 'Transcription timeout - please try again', 
-      job_id: jobId 
-    }, 408);
-
-  } catch (err) {
-    logger.error('[transcribeAndWait] Error:', err);
-    return handleError(res, err, 500);
-  }
-}
 
 module.exports = {
   storeQuestionInRAG,
@@ -1268,12 +1123,9 @@ module.exports = {
   getMentorInterest,
   generatePersonalizedIntro,
   getAllMentorResponses,
-  submitMentorResponses,
+  generateInsights,
   validateAccessToken,
   deleteMentorInterest,
   generateAccessToken,
   getAdminMentorResponses,
-  updateMentorResponseTranscription,
-  getMentorTranscriptionProgress,
-  transcribeAndWait,
 };

@@ -20,7 +20,7 @@ interface MentorQuestionCardProps {
 }
 
 // Recording state machine
-type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped' | 'uploading' | 'complete';
+type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped' | 'transcribing' | 'complete' | 'error';
 
 const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   accessToken,
@@ -37,8 +37,13 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   const [transcript, setTranscript] = useState('');
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [transcribedText, setTranscribedText] = useState<string>('');
+  const [isEditingTranscription, setIsEditingTranscription] = useState(false);
+  const [editedText, setEditedText] = useState<string>('');
   const [showFinalWait, setShowFinalWait] = useState(false); // NEW: show final question wait overlay
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasStartedRecording, setHasStartedRecording] = useState(false);
   
   // Recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -58,21 +63,29 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
         if (!res.ok) return;
         
         const data = await res.json();
-        const { response_text = '', audio_url = null } = data;
+        const { response_text = '', duration_ms } = data;
         
         savedRef.current = response_text;
         setTranscript(response_text);
-        setAudioUrl(audio_url);
         
-        // If we have an audio URL but no text, transcription may be in progress
-        if (audio_url && !response_text) {
+        // If we have transcribed text, set it as completed
+        if (response_text) {
+          setTranscribedText(response_text);
           setRecordingState('complete');
+          
+          // Set duration if available and we're in audio mode
+          if (duration_ms && mode === 'audio') {
+            setRecordingDuration(Math.floor(duration_ms / 1000));
+            setHasStartedRecording(true); // Mark as having started recording if we have audio content
+          }
         }
       } catch (error) {
         console.error('Error loading response:', error);
+      } finally {
+        setIsLoading(false);
       }
     })();
-  }, [accessToken, stageId]);
+  }, [accessToken, stageId, mode]);
 
   /* ───────── recording timer ───────── */
   useEffect(() => {
@@ -94,148 +107,9 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
     };
   }, [recordingState]);
 
-  /* ───────── get signed upload URL ───────── */
-  const getUploadUrl = useCallback(async (filename: string, contentType: string) => {
-    console.log('[MentorQuestionCard] Requesting upload URL:', { filename, contentType });
-    
-    const response = await fetch(`/api/mentor-interview/${accessToken}/upload-url`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        filename,
-        content_type: contentType,
-        // Use 'audio' as the base path for mentor interview recordings
-        base_path: 'audio'
-      }),
-    });
-    
-    console.log('[MentorQuestionCard] Upload URL response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[MentorQuestionCard] Upload URL request failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      });
-      throw new Error(`Failed to get upload URL: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log('[MentorQuestionCard] Upload URL response data:', data);
-    
-    // Return the full response for handling both S3 and server-side uploads
-    if (data.use_server_upload) {
-      return data; // Return full object for server-side upload
-    } else {
-      return data.upload_url; // Return URL string for S3 direct upload
-    }
-  }, [accessToken]);
 
-  /* ───────── upload audio to S3 ───────── */
-  const uploadAudioToS3 = useCallback(async (audioBlob: Blob) => {
-    try {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `mentor-${stageId}-${timestamp}.webm`;
-      const contentType = audioBlob.type || 'audio/webm';
-      
-      // Get upload URL/endpoint
-      const uploadResponse = await getUploadUrl(filename, contentType);
-      console.log('[MentorQuestionCard] Upload response:', uploadResponse);
-      
-      let uploadedUrl: string;
-      
-      if (typeof uploadResponse === 'string') {
-        // S3 direct upload - uploadResponse is the presigned URL
-        console.log('[MentorQuestionCard] Using S3 direct upload');
-        const uploadResult = await fetch(uploadResponse, {
-          method: 'PUT',
-          body: audioBlob,
-          headers: {
-            'Content-Type': contentType,
-          },
-        });
-        
-        if (!uploadResult.ok) {
-          throw new Error('Failed to upload audio to S3');
-        }
-        
-        // Extract the permanent URL (remove query parameters)
-        uploadedUrl = uploadResponse.split('?')[0];
-      } else if (uploadResponse.use_server_upload) {
-        // Server-side upload for non-S3 strategies
-        console.log('[MentorQuestionCard] Using server-side upload');
-        const formData = new FormData();
-        formData.append('audio', audioBlob, filename);
-        
-        const uploadResult = await fetch(uploadResponse.upload_url, {
-          method: uploadResponse.method || 'POST',
-          body: formData,
-        });
-        
-        if (!uploadResult.ok) {
-          const errorText = await uploadResult.text();
-          throw new Error(`Failed to upload audio to server: ${uploadResult.status} - ${errorText}`);
-        }
-        
-        const result = await uploadResult.json();
-        uploadedUrl = result.file_url;
-      } else {
-        throw new Error('Invalid upload response format');
-      }
-      
-      console.log('[MentorQuestionCard] Upload successful:', uploadedUrl);
-      return uploadedUrl;
-      
-    } catch (error) {
-      console.error('Error uploading audio:', error);
-      throw error;
-    }
-  }, [stageId, getUploadUrl]);
 
-  /* ───────── save audio URL and trigger background transcription ───────── */
-  const saveAudioResponse = useCallback(async (audioUrl: string, durationMs: number) => {
-    console.log('[MentorQuestionCard] Saving audio response:', { 
-      audioUrl: audioUrl.substring(0, 50) + '...',
-      durationMs,
-      stageId,
-      accessToken: accessToken?.substring(0, 10) + '...'
-    });
-    
-    try {
-      const response = await fetch(
-        `/api/mentor-interview/${accessToken}/response/${stageId}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            audio_url: audioUrl,
-            duration_ms: durationMs,
-            status: 'pending', // Marks for background transcription
-          }),
-        },
-      );
-      
-      console.log('[MentorQuestionCard] Database save response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[MentorQuestionCard] Database save failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
-        throw new Error(`Failed to save audio response: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log('[MentorQuestionCard] Database save successful:', data);
-      return data;
-    } catch (error) {
-      console.error('[MentorQuestionCard] Database save error:', error);
-      throw error;
-    }
-  }, [accessToken, stageId]);
+
 
   /* ───────── save text ───────── */
   const saveTranscript = useCallback(async () => {
@@ -306,6 +180,7 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
       mediaRecorder.start(1000); // Collect data every second
       setRecordingState('recording');
       setRecordingDuration(0);
+      setHasStartedRecording(true);
       
     } catch (error) {
       console.error('Error starting recording:', error);
@@ -343,94 +218,79 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   /* ───────── handle recording completion ───────── */
   const handleRecordingComplete = useCallback(async () => {
     try {
-      setRecordingState('uploading');
+      setRecordingState('transcribing');
       
       // Create audio blob
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       const durationMs = recordingDuration * 1000;
       
-      console.log('[MentorQuestionCard] Starting recording save process:', {
+      console.log('[MentorQuestionCard] Starting synchronous transcription:', {
         blobSize: audioBlob.size,
         durationMs,
         stageId
       });
 
-      // Upload to S3
-      console.log('[MentorQuestionCard] Attempting S3 upload...');
-      const uploadedUrl = await uploadAudioToS3(audioBlob);
-      console.log('[MentorQuestionCard] S3 upload successful:', uploadedUrl);
+      // Create form data with audio blob for immediate transcription
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      formData.append('duration_ms', durationMs.toString());
       
-      // Save to database and trigger background transcription
-      console.log('[MentorQuestionCard] Attempting database save...');
-      await saveAudioResponse(uploadedUrl, durationMs);
-      console.log('[MentorQuestionCard] Database save successful');
+      // POST directly to mentor response endpoint (multipart) for immediate transcription
+      const response = await fetch(`/api/mentor-interview/${accessToken}/response/${stageId}`, {
+        method: 'POST',
+        body: formData  // Multipart with audio
+      });
       
-      setAudioUrl(uploadedUrl);
+      if (!response.ok) {
+        throw new Error(`Transcription failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(`Transcription failed: ${result.error || 'Unknown error'}`);
+      }
+      
+      console.log('[MentorQuestionCard] Transcription completed:', result);
+      
+      // Show transcribed text to user
+      setTranscribedText(result.response_text);
+      setTranscript(result.response_text);
+      savedRef.current = result.response_text;
       setRecordingState('complete');
+      
+      // Notify parent of completion
+      onSaveComplete?.(result.response_text);
       
       // Clear chunks
       audioChunksRef.current = [];
       
     } catch (error) {
       const errorObj = error as Error;
-      console.error('[MentorQuestionCard] Recording save failed:', {
+      console.error('[MentorQuestionCard] Transcription failed:', {
         error: errorObj.message,
         stack: errorObj.stack,
         stageId,
         accessToken: accessToken?.substring(0, 10) + '...'
       });
       
-      setRecordingState('idle');
+      setRecordingState('error');
       
-      // Provide more specific error message
-      let errorMessage = 'Failed to save recording. ';
-      if (errorObj.message.includes('upload')) {
-        errorMessage += 'Upload to storage failed. Please check your internet connection.';
-      } else if (errorObj.message.includes('save') || errorObj.message.includes('response')) {
-        errorMessage += 'Database save failed. Please try again.';
-      } else {
-        errorMessage += `Error: ${errorObj.message}`;
-      }
-      
+      // Provide specific error message
+      const errorMessage = `Transcription failed: ${errorObj.message}`;
       alert(errorMessage);
     }
-  }, [recordingDuration, uploadAudioToS3, saveAudioResponse, stageId, accessToken]);
+  }, [recordingDuration, stageId, accessToken, onSaveComplete]);
 
   /* ───────── continue to next question ───────── */
   const handleContinue = useCallback(() => {
-    // For audio mode, ensure recording is stopped and uploaded
-    if (mode === 'audio' && recordingState === 'complete' && audioUrl) {
+    // For audio mode, transcription is already complete
+    if (mode === 'audio' && recordingState === 'complete' && transcribedText) {
       if (isFinalQuestion) {
-        // For final question, show wait overlay
-        setShowFinalWait(true);
+        // For final question, proceed directly (transcription already done)
+        onFinalComplete?.();
       } else {
-        // FUTURE TODO: Implement synchronous transcription flow
-        // Instead of continuing immediately, we should:
-        // 1. Call /api/mentor-interview/:access_token/transcribe/:stage_id
-        // 2. Wait for transcription to complete (with loading state)
-        // 3. Only then call onContinue() so next question has full context
-        // 
-        // Example implementation:
-        // try {
-        //   setTranscriptionState('transcribing');
-        //   const response = await fetch(`/api/mentor-interview/${accessToken}/transcribe/${stageId}`, {
-        //     method: 'POST'
-        //   });
-        //   const result = await response.json();
-        //   if (result.success) {
-        //     onContinue?.(); // Now next question will have full conversation context
-        //   } else {
-        //     // Handle transcription failure, maybe continue anyway with warning
-        //     onContinue?.();
-        //   }
-        // } catch (error) {
-        //   console.error('Transcription failed:', error);
-        //   onContinue?.(); // Continue anyway if transcription fails
-        // } finally {
-        //   setTranscriptionState('idle');
-        // }
-        
-        // For now, continue immediately (background transcription)
+        // Transcription is complete, next question will have full context
         onContinue?.();
       }
     } else if (mode === 'text') {
@@ -444,7 +304,7 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
         }
       });
     }
-  }, [mode, recordingState, audioUrl, isFinalQuestion, onContinue, onFinalComplete, saveTranscript]);
+  }, [mode, recordingState, transcribedText, isFinalQuestion, onContinue, onFinalComplete, saveTranscript]);
 
   /* ───────── final question wait handlers ───────── */
   const handleFinalTranscriptionComplete = useCallback(() => {
@@ -474,14 +334,14 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   /* ───────── parent state update ───────── */
   useEffect(() => {
     const isPaused = mode === 'text' || recordingState === 'paused' || recordingState === 'idle';
-    const hasAudio = audioUrl !== null || recordingState === 'complete';
+    const hasAudio = transcribedText.length > 0 || recordingState === 'complete';
     
     onStateChange?.({ 
       paused: isPaused, 
-      transcript, 
+      transcript: transcribedText || transcript, 
       hasAudio 
     });
-  }, [mode, recordingState, transcript, audioUrl, onStateChange]);
+  }, [mode, recordingState, transcript, transcribedText, onStateChange]);
 
   /* ───────── derived state ───────── */
   const wordCount = useMemo(() => {
@@ -491,11 +351,11 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
 
   const canContinue = useMemo(() => {
     if (mode === 'audio') {
-      return recordingState === 'complete' && audioUrl !== null;
+      return recordingState === 'complete' && transcribedText.length > 0 && !isEditingTranscription;
     } else {
       return transcript.trim().length > 0;
     }
-  }, [mode, recordingState, audioUrl, transcript]);
+  }, [mode, recordingState, transcribedText, transcript, isEditingTranscription]);
 
   /* ───────── format duration ───────── */
   const formatDuration = useCallback((seconds: number) => {
@@ -506,31 +366,135 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
 
   /* ───────── render recording controls ───────── */
   const renderRecordingControls = () => {
-    if (recordingState === 'uploading') {
+    if (recordingState === 'transcribing') {
       return (
-        <div className="flex flex-col items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#B04A2F] mb-4"></div>
-          <p className="text-sm text-gray-600">Uploading your recording...</p>
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-gray-200 rounded-full"></div>
+              <div className="absolute top-0 left-0 w-16 h-16 border-4 border-[#B04A2F] border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-6 h-6 text-[#B04A2F]" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-gray-800">Transcribing your recording...</p>
+              <p className="text-sm text-gray-600 mt-1">This usually takes 5 to 10 seconds</p>
+            </div>
+          </div>
         </div>
       );
     }
 
-    if (recordingState === 'complete' && audioUrl) {
+    if (recordingState === 'complete' && transcribedText) {
       return (
-        <div className="flex flex-col items-center justify-center py-8">
-          <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+        <div className="space-y-6">
+          {/* Simple success indicator */}
+          <div className="flex items-center justify-center gap-2 text-green-600">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
+            <span className="text-sm">Recording transcribed successfully!</span>
           </div>
-          <p className="text-sm text-gray-600 mb-2">Recording saved!</p>
-          <p className="text-xs text-gray-500">Duration: {formatDuration(recordingDuration)}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {isFinalQuestion 
-              ? 'Transcription will be processed before review'
-              : 'Transcription will be processed in the background'
-            }
-          </p>
+          
+          {/* Transcription content - minimal */}
+          {isEditingTranscription ? (
+            <div className="space-y-4">
+              <textarea
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                className="w-full p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={6}
+                placeholder="Edit your transcription..."
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setEditedText(transcribedText);
+                    setIsEditingTranscription(false);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    // Save the edited text
+                    setTranscribedText(editedText);
+                    setIsEditingTranscription(false);
+                    // Save to database
+                    try {
+                      await fetch(`/api/mentor-interview/${accessToken}/response/${stageId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ response_text: editedText }),
+                      });
+                      onSaveComplete?.(editedText);
+                    } catch (error) {
+                      console.error('Error saving edited text:', error);
+                    }
+                  }}
+                  className="px-4 py-2 text-sm bg-gray-900 text-white rounded hover:bg-gray-800"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Clean transcription display */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-gray-900 leading-relaxed">{transcribedText}</p>
+              </div>
+              
+              {/* Minimal action links */}
+              <div className="flex justify-center gap-6 text-sm">
+                <button
+                  onClick={() => {
+                    setEditedText(transcribedText);
+                    setIsEditingTranscription(true);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 underline"
+                >
+                  Edit transcription
+                </button>
+                <button
+                  onClick={() => {
+                    // Reset to idle state for re-recording
+                    setRecordingState('idle');
+                    setTranscribedText('');
+                    setRecordingDuration(0);
+                    setHasStartedRecording(false);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 underline"
+                >
+                  Delete and re-record
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (recordingState === 'error') {
+      return (
+        <div className="flex flex-col items-center justify-center py-8">
+          <div className="flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <p className="text-sm text-red-600 mb-2">Transcription failed</p>
+          <p className="text-xs text-gray-500">Please try recording again</p>
+          <button 
+            onClick={() => setRecordingState('idle')}
+            className="mt-2 px-4 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+          >
+            Try Again
+          </button>
         </div>
       );
     }
@@ -601,15 +565,7 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
             </button>
           )}
           
-          {recordingState === 'idle' && (
-            <button 
-              type="button" 
-              className="text-sm underline text-gray-600 hover:text-gray-800" 
-              onClick={switchToText}
-            >
-              Type instead
-            </button>
-          )}
+
         </div>
 
         {/* Status text */}
@@ -624,19 +580,155 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   };
 
   /* ───────── render ───────── */
+  if (isLoading) {
+    return <div>Loading...</div>
+  }
+
+  /* ───────── render mode selector ───────── */
+  const renderModeSelector = () => {
+    if (hasStartedRecording || recordingState === 'complete' || recordingState === 'transcribing') {
+      return null; // Don't show mode selector after recording has started or completed
+    }
+
+    // Also hide if user has already typed content
+    if (transcript.trim().length > 0) {
+      return null;
+    }
+
+    return (
+      <div className="mb-2 flex items-center justify-center">
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          <button
+            type="button"
+            onClick={() => setMode('audio')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === 'audio'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🎤 Record
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('text')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === 'text'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            ✏️ Write
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="w-full">
+        {renderModeSelector()}
+        
         {mode === 'audio' ? (
           <>
             {renderRecordingControls()}
-            {canContinue && (
+            {canContinue && !isEditingTranscription && (
               <button
                 type="button"
-                onClick={handleContinue}
-                className="w-full mt-4 px-4 py-2 bg-[#B04A2F] text-white rounded-md hover:bg-[#8a3a23] transition-colors"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  setIsSubmitting(true);
+                  try {
+                    // Update status to 'approved' when continuing
+                    await fetch(`/api/mentor-interview/${accessToken}/response/${stageId}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        response_text: transcribedText,
+                        status: 'approved'
+                      }),
+                    });
+                    
+                    onSaveComplete?.(transcribedText);
+
+                    // If final question, generate insights first
+                    if (isFinalQuestion) {
+                      try {
+                        const insightsResponse = await fetch(`/api/mentor-interview/${accessToken}/generate-insights`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                        });
+                        
+                        if (insightsResponse.ok) {
+                          const insightsData = await insightsResponse.json();
+                          // Store insights in localStorage for the complete page
+                          localStorage.setItem('mentor_insights', JSON.stringify(insightsData));
+                        }
+                      } catch (insightsError) {
+                        console.error('Error generating insights:', insightsError);
+                        // Continue anyway if insights fail
+                      }
+                      
+                      onContinue?.();
+                      return;
+                    }
+
+                    // For non-final questions, preload next question before navigation
+                    try {
+                      const response = await fetch(`/api/mentor-interview/${accessToken}/generate-question`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          previous_stage_id: stageId,
+                          answer_text: transcribedText,
+                        }),
+                      });
+
+                      if (response.ok) {
+                        const responseText = await response.text();
+                        if (!responseText.includes('event:') && !responseText.includes('data:')) {
+                          const nextQuestionData = JSON.parse(responseText);
+                          if (nextQuestionData.stage_id) {
+                            // Question is ready, now navigate
+                            onContinue?.();
+                            return;
+                          }
+                        }
+                      }
+                    } catch (questionError) {
+                      console.error('Error preloading next question:', questionError);
+                    }
+                    
+                    // If preloading fails, still navigate
+                    onContinue?.();
+                    
+                  } catch (error) {
+                    console.error('Error submitting response:', error);
+                    // Still continue even if API call fails
+                    onContinue?.();
+                  }
+                  // Don't reset isSubmitting here - let navigation handle it
+                }}
+                className={`w-full mt-8 px-6 py-3 rounded-lg font-medium text-white transition-colors ${
+                  isSubmitting 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-[#B04A2F] hover:bg-[#8a3a23]'
+                }`}
               >
-                {isFinalQuestion ? 'Review Your Answers' : 'Continue to Next Question'}
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>{isFinalQuestion ? 'Wrapping up interview...' : 'Preparing next question...'}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <span>{isFinalQuestion ? 'Approve Transcript & Continue' : 'Approve Transcript & Continue'}</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </div>
+                )}
               </button>
             )}
           </>
@@ -650,28 +742,110 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
               placeholder="Type your response..."
               onBlur={saveTranscript}
             />
-            <div className="flex justify-between items-center mt-2">
-              <button 
-                type="button" 
-                className="text-sm underline text-gray-600 hover:text-gray-800" 
-                onClick={switchToAudio}
-              >
-                Record instead
-              </button>
+            <div className="flex justify-end items-center mt-2">
               {canContinue && (
                 <button
                   type="button"
-                  onClick={handleContinue}
-                  className="px-4 py-2 bg-[#B04A2F] text-white rounded-md hover:bg-[#8a3a23] transition-colors"
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    setIsSubmitting(true);
+                    try {
+                      // Update status to 'approved' when continuing
+                      await fetch(`/api/mentor-interview/${accessToken}/response/${stageId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          response_text: transcript,
+                          status: 'approved'
+                        }),
+                      });
+                      
+                      onSaveComplete?.(transcript);
+
+                      // If final question, generate insights first
+                      if (isFinalQuestion) {
+                        try {
+                          const insightsResponse = await fetch(`/api/mentor-interview/${accessToken}/generate-insights`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                          });
+                          
+                          if (insightsResponse.ok) {
+                            const insightsData = await insightsResponse.json();
+                            // Store insights in localStorage for the complete page
+                            localStorage.setItem('mentor_insights', JSON.stringify(insightsData));
+                          }
+                        } catch (insightsError) {
+                          console.error('Error generating insights:', insightsError);
+                          // Continue anyway if insights fail
+                        }
+                        
+                        onContinue?.();
+                        return;
+                      }
+
+                      // For non-final questions, preload next question before navigation
+                      try {
+                        const response = await fetch(`/api/mentor-interview/${accessToken}/generate-question`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            previous_stage_id: stageId,
+                            answer_text: transcript,
+                          }),
+                        });
+
+                        if (response.ok) {
+                          const responseText = await response.text();
+                          if (!responseText.includes('event:') && !responseText.includes('data:')) {
+                            const nextQuestionData = JSON.parse(responseText);
+                            if (nextQuestionData.stage_id) {
+                              // Question is ready, now navigate
+                              onContinue?.();
+                              return;
+                            }
+                          }
+                        }
+                      } catch (questionError) {
+                        console.error('Error preloading next question:', questionError);
+                      }
+                      
+                      // If preloading fails, still navigate
+                      onContinue?.();
+                      
+                    } catch (error) {
+                      console.error('Error submitting response:', error);
+                      // Still continue even if API call fails
+                      onContinue?.();
+                    }
+                    // Don't reset isSubmitting here - let navigation handle it
+                  }}
+                  className={`px-6 py-3 rounded-lg font-medium text-white transition-colors ${
+                    isSubmitting 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-[#B04A2F] hover:bg-[#8a3a23]'
+                  }`}
                 >
-                  {isFinalQuestion ? 'Review Answers' : 'Continue'}
+                  {isSubmitting ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>{isFinalQuestion ? 'Wrapping up interview...' : 'Preparing next question...'}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <span>{isFinalQuestion ? 'Approve Transcript & Continue' : 'Approve Transcript & Continue'}</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </div>
+                  )}
                 </button>
               )}
             </div>
           </>
         )}
         
-        <p className="mt-2 text-sm text-gray-500">{wordCount} words</p>
+
       </div>
 
       {/* Final Question Wait Overlay */}

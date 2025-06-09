@@ -17,14 +17,11 @@ const {
   getMentorInterest,
   generatePersonalizedIntro,
   getAllMentorResponses,
-  submitMentorResponses,
+  generateInsights,
   validateAccessToken,
   deleteMentorInterest,
   generateAccessToken,
   getAdminMentorResponses,
-  updateMentorResponseTranscription,
-  getMentorTranscriptionProgress,
-  transcribeAndWait,
 } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
@@ -201,17 +198,19 @@ router.post('/:access_token/generate-question', validateAccessToken, generateNex
 
 /**
  * @route POST /api/mentor-interview/:access_token/response/:stage_id
- * @desc Add or update a mentor response
+ * @desc Add or update a mentor response (supports multipart audio uploads for immediate transcription)
  * @access Public (token validated)
  */
-router.post('/:access_token/response/:stage_id', validateAccessToken, upsertMentorResponse);
+router.post('/:access_token/response/:stage_id', validateAccessToken, createPseudoUser, (req, res, next) => {
+  // Check if upload is ready
+  if (!upload) {
+    return res.status(500).json({ error: 'Upload service not ready' });
+  }
+  // Apply multer middleware for optional audio file
+  upload.single('audio')(req, res, next);
+}, upsertMentorResponse);
 
-/**
- * @route PATCH /api/mentor-interview/:access_token/response/:stage_id
- * @desc Update mentor response with transcription (WORKER ENDPOINT)
- * @access Public (token validated)
- */
-router.patch('/:access_token/response/:stage_id', validateAccessToken, updateMentorResponseTranscription);
+
 
 /**
  * @route GET /api/mentor-interview/:access_token/response/:stage_id
@@ -228,64 +227,11 @@ router.get('/:access_token/response/:stage_id', validateAccessToken, getMentorRe
 router.get('/:access_token/responses', validateAccessToken, getAllMentorResponses);
 
 /**
- * @route POST /api/mentor-interview/:access_token/submit
- * @desc Submit final mentor responses
+ * @route POST /api/mentor-interview/:access_token/generate-insights
+ * @desc Generate personalized insights summary from responses
  * @access Public (token validated)
  */
-router.post('/:access_token/submit', validateAccessToken, submitMentorResponses);
-
-/**
- * @route GET /api/mentor-interview/:access_token/progress
- * @desc Get transcription progress for all mentor responses
- * @access Public (token validated)
- */
-router.get('/:access_token/progress', validateAccessToken, getMentorTranscriptionProgress);
-
-/**
- * @route POST /api/mentor-interview/:access_token/transcribe/:stage_id
- * @desc Trigger transcription and wait for completion (synchronous)
- * @access Public (token validated)
- */
-router.post('/:access_token/transcribe/:stage_id', validateAccessToken, transcribeAndWait);
-
-/**
- * @route GET /api/mentor-interview/:access_token/debug-queue
- * @desc Debug endpoint to check transcription queue status
- * @access Public (token validated)
- */
-router.get('/:access_token/debug-queue', validateAccessToken, async (req, res) => {
-  try {
-    const { getTranscriptionQueue } = require('~/server/services/transcriptionQueue');
-    const transcriptionQueue = getTranscriptionQueue();
-    
-    if (!transcriptionQueue) {
-      return res.json({
-        queue_available: false,
-        message: 'Transcription queue not available - Redis may not be configured'
-      });
-    }
-
-    const stats = await transcriptionQueue.getQueueStats();
-    const jobStatuses = await transcriptionQueue.getJobStatuses(req.params.access_token);
-    
-    logger.info('[debug-queue] Queue stats:', stats);
-    logger.info('[debug-queue] Job statuses for token:', {
-      token: req.params.access_token.substring(0, 8) + '...',
-      jobs: jobStatuses
-    });
-
-    res.json({
-      queue_available: true,
-      queue_stats: stats,
-      job_statuses: jobStatuses,
-      access_token_preview: req.params.access_token.substring(0, 8) + '...'
-    });
-  } catch (error) {
-    logger.error('[debug-queue] Error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
+router.post('/:access_token/generate-insights', validateAccessToken, generateInsights);
 /**
  * @route POST /api/mentor-interview/:access_token/upload-audio
  * @desc Server-side audio upload for non-S3 strategies
