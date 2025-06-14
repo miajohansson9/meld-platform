@@ -8,6 +8,7 @@ export enum QueryKeys {
   conversation = 'conversation',
   searchEnabled = 'searchEnabled',
   user = 'user',
+  users = 'users', // all users for admin
   name = 'name', // user key name
   models = 'models',
   balance = 'balance',

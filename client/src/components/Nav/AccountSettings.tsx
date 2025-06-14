@@ -12,7 +12,13 @@ import { useLocalize } from '~/hooks';
 import Settings from './Settings';
 import store from '~/store';
 import AdminModal from '../Admin/AdminModal';
-import { SystemRoles } from 'librechat-data-provider';
+
+// Define SystemRoles locally to avoid import issues
+const SystemRoles = {
+  ADMIN: 'ADMIN',
+  USER: 'USER',
+  MENTOR: 'MENTOR',
+} as const;
 
 function AccountSettings() {
   const localize = useLocalize();
@@ -91,7 +97,7 @@ function AccountSettings() {
               </>
             )}
           <Select.SelectItem
-            value=""
+            value="files"
             onClick={() => setShowFiles(true)}
             className="select-item text-sm"
           >
@@ -100,7 +106,7 @@ function AccountSettings() {
           </Select.SelectItem>
           {user?.role === SystemRoles.ADMIN && (
             <Select.SelectItem
-              value=""
+              value="admin"
               onClick={() => setShowAdminModal(true)}
               className="select-item text-sm"
             >
@@ -110,7 +116,7 @@ function AccountSettings() {
           )}
           {startupConfig?.helpAndFaqURL !== '/' && (
             <Select.SelectItem
-              value=""
+              value="help"
               onClick={() => window.open(startupConfig?.helpAndFaqURL, '_blank')}
               className="select-item text-sm"
             >
@@ -119,7 +125,7 @@ function AccountSettings() {
             </Select.SelectItem>
           )}
           <Select.SelectItem
-            value=""
+            value="settings"
             onClick={() => setShowSettings(true)}
             className="select-item text-sm"
           >

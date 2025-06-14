@@ -23,6 +23,14 @@ const buildQuery = (params: Record<string, unknown>): string => {
 export const health = () => '/health';
 export const user = () => '/api/user';
 
+export const allUsers = (params?: { page?: number; limit?: number; search?: string; role?: string }) => {
+  return `/api/user/all${buildQuery(params || {})}`;
+};
+
+export const updateUserRole = (userId: string) => `/api/user/${userId}/role`;
+
+export const deleteSpecificUser = (userId: string) => `/api/user/${userId}`;
+
 export const balance = () => '/api/balance';
 
 export const userPlugins = () => '/api/user/plugins';

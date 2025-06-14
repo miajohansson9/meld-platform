@@ -698,6 +698,38 @@ export function getRole(roleName: string): Promise<r.TRole> {
   return request.get(endpoints.getRole(roleName));
 }
 
+/* Users Management */
+export function getAllUsers(params?: { page?: number; limit?: number; search?: string; role?: string }): Promise<{
+  users: t.TUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}> {
+  return request.get(endpoints.allUsers(params));
+}
+
+export function updateUserRole(userId: string, role: string): Promise<{
+  user: {
+    _id: string;
+    role: string;
+    email: string;
+    name: string;
+  };
+  message: string;
+}> {
+  return request.put(endpoints.updateUserRole(userId), { role });
+}
+
+export function deleteSpecificUser(userId: string): Promise<{
+  message: string;
+  deletedUserId: string;
+}> {
+  return request.delete(endpoints.deleteSpecificUser(userId));
+}
+
 export function updatePromptPermissions(
   variables: m.UpdatePromptPermVars,
 ): Promise<m.UpdatePermResponse> {
