@@ -230,7 +230,7 @@ async function getMentorInterests(req, res) {
         $sort: { createdAt: -1 }
       }
     ]);
-    
+
     res.json(interests);
   } catch (err) {
     return handleError(res, { text: 'Error fetching mentor interests' });
@@ -379,7 +379,7 @@ async function upsertMentorResponse(req, res) {
 
         // Read audio buffer from uploaded file
         const audioBuffer = await fs.readFile(req.file.path);
-        
+
         // Create audio file metadata for STTService
         const audioFile = {
           originalname: req.file.originalname || 'recording.webm',
@@ -390,13 +390,13 @@ async function upsertMentorResponse(req, res) {
         // Use OpenAI Whisper API directly for immediate transcription
         const FormData = require('form-data');
         const axios = require('axios');
-        
+
         if (!process.env.OPENAI_API_KEY) {
           throw new Error('OPENAI_API_KEY not configured');
         }
-        
+
         logger.debug('[upsertMentorResponse] Starting transcription with OpenAI Whisper');
-        
+
         // Create form data for OpenAI API
         const formData = new FormData();
         formData.append('file', audioBuffer, {
@@ -404,7 +404,7 @@ async function upsertMentorResponse(req, res) {
           contentType: audioFile.mimetype,
         });
         formData.append('model', 'whisper-1');
-        
+
         // Call OpenAI Whisper API directly
         const transcriptionResponse = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
           headers: {
@@ -413,9 +413,9 @@ async function upsertMentorResponse(req, res) {
           },
           timeout: 60000 // 60 second timeout
         });
-        
+
         const transcribedText = transcriptionResponse.data.text?.trim();
-        
+
         if (!transcribedText) {
           throw new Error('No transcription text returned from OpenAI API');
         }
@@ -432,7 +432,7 @@ async function upsertMentorResponse(req, res) {
         // Save transcribed response to database
         const mentorResponse = await MentorResponse.findOneAndUpdate(
           { mentor_interest: mentor_interest_id, stage_id: parseInt(stage_id) },
-          { 
+          {
             response_text: transcribedText,
             duration_ms,
             status: 'transcribed',
@@ -460,7 +460,7 @@ async function upsertMentorResponse(req, res) {
 
       } catch (transcriptionError) {
         logger.error('[upsertMentorResponse] Transcription failed:', transcriptionError);
-        
+
         // Clean up temporary file on error
         if (req.file && req.file.path) {
           try {
@@ -475,14 +475,33 @@ async function upsertMentorResponse(req, res) {
           error: 'Transcription failed: ' + transcriptionError.message
         });
       }
-    } 
-    
+    }
+
     // Handle text-only updates (EXISTING FLOW - simplified)
     else {
-      const { response_text = '', status = 'transcribed', version: incomingVersion } = req.body;
-      
+      const { response_text = '', status = 'transcribed', version: incomingVersion, rejection_reason } = req.body;
+
       const filter = { mentor_interest: mentor_interest_id, stage_id: parseInt(stage_id) };
-      const existing = await MentorResponse.findOne(filter);
+
+      // Handle rejection status separately
+      if (status === 'rejected') {
+        const rejectedResponse = await MentorResponse.create({
+          mentor_interest: mentor_interest_id,
+          stage_id: parseInt(stage_id),
+          response_text: response_text,
+          status: 'rejected',
+          rejection_reason: rejection_reason || 'Question mismatch',
+          version: 1
+        });
+
+        return res.json(rejectedResponse);
+      }
+
+      // For regular responses, check if active response exists (exclude rejected)
+      const existing = await MentorResponse.findOne({
+        ...filter,
+        status: { $ne: 'rejected' }
+      });
 
       if (!existing) {
         const created = await MentorResponse.create({
@@ -503,8 +522,8 @@ async function upsertMentorResponse(req, res) {
       }
 
       const updated = await MentorResponse.findOneAndUpdate(
-        filter,
-        { 
+        { ...filter, status: { $ne: 'rejected' } },
+        {
           response_text,
           status,
           version: existing.version + 1
@@ -532,6 +551,7 @@ async function getMentorResponse(req, res) {
     const response = await MentorResponse.findOne({
       mentor_interest: mentor_interest_id,
       stage_id,
+      status: { $ne: 'rejected' } // Exclude rejected responses by default
     });
 
     if (!response) {
@@ -552,25 +572,21 @@ async function getMentorResponse(req, res) {
 async function generateNextQuestion(req, res) {
   try {
     const mentor_interest_id = req.mentorInterest._id;
-    const { previous_stage_id, answer_text } = req.body;
-
-    // Allow empty answer_text for skipping questions
+    const { previous_stage_id, answer_text, force_regenerate } = req.body;
     const effectiveAnswerText = answer_text || '[Question was skipped]';
 
-    // For RAG search, use a generic query if no answer provided
-    const searchQuery = answer_text || 'general mentor advice for young professionals';
-
-    // Calculate next stage
+    // Calculate next stage`
     const nextStage = (previous_stage_id || 0) + 1;
 
     // Check if a question already exists for the next stage
     const existingResponse = await MentorResponse.findOne({
       mentor_interest: mentor_interest_id,
       stage_id: nextStage,
+      status: { $ne: 'rejected' } // Only consider non-rejected responses
     });
 
-    // If a question already exists for this stage, return it instead of generating a new one
-    if (existingResponse && existingResponse.question) {
+    // If a question already exists for this stage and we're not forcing regeneration, return it
+    if (existingResponse && existingResponse.question && !force_regenerate) {
       return res.json({
         stage_id: nextStage,
         question: existingResponse.question,
@@ -582,11 +598,19 @@ async function generateNextQuestion(req, res) {
 
     // === GENERATE NEW QUESTION ===
     // The following code only runs when we need to create a new question
-    // Get all previous questions and answers in this conversation
+    // Get all previous questions and answers in this conversation (exclude rejected)
     const previousResponses = await MentorResponse.find({
       mentor_interest: mentor_interest_id,
-      stage_id: { $lte: previous_stage_id }
+      stage_id: { $lte: previous_stage_id },
+      status: { $ne: 'rejected' }
     }).sort({ stage_id: 1 });
+
+    // Get rejected questions for the current stage to avoid similar questions
+    const rejectedQuestions = await MentorResponse.find({
+      mentor_interest: mentor_interest_id,
+      stage_id: nextStage,
+      status: 'rejected'
+    }).sort({ createdAt: 1 });
 
     // Get mentor's profile information
     const mentorProfile = req.mentorInterest;
@@ -615,10 +639,10 @@ Your goal is to sound like a smart, empathetic older sister—someone who's stra
 
 ---
 Focus Areas (aligned with MELD's 4 Pillars):
-1. Starting Points to Success – early-career mindset, career discovery, rejection, growth, mentorship, resilience, leadership, community
-2. Profile & Presentation – interviews, first impressions, storytelling, personal brand, professional presence, visibility, online identity
+1. Starting Points to Success – early-career mindset, career discovery, rejection, growth, mentorship, resilience, leadership, community, shared experiences in upbringing
+2. Profile & Presentation – interviews, first impressions, storytelling, personal brand, professional presence, visibility, online identity, attire, feeling ready inside and out
 3. Financial Fluency – salary negotiation, compensation strategy, early money habits, investing, equity, financial boundaries, talking about money
-4. The Future of Work – hybrid work, remote teams, intergenerational dynamics, adapting to tech change, inclusion, AI/automation, flexibility & retention
+4. The Future of Work – hybrid work, remote teams, intergenerational dynamics, adapting to tech change, inclusion, AI/automation, flexibility & retention, trends
 
 ---
 How to Ask Questions:
@@ -668,14 +692,25 @@ Great Example Questions:
 - "Tell me about a time when you had to advocate for yourself at work—what did that conversation actually sound like?"
 - "Can you walk me through a specific moment when you felt completely out of your depth? How did you handle it?"
 - "What's a mistake you made early in your career that you're actually grateful for now? What happened?"
-
+- "When a teammate's work keeps coming back with major revisions needed, how do you decide whether to coach more deeply or re-scope the assignment?"
+- "What clear signals tell you it's time to let someone struggle through a problem on their own versus stepping in to unblock them?"
+- "How do you protect your own deadlines while mentoring a colleague who leans heavily on your expertise?"
+- "Tell me about a time you realized your help had turned into micromanagement. How did you reset expectations?"
+- "How do you set upfront guidelines so team members know when to ask for help and when to problem-solve independently?"
+- "What boundary or ritual keeps you from burning out when you're both the team lead and a hands-on mentor?"
+- "If a project risks slipping because a teammate can't deliver, how do you redistribute work without eroding trust?"
+- "When you need to give tough feedback, how do you keep it clear and ongoing so no one is blindsided at review time?"
+- "What's your go-to method for turning repeat questions into resources or processes that scale your mentorship?"
+- "What's the single most important thing for building team morale?"
+- "Describe a time an online post backfired—how did you clean it up and protect your reputation?"
+- "When work anxiety spikes at night, what do you do to calm down?"
 ---
 Tone: curious, confident, emotionally intelligent, honest, and helpful. You are here to get real answers for real young women trying to figure it out.
 `,
       },
-  {
-    role: 'user',
-      content: `MENTOR PROFILE:
+      {
+        role: 'user',
+        content: `MENTOR PROFILE:
 Name: ${mentorProfile.firstName} ${mentorProfile.lastName || ''}
 Job Title: ${mentorProfile.jobTitle}
 Company: ${mentorProfile.company || 'Not specified'}
@@ -683,103 +718,127 @@ Industry: ${mentorProfile.industry}
 Career Stage: ${mentorProfile.careerStage}
 Email: ${mentorProfile.email}`,
       },
-  {
-    role: 'user',
-      content: `CONVERSATION HISTORY:
+      {
+        role: 'user',
+        content: `CONVERSATION HISTORY:
 ${conversationHistory.map(entry => `Q${entry.stage}: ${entry.question}
 A${entry.stage}: ${entry.answer}`).join('\n\n')}`,
       },
-  {
-    role: 'user',
-      content: `Current mentor answer: "${effectiveAnswerText}"`,
-      },
-  {
-    role: 'user',
-      content:
-    "Based on the mentor's profile, full conversation history, and latest answer, generate a thoughtful follow-up question that explores a NEW topic/area with actionable advice specific to their industry/role. Avoid repeating themes from previous questions.",
+      {
+        role: 'user',
+        content: `Current mentor answer: "${effectiveAnswerText}"`,
       },
     ];
 
-  // Use direct OpenAI API call to ensure no streaming
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: payload,
-    temperature: 0.7,
-    max_tokens: 200,
-    stream: false, // Explicitly disable streaming
-  });
+    // Add rejected questions context if any exist
+    payload.push({
+      role: 'user',
+      content: `The mentor rejected answering the questions below:
+    
+    ${rejectedQuestions.map(q => `• ${q.question || 'Question text missing'}`).join('\n')}
+    
+    **Next-step guidelines**
+    
+    1. Treat those topics as closed—move on.
+    2. Scan the mentor's background for a *different* pillar or sub-theme where their insight would shine.
+    3. Craft one fresh, specific question that feels natural for their role and industry.
+    4. Keep it actionable or story-driven, in the MELD “smart older-sister” voice.
+    
+    Example pivots  
+    • Leadership ➜ Personal brand, first-impression stories, or salary talks  
+    • Networking ➜ Work-life boundaries, early career pivots, or money habits  
+    • Management ➜ Early mistakes, decision-making under pressure, or financial wins/losses  
+    • Industry trends ➜ Personal growth rituals, interview strategies, or team culture moments
+    
+    Return ONLY the new question (no extra text).`
+    });
 
-  // Extract the response content
-  const completionText = completion.choices[0]?.message?.content || '';
+    // Add final instruction
+    payload.push({
+      role: 'user',
+      content: "Based on the mentor's profile, full conversation history, and latest answer, generate a thoughtful follow-up question that explores a NEW topic/area with actionable advice specific to their industry/role. Avoid repeating themes from previous questions."
+    });
 
-  let aiResponse;
-  try {
-    // First, try to strip markdown code blocks if present
-    let jsonText = completionText.trim();
+    // Use direct OpenAI API call to ensure no streaming
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: payload,
+      temperature: 0.7,
+      max_tokens: 200,
+      stream: false, // Explicitly disable streaming
+    });
 
-    // Remove markdown code blocks (```json ... ```) if present
-    const codeBlockMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (codeBlockMatch) {
-      jsonText = codeBlockMatch[1].trim();
-    }
+    // Extract the response content
+    const completionText = completion.choices[0]?.message?.content || '';
 
-    aiResponse = JSON.parse(jsonText);
-  } catch (parseError) {
-    logger.warn('[generateNextQuestion] JSON parse failed, trying fallback:', parseError);
-    // More aggressive fallback parsing
-    const jsonMatch = completionText.match(/\{[^}]*"question"[^}]*\}/);
-    if (jsonMatch) {
-      try {
-        aiResponse = JSON.parse(jsonMatch[0]);
-      } catch (fallbackError) {
-        logger.error('[generateNextQuestion] Fallback parse also failed:', fallbackError);
-        // Final fallback - extract question text manually
-        const questionMatch = completionText.match(/"question":\s*"([^"]+)"/);
-        aiResponse = {
-          question: questionMatch ? questionMatch[1] : 'Failed to generate a question. Please navigate to the next question instead.',
-          preamble: 'Thank you for sharing your insights.',
-        };
+    let aiResponse;
+    try {
+      // First, try to strip markdown code blocks if present
+      let jsonText = completionText.trim();
+
+      // Remove markdown code blocks (```json ... ```) if present
+      const codeBlockMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (codeBlockMatch) {
+        jsonText = codeBlockMatch[1].trim();
       }
-    } else {
-      logger.error('[generateNextQuestion] No valid JSON found in AI response:', completionText);
-      throw new Error('AI response did not contain valid JSON. Please refresh the page and try again.');
+
+      aiResponse = JSON.parse(jsonText);
+    } catch (parseError) {
+      logger.warn('[generateNextQuestion] JSON parse failed, trying fallback:', parseError);
+      // More aggressive fallback parsing
+      const jsonMatch = completionText.match(/\{[^}]*"question"[^}]*\}/);
+      if (jsonMatch) {
+        try {
+          aiResponse = JSON.parse(jsonMatch[0]);
+        } catch (fallbackError) {
+          logger.error('[generateNextQuestion] Fallback parse also failed:', fallbackError);
+          // Final fallback - extract question text manually
+          const questionMatch = completionText.match(/"question":\s*"([^"]+)"/);
+          aiResponse = {
+            question: questionMatch ? questionMatch[1] : 'Failed to generate a question. Please navigate to the next question instead.',
+            preamble: 'Thank you for sharing your insights.',
+          };
+        }
+      } else {
+        logger.error('[generateNextQuestion] No valid JSON found in AI response:', completionText);
+        throw new Error('AI response did not contain valid JSON. Please refresh the page and try again.');
+      }
     }
-  }
 
-  // Ensure aiResponse has a preamble field (in case AI didn't include it)
-  if (!aiResponse.preamble) {
-    aiResponse.preamble = 'Thank you for sharing your insights. Here\'s your next question:';
-  }
+    // Ensure aiResponse has a preamble field (in case AI didn't include it)
+    if (!aiResponse.preamble) {
+      aiResponse.preamble = 'Thank you for sharing your insights. Here\'s your next question:';
+    }
 
-  // Save the generated question as a new response entry (or update if exists)
-  await MentorResponse.findOneAndUpdate(
-    {
-      mentor_interest: mentor_interest_id,
+    // Save the generated question as a new response entry (or update if exists)
+    await MentorResponse.findOneAndUpdate(
+      {
+        mentor_interest: mentor_interest_id,
+        stage_id: nextStage,
+      },
+      {
+        question: aiResponse.question,
+        preamble: aiResponse.preamble,
+        response_text: '', // Will be filled when mentor answers
+        version: 1, // Reset version for new question
+      },
+      {
+        new: true,
+        upsert: true, // Create if doesn't exist
+      },
+    );
+
+    const finalResponse = {
       stage_id: nextStage,
-    },
-    {
       question: aiResponse.question,
       preamble: aiResponse.preamble,
-      response_text: '', // Will be filled when mentor answers
-      version: 1, // Reset version for new question
-    },
-    {
-      new: true,
-      upsert: true, // Create if doesn't exist
-    },
-  );
+    };
 
-  const finalResponse = {
-    stage_id: nextStage,
-    question: aiResponse.question,
-    preamble: aiResponse.preamble,
-  };
-
-  res.json(finalResponse);
-} catch (err) {
-  logger.error('[generateNextQuestion] Error:', err);
-  return handleError(res, { text: 'Error generating next question' });
-}
+    res.json(finalResponse);
+  } catch (err) {
+    logger.error('[generateNextQuestion] Error:', err);
+    return handleError(res, { text: 'Error generating next question' });
+  }
 }
 
 /**
@@ -814,13 +873,13 @@ async function generatePersonalizedIntro(req, res) {
         content: `Create a grammatically correct opening sentence for a mentor introduction. The mentor's job title is "${mentorProfile.jobTitle}" and they work at "${mentorProfile.company}".
 
 The sentence should follow this pattern but with proper grammar:
-"As [article] [job title] at [proper company name with correct articles], your experience offers critical insights for women in their 20s navigating the early stages of their professional journey."
+"As [article] [job title] at [proper company name with correct articles], your story offers critical guidance for women in their 20s navigating the early stages of their professional journey."
 
 Grammar rules:
 - Use "a" or "an" for common job titles (e.g., "As a Marketing Manager")
 - Use "the" for unique positions (e.g., "As the CEO", "As the First Lady", "As the President")
 - Add "the" before company names when appropriate (e.g., "the White House", "the United Nations", "the New York Times")
-- Keep the ending exactly as: "your experience offers critical insights for women in their 20s navigating the early stages of their professional journey."
+- Keep the ending exactly as: "your story offers critical guidance for women in their 20s navigating the early stages of their professional journey."
 
 Return ONLY the complete sentence, no extra punctuation, nothing else.`,
       },
@@ -892,7 +951,7 @@ async function generateInsights(req, res) {
     }
 
     // Prepare the data for ChatGPT
-    const responseTexts = responses.map((r, index) => 
+    const responseTexts = responses.map((r, index) =>
       `Question ${index + 1}: ${r.question}\nResponse: ${r.response_text}`
     ).join('\n\n');
 
@@ -900,21 +959,26 @@ async function generateInsights(req, res) {
     const mentorName = mentorInfo.firstName || 'this mentor';
 
     // Create the prompt for ChatGPT
-    const prompt = `You are a thoughtful human interviewer concluding a mentorship interview with ${mentorName}, a ${mentorInfo.jobTitle || 'professional'} at ${mentorInfo.company || 'their company'}. 
+    const prompt = `You are MELD’s AI interviewer, closing a mentorship interview with ${mentorName}, a ${mentorInfo.jobTitle || 'professional'} at ${mentorInfo.company || 'their company'}.
 
-Write a warm, personal closing response (max 80-100 words) that:
-1. STARTS with a direct response to their last/final answer
-2. Briefly acknowledges 1-2 key insights from their overall responses
-3. Thanks them for sharing their experiences
-4. Sounds conversational and human, like you're concluding a meaningful conversation
-
-Be concise and genuine. Start by responding to what they just shared in their final answer.
-
-Here are their responses:
-
-${responseTexts}
-
-Write your brief closing response as their interviewer.`;
+    Your job: Write a concise closing message (1–2 sentences, 65 words max) that will appear on MELD’s “Interview Complete” page.
+    
+    How to write it:
+    - Start with: “Thank you, ${mentorName}, for…” and include a “from [specific starting point or experience], to [specific achievement, insight, or result],” drawn directly from the mentor’s answers.
+    - Briefly reflect on how that story or lesson will help or resonate with young women on MELD’s platform—be clear and specific, not generic.
+    - Keep the tone warm, grounded, and human—not formal or flowery.
+    - End with a simple appreciation and the sense that their experience matters to MELD’s community.
+    
+    Do **not** restate MELD’s mission, general leadership traits, or use filler like “your story truly embodies…”—focus on what they actually said.
+    
+    The following line will appear directly below, so do **not** repeat it:
+    “Your answers are now part of MELD's founding story—a growing library of mentorship that will guide and inspire the next generation of women leaders.”
+    
+    Here are their responses:
+    
+    ${responseTexts}
+    
+    Write your closing message as their interviewer.`;    
 
     // Call ChatGPT API
     const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -947,13 +1011,17 @@ Write your brief closing response as their interviewer.`;
     const chatData = await chatResponse.json();
     const insights = chatData.choices[0]?.message?.content || 'Thank you for your valuable insights!';
 
-    // Mark all responses as submitted
+    // Mark all non-rejected responses as submitted
+    // Our partial unique index ensures only one non-rejected response per stage exists
     await MentorResponse.updateMany(
-      { mentor_interest: req.mentorInterest._id },
+      {
+        mentor_interest: req.mentorInterest._id,
+        status: { $ne: 'rejected' }
+      },
       { status: 'submitted' }
     );
 
-    res.json({ 
+    res.json({
       insights,
       mentor_name: mentorName,
       response_count: responses.length
@@ -972,27 +1040,27 @@ Write your brief closing response as their interviewer.`;
 async function deleteMentorInterest(req, res) {
   try {
     const { id } = req.params;
-    
+
     // Find the mentor interest to check if it exists
     const mentorInterest = await MentorInterest.findById(id);
     if (!mentorInterest) {
       return handleError(res, { text: 'Mentor interest submission not found' }, 404);
     }
-    
+
     // Count associated mentor responses before deletion
     const responseCount = await MentorResponse.countDocuments({ mentor_interest: id });
     logger.debug(`[deleteMentorInterest] Found ${responseCount} associated mentor responses for mentor interest ${id}`);
-    
+
     // Delete all associated mentor responses first
     const deleteResponsesResult = await MentorResponse.deleteMany({ mentor_interest: id });
     logger.debug(`[deleteMentorInterest] Deleted ${deleteResponsesResult.deletedCount} mentor responses for mentor interest ${id}`);
-    
+
     // Delete the mentor interest submission
     await MentorInterest.findByIdAndDelete(id);
     logger.debug(`[deleteMentorInterest] Successfully deleted mentor interest ${id} and ${deleteResponsesResult.deletedCount} associated responses`);
-    
-    res.json({ 
-      status: 'ok', 
+
+    res.json({
+      status: 'ok',
       message: `Mentor interest submission and ${deleteResponsesResult.deletedCount} associated responses deleted successfully`,
       deletedResponses: deleteResponsesResult.deletedCount
     });
@@ -1010,18 +1078,18 @@ async function deleteMentorInterest(req, res) {
 async function generateAccessToken(req, res) {
   try {
     const { id } = req.params;
-    
+
     // Find the mentor interest submission
     const mentorInterest = await MentorInterest.findById(id);
     if (!mentorInterest) {
       return handleError(res, { text: 'Mentor interest submission not found' }, 404);
     }
-    
+
     // Generate new access token and expiration
     const crypto = require('crypto');
     const newAccessToken = crypto.randomBytes(32).toString('hex');
     const newTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    
+
     // Update the submission with new token
     const updatedMentorInterest = await MentorInterest.findByIdAndUpdate(
       id,
@@ -1031,9 +1099,9 @@ async function generateAccessToken(req, res) {
       },
       { new: true }
     ).select('+accessToken +tokenExpiresAt');
-    
+
     logger.info(`[generateAccessToken] Generated new access token for mentor interest ${id}`);
-    
+
     res.json({
       status: 'ok',
       message: 'Access token generated successfully',

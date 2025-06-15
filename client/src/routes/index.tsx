@@ -83,7 +83,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/mentor-interview/complete',
+    path: '/mentor-interview/:access_token/complete',
     element: <MentorInterviewComplete />,
     errorElement: <RouteErrorBoundary />,
   },

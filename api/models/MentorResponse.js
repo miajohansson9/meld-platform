@@ -40,7 +40,7 @@ const mentorResponseSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'transcribed', 'submitted'],
+      enum: ['pending', 'transcribed', 'submitted', 'rejected'],
       default: 'pending',
     },
     whisper_model: {
@@ -50,13 +50,23 @@ const mentorResponseSchema = new mongoose.Schema(
     submitted_at: {
       type: Date,
     },
+    rejection_reason: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,
   },
 );
 
-// Unique constraint for mentor_interest + stage_id combination
-mentorResponseSchema.index({ mentor_interest: 1, stage_id: 1 }, { unique: true });
+// Partial unique constraint - only one non-rejected response per stage
+mentorResponseSchema.index(
+  { mentor_interest: 1, stage_id: 1 }, 
+  { 
+    unique: true,
+    partialFilterExpression: { status: { $in: ['pending', 'transcribed', 'submitted'] } }
+  }
+);
 
 module.exports = mongoose.model('MentorResponse', mentorResponseSchema);

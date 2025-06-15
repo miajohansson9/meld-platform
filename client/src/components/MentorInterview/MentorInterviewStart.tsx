@@ -109,9 +109,37 @@ const MentorInterviewStart: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#F8F4EB] p-4">
-        <div className="flex items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#B04A2F]"></div>
-          <span className="text-[#B04A2F] text-lg">Loading...</span>
+        <div className="w-full max-w-2xl mx-auto text-center">
+          {/* MELD Logo */}
+          <div className="mb-8 flex justify-center">
+            <img
+              src="/assets/logo-b.svg"
+              className="h-10 w-auto object-contain"
+              alt="MELD"
+            />
+          </div>
+          
+          {/* Main Message */}
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-serif italic text-[#B04A2F] mb-4 leading-tight">
+              Thank you for shaping what's next
+            </h1>
+            <p className="text-lg text-gray-700 font-light">
+              Preparing your personalized MELD interview…
+            </p>
+          </div>
+          
+          {/* Three Dot Loading Animation */}
+          <div className="mb-8 flex justify-center items-center space-x-1">
+            <div className="w-2 h-2 bg-[#B04A2F] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-[#B04A2F] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-[#B04A2F] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+          
+          {/* Subtle subtext */}
+          <p className="text-sm text-gray-500 font-light max-w-md mx-auto leading-relaxed">
+            We're tailoring questions based on your expertise to create the most meaningful conversation for young women starting their careers.
+          </p>
         </div>
       </div>
     );

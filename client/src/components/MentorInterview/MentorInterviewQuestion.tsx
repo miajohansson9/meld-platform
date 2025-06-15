@@ -1,15 +1,11 @@
 /* eslint-disable i18next/no-literal-string */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import MentorAudioTextInput from './MentorAudioTextInput';
 import MentorQuestionCard from './MentorQuestionCard';
 import BackgroundTranscriptionIndicator from './BackgroundTranscriptionIndicator';
 import { useTranscriptionStatus } from '~/hooks/Input/useTranscriptionStatus';
 
 const TOTAL_QUESTIONS = 6; // 6 questions total
-
-// Feature flag for background transcription
-const ENABLE_BACKGROUND_TRANSCRIPTION = true
 
 interface Question {
   question: string;
@@ -36,19 +32,22 @@ const MentorInterviewQuestion: React.FC = () => {
   const [transcript, setTranscript] = useState('');
   const [paused, setPaused] = useState(false);
   const [hasAudio, setHasAudio] = useState(false);
+  const [canRequestDifferentQuestion, setCanRequestDifferentQuestion] = useState(false);
+  const [isRequestingDifferentQuestion, setIsRequestingDifferentQuestion] = useState(false);
+  const [onRequestDifferentQuestionHandler, setOnRequestDifferentQuestionHandler] = useState<(() => void) | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
+  const [isRegeneratingQuestion, setIsRegeneratingQuestion] = useState(false);
   const saveRef = useRef<(() => Promise<void>) | null>(null);
 
   // Background transcription status tracking
   const {
     hasBackgroundProcessing,
     pendingStages,
-    refresh: refreshTranscriptionStatus,
   } = useTranscriptionStatus(
     access_token,
-    ENABLE_BACKGROUND_TRANSCRIPTION, // Only enable polling if feature is enabled
+    true, // Background transcription is always enabled
     3000 // Poll every 3 seconds
   );
 
@@ -69,7 +68,7 @@ const MentorInterviewQuestion: React.FC = () => {
       // For steps 2+, load question from API with loading state
       setIsLoadingQuestion(true);
       setCurrentQuestion(null);
-      
+
       try {
         const response = await fetch(`/api/mentor-interview/${access_token}/response/${currentStep}`);
         if (response.ok) {
@@ -102,11 +101,34 @@ const MentorInterviewQuestion: React.FC = () => {
   }, [currentStep, access_token, getQuestionPreamble]);
 
   const onInputStateChange = useCallback(
-    ({ paused: p, transcript: t, hasAudio: a }: { paused: boolean; transcript: string; hasAudio?: boolean }) => {
+    ({
+      paused: p,
+      transcript: t,
+      hasAudio: a,
+      canRequestDifferentQuestion: c,
+      isRequestingDifferentQuestion: r,
+      onRequestDifferentQuestion: h
+    }: {
+      paused: boolean;
+      transcript: string;
+      hasAudio?: boolean;
+      canRequestDifferentQuestion?: boolean;
+      isRequestingDifferentQuestion?: boolean;
+      onRequestDifferentQuestion?: () => void;
+    }) => {
       setPaused(p);
       setTranscript(t);
       if (a !== undefined) {
         setHasAudio(a);
+      }
+      if (c !== undefined) {
+        setCanRequestDifferentQuestion(c);
+      }
+      if (r !== undefined) {
+        setIsRequestingDifferentQuestion(r);
+      }
+      if (h !== undefined) {
+        setOnRequestDifferentQuestionHandler(() => h);
       }
     },
     [],
@@ -129,13 +151,7 @@ const MentorInterviewQuestion: React.FC = () => {
   const handleContinueImmediate = useCallback(() => {
     if (currentStep === TOTAL_QUESTIONS) {
       // Final question - navigate to complete page with insights
-      // Store access token for the complete page
-      if (access_token) {
-        localStorage.setItem('mentor_access_token', access_token);
-      }
-      navigate('/mentor-interview/complete', { 
-        state: { access_token } 
-      });
+      navigate(`/mentor-interview/${access_token}/complete`);
     } else {
       // Navigate to next question (preloading already handled by button)
       navigate(`/mentor-interview/${access_token}/question/${currentStep + 1}`);
@@ -144,94 +160,74 @@ const MentorInterviewQuestion: React.FC = () => {
 
   // Handle final question completion (after transcription or timeout)
   const handleFinalQuestionComplete = useCallback(() => {
-    // Store access token for the complete page
-    if (access_token) {
-      localStorage.setItem('mentor_access_token', access_token);
-    }
-    navigate('/mentor-interview/complete', { 
-      state: { access_token } 
-    });
+    navigate(`/mentor-interview/${access_token}/complete`);
   }, [navigate, access_token]);
 
-  // Legacy unified action handler for old component
-  const handleAction = useCallback(async (actionType: 'continue' | 'skip' | 'finish') => {
-    setIsLoading(true);
-    
+  // Handle question rejection and regeneration
+  const handleQuestionRejected = useCallback(async () => {
     try {
-      // Always save current content first (if any)
-      if (saveRef.current && transcript.trim()) {
-        await saveRef.current();
-      }
-      
-      if (actionType === 'finish') {
-        // Store access token for the complete page
-        if (access_token) {
-          localStorage.setItem('mentor_access_token', access_token);
-        }
-        navigate('/mentor-interview/complete', { 
-          state: { access_token } 
-        });
-        return;
-      }
+      setIsRegeneratingQuestion(true);
 
-      // Generate next question (continue or skip)
+      // Get previous answers (excluding rejected ones)
+      const previousResponse = await fetch(`/api/mentor-interview/${access_token}/response/${currentStep - 1}`);
+      const prevData = previousResponse.ok ? await previousResponse.json() : null;
+
+      // Generate new question for the CURRENT stage (not previous stage)
+      // The API will automatically consider rejected questions for this stage
       const response = await fetch(`/api/mentor-interview/${access_token}/generate-question`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          previous_stage_id: currentStep,
-          answer_text: actionType === 'skip' ? '' : transcript,
+          previous_stage_id: currentStep - 1,
+          answer_text: prevData?.response_text || '',
+          force_regenerate: true, // Force regeneration even if question exists
         }),
       });
 
       if (response.ok) {
         const responseText = await response.text();
-        
+
         if (responseText.includes('event:') || responseText.includes('data:')) {
-          alert('Server returned streaming format instead of JSON. Please refresh the page and try again.');
+          alert('Server returned streaming format. Please refresh the page and try again.');
           return;
         }
-        
-        const nextQuestionData = JSON.parse(responseText);
-        
-        if (nextQuestionData.stage_id) {
-          // Navigate to next question
-          setIsLoadingQuestion(true);
-          navigate(`/mentor-interview/${access_token}/question/${currentStep + 1}`);
-        } else {
-          alert('Received incomplete response from server. Please try again.');
+
+        const newQuestionData = JSON.parse(responseText);
+
+        if (newQuestionData.question) {
+          setCurrentQuestion({
+            question: newQuestionData.question,
+            preamble: getQuestionPreamble(currentStep),
+            supporting: newQuestionData.preamble || "Here's your new question:",
+          });
         }
       } else {
-        alert('Failed to generate next question. Please try again.');
+        alert('Failed to generate new question. Please try again.');
       }
+
     } catch (error) {
-      console.error('Error in handleAction:', error);
-      alert('An unexpected error occurred. Please try again.');
+      console.error('Error regenerating question:', error);
+      alert('Error generating new question. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsRegeneratingQuestion(false);
     }
-  }, [currentStep, transcript, navigate, access_token]);
+  }, [access_token, currentStep, getQuestionPreamble]);
+
+
 
   if (!access_token || !currentQuestion) return null;
 
   const hasContent = transcript.trim().length > 0;
   const isFinalQuestion = currentStep === TOTAL_QUESTIONS;
 
-  // Determine which recording component to use
-  const RecordingComponent = ENABLE_BACKGROUND_TRANSCRIPTION ? MentorQuestionCard : MentorAudioTextInput;
-
   return (
     <div className="flex flex-col items-center justify-center gap-6 bg-[#F8F4EB] p-4">
       {/* Background Transcription Indicator */}
-      {ENABLE_BACKGROUND_TRANSCRIPTION && (
-        <BackgroundTranscriptionIndicator
-          hasBackgroundProcessing={hasBackgroundProcessing}
-          pendingStages={pendingStages}
-          isVisible={currentStep > 1} // Only show from question 2 onwards
-        />
-      )}
+      <BackgroundTranscriptionIndicator
+        hasBackgroundProcessing={hasBackgroundProcessing}
+        pendingStages={pendingStages}
+        isVisible={currentStep > 1} // Only show from question 2 onwards
+      />
 
       {/* Progress Rail */}
       <div className="flex w-full flex-row items-center gap-4">
@@ -251,7 +247,7 @@ const MentorInterviewQuestion: React.FC = () => {
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg sm:p-8">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg sm:p-8">
         {/* Logo */}
         <div className="mb-4 flex justify-start">
           <img src="/assets/logo-b.svg" alt="MELD" className="h-7 w-auto" />
@@ -276,141 +272,62 @@ const MentorInterviewQuestion: React.FC = () => {
         )}
 
         {/* Audio/Text Input */}
-        {isLoadingQuestion ? (
+        {(isLoadingQuestion || isRegeneratingQuestion) ? (
           <div className="mt-4 flex w-full flex-col items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#B04A2F]"></div>
-            <p className="mt-4 text-sm text-gray-500">Loading your personalized question...</p>
+            <p className="mt-4 text-sm text-gray-500">
+              Loading your personalized question...
+            </p>
           </div>
         ) : (
           <div className="mt-4 flex w-full flex-col items-center">
-            {ENABLE_BACKGROUND_TRANSCRIPTION ? (
-              <MentorQuestionCard
-                accessToken={access_token}
-                stageId={currentStep}
-                isFinalQuestion={isFinalQuestion}
-                onStateChange={onInputStateChange}
-                onSave={(saveFn) => {
-                  saveRef.current = saveFn;
-                }}
-                onSaveComplete={onSaveComplete}
-                onContinue={handleContinueImmediate}
-                onFinalComplete={handleFinalQuestionComplete}
-              />
-            ) : (
-              <MentorAudioTextInput
-                accessToken={access_token}
-                stageId={currentStep}
-                onStateChange={onInputStateChange}
-                onSave={(saveFn) => {
-                  saveRef.current = saveFn;
-                }}
-                onSaveComplete={onSaveComplete}
-              />
-            )}
+            <MentorQuestionCard
+              accessToken={access_token}
+              stageId={currentStep}
+              isFinalQuestion={isFinalQuestion}
+              onStateChange={onInputStateChange}
+              onSave={(saveFn) => {
+                saveRef.current = saveFn;
+              }}
+              onSaveComplete={onSaveComplete}
+              onContinue={handleContinueImmediate}
+              onFinalComplete={handleFinalQuestionComplete}
+              onQuestionRejected={handleQuestionRejected}
+            />
           </div>
         )}
 
-        {/* Navigation - Only for legacy component */}
-        {!isLoadingQuestion && !ENABLE_BACKGROUND_TRANSCRIPTION && (
-          <div className="mt-8">
-            {isFinalQuestion ? (
-              // Final question: Review Answers button as per MentorReviewSubmitSpec.md
-              <>
-                <div className="mb-6">
-                  <button
-                    className="w-full rounded-md bg-[#B04A2F] py-3 px-4 text-base font-medium text-white transition hover:bg-[#8a3a23] focus:outline-none focus:ring-2 focus:ring-[#B04A2F] focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    onClick={() => handleAction('finish')}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <div className="relative">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
-                          <div className="absolute inset-0 rounded-full h-5 w-5 border-2 border-transparent border-t-white animate-pulse"></div>
-                        </div>
-                        <span className="animate-pulse">Preparing your review...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Review Your Answers
-                      </div>
-                    )}
-                  </button>
-                </div>
-                
-                <div className="flex justify-center border-t border-gray-200 pt-4">
-                  <button 
-                    className="text-sm text-gray-500 hover:text-gray-700 underline"
-                    onClick={goBack}
-                    disabled={isLoading}
-                  >
-                    ← Go back to previous question
-                  </button>
-                </div>
-              </>
-            ) : (
-              // Questions 1-9: Continue to next question
-              <div className="flex items-center justify-between">
-                <button 
-                  className="text-sm text-gray-500 hover:text-gray-700 underline"
-                  onClick={goBack}
-                  disabled={isLoading}
-                >
-                  ← Go back
-                </button>
-
-                {(hasContent || currentStep > 1) && (
-                  <button
-                    className="text-sm text-[#B04A2F] hover:text-[#8a3a23] underline font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
-                    onClick={() => handleAction(hasContent ? 'continue' : 'skip')}
-                    disabled={isLoading || (!hasContent && !paused)}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <span className="animate-pulse">
-                          {hasContent ? 'Saving Answer' : 'Moving ahead'}
-                        </span>
-                        <div className="animate-spin rounded-full h-3 w-3 border border-[#B04A2F]/30 border-t-[#B04A2F]"></div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        {hasContent ? (
-                          <>
-                            <span>Continue</span>
-                            <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </>
-                        ) : (
-                          <>
-                            <span>Skip question</span>
-                            <svg className="w-3 h-3 transition-transform group-hover:translate-x-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Back button for new component */}
-        {!isLoadingQuestion && ENABLE_BACKGROUND_TRANSCRIPTION && (
-          <div className="mt-4 flex justify-center border-t border-gray-200 pt-4">
-            <button 
+        {/* Bottom navigation */}
+        {!isLoadingQuestion && (
+          <div className="mt-4 flex justify-between items-center border-t border-gray-200 pt-4">
+            <button
               className="text-sm text-gray-500 hover:text-gray-700 underline"
               onClick={goBack}
               disabled={isLoading}
             >
-              ← Go back to previous question
+              ← Go back
             </button>
+
+            {canRequestDifferentQuestion && (
+              <button
+                className="text-sm text-gray-500 hover:text-gray-700 underline flex items-center gap-1"
+                onClick={onRequestDifferentQuestionHandler || undefined}
+                disabled={isRequestingDifferentQuestion}
+              >
+                {isRequestingDifferentQuestion ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                    Requesting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Different Question
+                  </>
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -12,11 +12,12 @@ interface MentorQuestionCardProps {
   accessToken: string;
   stageId: number;
   isFinalQuestion?: boolean; // NEW: indicates if this is the final question
-  onStateChange?: (s: { paused: boolean; transcript: string; hasAudio: boolean }) => void;
+  onStateChange?: (s: { paused: boolean; transcript: string; hasAudio: boolean; canRequestDifferentQuestion?: boolean; isRequestingDifferentQuestion?: boolean; onRequestDifferentQuestion?: () => void }) => void;
   onSave?: (saveFn: () => Promise<void>) => void;
   onSaveComplete?: (text: string) => void;
   onContinue?: () => void; // Called for immediate navigation
   onFinalComplete?: () => void; // NEW: Called when final question transcription is ready
+  onQuestionRejected?: () => void; // NEW: Called when question is rejected
 }
 
 // Recording state machine
@@ -31,6 +32,7 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   onSaveComplete,
   onContinue,
   onFinalComplete,
+  onQuestionRejected,
 }) => {
   /* ───────── state / refs ───────── */
   const [mode, setMode] = useState<'audio' | 'text'>('audio');
@@ -44,6 +46,7 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
+  const [isRequestingDifferentQuestion, setIsRequestingDifferentQuestion] = useState(false);
   
   // Recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -318,6 +321,33 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
     onFinalComplete?.();
   }, [onFinalComplete]);
 
+  /* ───────── different question handler ───────── */
+  const handleRequestDifferentQuestion = useCallback(async () => {
+    try {
+      setIsRequestingDifferentQuestion(true);
+      
+      // Submit rejection
+      await fetch(`/api/mentor-interview/${accessToken}/response/${stageId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          response_text: 'Question doesn\'t fit mentor expertise. Choose different question',
+          status: 'rejected',
+          rejection_reason: 'Question mismatch'
+        }),
+      });
+      
+      // Trigger question regeneration
+      onQuestionRejected?.();
+      
+    } catch (error) {
+      console.error('Error requesting different question:', error);
+      alert('Failed to request different question. Please try again.');
+    } finally {
+      setIsRequestingDifferentQuestion(false);
+    }
+  }, [accessToken, stageId, onQuestionRejected]);
+
   /* ───────── mode switching ───────── */
   const switchToText = useCallback(() => {
     if (recordingState === 'recording' || recordingState === 'paused') {
@@ -340,9 +370,12 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
     onStateChange?.({ 
       paused: isPaused, 
       transcript: transcribedText || transcript, 
-      hasAudio 
+      hasAudio,
+      canRequestDifferentQuestion: stageId > 1 && !transcript.trim() && !transcribedText.trim() && recordingState !== 'recording' && recordingState !== 'transcribing',
+      isRequestingDifferentQuestion,
+      onRequestDifferentQuestion: handleRequestDifferentQuestion
     });
-  }, [mode, recordingState, transcript, transcribedText, onStateChange]);
+  }, [mode, recordingState, transcript, transcribedText, onStateChange, stageId, isRequestingDifferentQuestion, handleRequestDifferentQuestion, recordingDuration]);
 
   /* ───────── derived state ───────── */
   const wordCount = useMemo(() => {
@@ -565,8 +598,6 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
               Stop & Save
             </button>
           )}
-          
-
         </div>
 
         {/* Status text */}
@@ -735,6 +766,8 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
           </>
         ) : (
           <>
+
+
             <textarea
               ref={textareaRef}
               className="min-h-[220px] w-full resize-y rounded border p-4 text-xl"
