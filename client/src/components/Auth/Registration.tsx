@@ -65,7 +65,7 @@ const Registration: React.FC = () => {
           autoComplete={id}
           aria-label={localize(label)}
           {...register(
-            id as 'name' | 'email' | 'username' | 'password' | 'confirm_password',
+            id as 'name' | 'email' | 'username' | 'password' | 'confirm_password' | 'signup_code',
             validation,
           )}
           aria-invalid={!!errors[id]}
@@ -99,13 +99,15 @@ const Registration: React.FC = () => {
   return (
     <>
       {errorMessage && (
-        <ErrorMessage>
-          {localize('com_auth_error_create')} {errorMessage}
-        </ErrorMessage>
+        <div className="w-full min-w-80 max-w-sm mx-auto sm:max-w-md">
+          <ErrorMessage>
+            {localize('com_auth_error_create')} {errorMessage}
+          </ErrorMessage>
+        </div>
       )}
       {registerUser.isSuccess && countdown > 0 && (
         <div
-          className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200"
+          className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200 w-full min-w-80 max-w-sm mx-auto sm:max-w-md"
           role="alert"
         >
           {localize(
@@ -120,13 +122,16 @@ const Registration: React.FC = () => {
       {!startupConfigError && !isFetching && (
         <>
           <form
-            className="mt-6"
+            className="mt-6 w-full min-w-80 max-w-sm mx-auto sm:max-w-md"
             aria-label="Registration form"
             method="POST"
             onSubmit={handleSubmit((data: TRegisterUser) =>
               registerUser.mutate({ ...data, token: token ?? undefined }),
             )}
           >
+            {startupConfig?.signupCodeRequired && renderInput('signup_code', 'com_auth_signup_code', 'text', {
+              required: localize('com_auth_signup_code_required'),
+            })}
             {renderInput('name', 'com_auth_full_name', 'text', {
               required: localize('com_auth_name_required'),
               minLength: {
@@ -136,16 +141,6 @@ const Registration: React.FC = () => {
               maxLength: {
                 value: 80,
                 message: localize('com_auth_name_max_length'),
-              },
-            })}
-            {renderInput('username', 'com_auth_username', 'text', {
-              minLength: {
-                value: 2,
-                message: localize('com_auth_username_min_length'),
-              },
-              maxLength: {
-                value: 80,
-                message: localize('com_auth_username_max_length'),
               },
             })}
             {renderInput('email', 'com_auth_email', 'email', {
@@ -195,7 +190,7 @@ const Registration: React.FC = () => {
             </div>
           </form>
 
-          <p className="my-4 text-center text-sm font-light text-gray-700 dark:text-white">
+          <p className="my-4 text-center text-sm font-light text-gray-700 dark:text-white w-full min-w-80 max-w-sm mx-auto sm:max-w-md">
             {localize('com_auth_already_have_account')}{' '}
             <a
               href="/login"

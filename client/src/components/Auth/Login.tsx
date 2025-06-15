@@ -85,7 +85,7 @@ function Login() {
         />
       )}
       {startupConfig?.registrationEnabled === true && (
-        <p className="my-4 text-center text-sm font-light text-gray-700 dark:text-white">
+        <p className="my-4 text-center text-sm font-light text-gray-700 dark:text-white w-full min-w-80 max-w-sm mx-auto sm:max-w-md">
           {' '}
           {localize('com_auth_no_account')}{' '}
           <a

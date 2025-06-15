@@ -296,6 +296,7 @@ export type TRegisterUser = {
   username: string;
   password: string;
   confirm_password?: string;
+  signup_code?: string;
   token?: string;
 };
 

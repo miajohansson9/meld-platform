@@ -62,13 +62,31 @@ const registerSchema = z
       .refine((value) => value.trim().length > 0, {
         message: 'Password cannot be only spaces',
       }),
+    signup_code: z.string().optional(),
   })
-  .superRefine(({ confirm_password, password }, ctx) => {
+  .superRefine(({ confirm_password, password, signup_code }, ctx) => {
     if (confirm_password !== password) {
       ctx.addIssue({
         code: 'custom',
         message: 'The passwords did not match',
       });
+    }
+    
+    // Check signup code if SIGN_UP_CODE environment variable is set
+    if (process.env.SIGN_UP_CODE) {
+      if (!signup_code) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Signup code is required',
+          path: ['signup_code'],
+        });
+      } else if (signup_code !== process.env.SIGN_UP_CODE) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Invalid signup code',
+          path: ['signup_code'],
+        });
+      }
     }
   });
 

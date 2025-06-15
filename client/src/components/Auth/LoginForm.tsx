@@ -62,7 +62,7 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
   return (
     <>
       {showResendLink && (
-        <div className="mt-2 rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200">
+        <div className="mt-2 rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200 w-full min-w-80 max-w-sm mx-auto sm:max-w-md">
           {localize('com_auth_email_verification_resend_prompt')}
           <button
             type="button"
@@ -75,7 +75,7 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
         </div>
       )}
       <form
-        className="mt-6"
+        className="mt-6 w-full min-w-80 max-w-sm mx-auto sm:max-w-md"
         aria-label="Login form"
         method="POST"
         onSubmit={handleSubmit((data) => onSubmit(data))}
