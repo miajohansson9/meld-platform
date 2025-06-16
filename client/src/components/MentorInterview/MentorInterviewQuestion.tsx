@@ -1,9 +1,7 @@
 /* eslint-disable i18next/no-literal-string */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import MentorQuestionCard from './MentorQuestionCard';
-import BackgroundTranscriptionIndicator from './BackgroundTranscriptionIndicator';
-import { useTranscriptionStatus } from '~/hooks/Input/useTranscriptionStatus';
 
 const TOTAL_QUESTIONS = 6; // 6 questions total
 
@@ -28,28 +26,15 @@ const firstQuestion: Question = {
 const MentorInterviewQuestion: React.FC = () => {
   const { step, access_token } = useParams<{ step?: string; access_token?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const currentStep = Number(step) || 1;
-  const [transcript, setTranscript] = useState('');
-  const [paused, setPaused] = useState(false);
-  const [hasAudio, setHasAudio] = useState(false);
   const [canRequestDifferentQuestion, setCanRequestDifferentQuestion] = useState(false);
   const [isRequestingDifferentQuestion, setIsRequestingDifferentQuestion] = useState(false);
   const [onRequestDifferentQuestionHandler, setOnRequestDifferentQuestionHandler] = useState<(() => void) | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const [isRegeneratingQuestion, setIsRegeneratingQuestion] = useState(false);
-  const saveRef = useRef<(() => Promise<void>) | null>(null);
-
-  // Background transcription status tracking
-  const {
-    hasBackgroundProcessing,
-    pendingStages,
-  } = useTranscriptionStatus(
-    access_token,
-    true, // Background transcription is always enabled
-    3000 // Poll every 3 seconds
-  );
+  const [error, setError] = useState<string | null>(null);
 
   // Helper function to generate question preamble
   const getQuestionPreamble = useCallback((step: number) => {
@@ -68,6 +53,7 @@ const MentorInterviewQuestion: React.FC = () => {
       // For steps 2+, load question from API with loading state
       setIsLoadingQuestion(true);
       setCurrentQuestion(null);
+      setError(null);
 
       try {
         const response = await fetch(`/api/mentor-interview/${access_token}/response/${currentStep}`);
@@ -78,20 +64,26 @@ const MentorInterviewQuestion: React.FC = () => {
             preamble: getQuestionPreamble(currentStep),
             supporting: data.preamble || "Based on your previous answer, here's your next question:",
           });
+        } else if (response.status === 404) {
+          try {
+            const errorData = await response.json();
+            setError(errorData.error || 'This interview link has expired or is no longer valid. Please contact MELD for a new invitation.');
+          } catch {
+            setError('This interview link has expired or is no longer valid. Please contact MELD for a new invitation.');
+          }
+        } else if (response.status === 403) {
+          try {
+            const errorData = await response.json();
+            setError(errorData.error || 'Access denied. This interview may have already been completed or the link has expired.');
+          } catch {
+            setError('Access denied. This interview may have already been completed or the link has expired.');
+          }
         } else {
-          setCurrentQuestion({
-            question: '',
-            preamble: getQuestionPreamble(currentStep),
-            supporting: 'Loading your personalized question...',
-          });
+          setError(`Unable to load question (Error ${response.status}). Please try again or contact support.`);
         }
       } catch (error) {
         console.error('Error loading question:', error);
-        setCurrentQuestion({
-          question: '',
-          preamble: getQuestionPreamble(currentStep),
-          supporting: 'Error loading question. Please refresh the page.',
-        });
+        setError('Network error. Please check your internet connection and try again.');
       } finally {
         setIsLoadingQuestion(false);
       }
@@ -102,9 +94,6 @@ const MentorInterviewQuestion: React.FC = () => {
 
   const onInputStateChange = useCallback(
     ({
-      paused: p,
-      transcript: t,
-      hasAudio: a,
       canRequestDifferentQuestion: c,
       isRequestingDifferentQuestion: r,
       onRequestDifferentQuestion: h
@@ -116,11 +105,6 @@ const MentorInterviewQuestion: React.FC = () => {
       isRequestingDifferentQuestion?: boolean;
       onRequestDifferentQuestion?: () => void;
     }) => {
-      setPaused(p);
-      setTranscript(t);
-      if (a !== undefined) {
-        setHasAudio(a);
-      }
       if (c !== undefined) {
         setCanRequestDifferentQuestion(c);
       }
@@ -135,33 +119,41 @@ const MentorInterviewQuestion: React.FC = () => {
   );
 
   const onSaveComplete = useCallback((savedText: string) => {
-    setTranscript(savedText);
+    // Response saved successfully
   }, []);
 
   const goBack = useCallback(() => {
     setIsLoadingQuestion(true);
+    const queryString = searchParams.toString();
+    const queryParam = queryString ? `?${queryString}` : '';
+    
     if (currentStep > 1) {
-      navigate(`/mentor-interview/${access_token}/question/${currentStep - 1}`);
+      navigate(`/mentor-interview/${access_token}/question/${currentStep - 1}${queryParam}`);
     } else {
-      navigate(`/mentor-interview/${access_token}/start`);
+      navigate(`/mentor-interview/${access_token}/start${queryParam}`);
     }
-  }, [navigate, access_token, currentStep]);
+  }, [navigate, access_token, currentStep, searchParams]);
 
   // Handle navigation after question preloading is complete
   const handleContinueImmediate = useCallback(() => {
+    const queryString = searchParams.toString();
+    const queryParam = queryString ? `?${queryString}` : '';
+    
     if (currentStep === TOTAL_QUESTIONS) {
       // Final question - navigate to complete page with insights
-      navigate(`/mentor-interview/${access_token}/complete`);
+      navigate(`/mentor-interview/${access_token}/complete${queryParam}`);
     } else {
       // Navigate to next question (preloading already handled by button)
-      navigate(`/mentor-interview/${access_token}/question/${currentStep + 1}`);
+      navigate(`/mentor-interview/${access_token}/question/${currentStep + 1}${queryParam}`);
     }
-  }, [currentStep, navigate, access_token]);
+  }, [currentStep, navigate, access_token, searchParams]);
 
   // Handle final question completion (after transcription or timeout)
   const handleFinalQuestionComplete = useCallback(() => {
-    navigate(`/mentor-interview/${access_token}/complete`);
-  }, [navigate, access_token]);
+    const queryString = searchParams.toString();
+    const queryParam = queryString ? `?${queryString}` : '';
+    navigate(`/mentor-interview/${access_token}/complete${queryParam}`);
+  }, [navigate, access_token, searchParams]);
 
   // Handle question rejection and regeneration
   const handleQuestionRejected = useCallback(async () => {
@@ -213,22 +205,53 @@ const MentorInterviewQuestion: React.FC = () => {
     }
   }, [access_token, currentStep, getQuestionPreamble]);
 
+  if (!access_token) return null;
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#F8F4EB] p-4">
+        <div className="w-full max-w-lg mx-auto text-center">
+          {/* MELD Logo */}
+          <div className="mb-8 flex justify-center">
+            <img
+              src="/assets/logo-b.svg"
+              className="h-10 w-auto object-contain"
+              alt="MELD"
+            />
+          </div>
+          
+          {/* Error Message */}
+          <div className="bg-white rounded-lg p-8 shadow-lg">
+            <div className="mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-serif italic text-[#B04A2F] mb-4">
+                Unable to Load Question
+              </h1>
+              <p className="text-gray-700 mb-6 leading-relaxed">
+                {error}
+              </p>
+            </div>
+            
+            <div className="text-sm text-gray-500">
+              <p className="mb-2">Need help?</p>
+              <p>Contact MELD support for assistance with your interview.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  if (!access_token || !currentQuestion) return null;
+  if (!currentQuestion) return null;
 
-  const hasContent = transcript.trim().length > 0;
   const isFinalQuestion = currentStep === TOTAL_QUESTIONS;
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 bg-[#F8F4EB] p-4">
-      {/* Background Transcription Indicator */}
-      <BackgroundTranscriptionIndicator
-        hasBackgroundProcessing={hasBackgroundProcessing}
-        pendingStages={pendingStages}
-        isVisible={currentStep > 1} // Only show from question 2 onwards
-      />
-
       {/* Progress Rail */}
       <div className="flex w-full flex-row items-center gap-4">
         <div className="w-px flex-1 bg-[#C9C9B6]" />
@@ -283,10 +306,12 @@ const MentorInterviewQuestion: React.FC = () => {
             <MentorQuestionCard
               accessToken={access_token}
               stageId={currentStep}
+              question={currentQuestion.question}
+              preamble={currentQuestion.supporting || currentQuestion.preamble}
               isFinalQuestion={isFinalQuestion}
               onStateChange={onInputStateChange}
-              onSave={(saveFn) => {
-                saveRef.current = saveFn;
+              onSave={() => {
+                // Save function handled internally by MentorQuestionCard
               }}
               onSaveComplete={onSaveComplete}
               onContinue={handleContinueImmediate}
@@ -302,7 +327,6 @@ const MentorInterviewQuestion: React.FC = () => {
             <button
               className="text-sm text-gray-500 hover:text-gray-700 underline"
               onClick={goBack}
-              disabled={isLoading}
             >
               ← Go back
             </button>

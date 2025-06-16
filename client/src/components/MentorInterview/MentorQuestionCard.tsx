@@ -11,6 +11,8 @@ import FinalQuestionWaitOverlay from './FinalQuestionWaitOverlay';
 interface MentorQuestionCardProps {
   accessToken: string;
   stageId: number;
+  question?: string; // NEW: The current question text
+  preamble?: string; // NEW: The current preamble text
   isFinalQuestion?: boolean; // NEW: indicates if this is the final question
   onStateChange?: (s: { paused: boolean; transcript: string; hasAudio: boolean; canRequestDifferentQuestion?: boolean; isRequestingDifferentQuestion?: boolean; onRequestDifferentQuestion?: () => void }) => void;
   onSave?: (saveFn: () => Promise<void>) => void;
@@ -26,6 +28,8 @@ type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped' | 'transcribin
 const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
   accessToken,
   stageId,
+  question,
+  preamble,
   isFinalQuestion = false,
   onStateChange,
   onSave,
@@ -331,9 +335,11 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          response_text: 'Question doesn\'t fit mentor expertise. Choose different question',
+          response_text: 'Question doesn\'t fit mentor expertise. Choose different question.',
           status: 'rejected',
-          rejection_reason: 'Question mismatch'
+          rejection_reason: 'Question mismatch',
+          question: question || 'Question text not available',
+          preamble: preamble || 'Preamble not available'
         }),
       });
       
@@ -672,13 +678,13 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
                 onClick={async () => {
                   setIsSubmitting(true);
                   try {
-                    // Update status to 'approved' when continuing
+                    // Update status to 'submitted' when continuing
                     await fetch(`/api/mentor-interview/${accessToken}/response/${stageId}`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ 
                         response_text: transcribedText,
-                        status: 'approved'
+                        status: 'submitted'
                       }),
                     });
                     
@@ -784,13 +790,13 @@ const MentorQuestionCard: React.FC<MentorQuestionCardProps> = ({
                   onClick={async () => {
                     setIsSubmitting(true);
                     try {
-                      // Update status to 'approved' when continuing
+                      // Update status to 'submitted' when continuing
                       await fetch(`/api/mentor-interview/${accessToken}/response/${stageId}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                           response_text: transcript,
-                          status: 'approved'
+                          status: 'submitted'
                         }),
                       });
                       

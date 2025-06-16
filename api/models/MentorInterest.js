@@ -37,7 +37,7 @@ const mentorInterestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'submitted', 'interview started', 'rejected'],
       default: 'pending',
     },
     // Security fields - excluded from normal queries
@@ -48,11 +48,7 @@ const mentorInterestSchema = new mongoose.Schema(
       default: () => crypto.randomBytes(32).toString('hex'), // 64-char hex string
       select: false, // Never include in normal queries
     },
-    tokenExpiresAt: {
-      type: Date,
-      default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      select: false, // Never include in normal queries
-    },
+
   },
   {
     timestamps: true,

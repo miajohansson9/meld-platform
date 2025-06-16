@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 interface InsightsData {
   insights: string;
@@ -8,7 +8,6 @@ interface InsightsData {
 }
 
 const MentorInterviewComplete: React.FC = () => {
-  const navigate = useNavigate();
   const { access_token } = useParams<{ access_token: string }>();
   const [insights, setInsights] = useState<InsightsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +40,25 @@ const MentorInterviewComplete: React.FC = () => {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to generate insights: ${response.status}`);
+          if (response.status === 404) {
+            try {
+              const errorData = await response.json();
+              setError(errorData.error || 'This interview link has expired or is no longer valid. Please contact MELD for assistance.');
+            } catch {
+              setError('This interview link has expired or is no longer valid. Please contact MELD for assistance.');
+            }
+          } else if (response.status === 403) {
+            try {
+              const errorData = await response.json();
+              setError(errorData.error || 'Access denied. This interview may have already been completed or the link has expired.');
+            } catch {
+              setError('Access denied. This interview may have already been completed or the link has expired.');
+            }
+          } else {
+            setError(`Unable to load your interview summary (Error ${response.status}). Please try again or contact support.`);
+          }
+          setIsLoading(false);
+          return;
         }
 
         const data = await response.json();
@@ -154,13 +171,6 @@ const MentorInterviewComplete: React.FC = () => {
           <div className="text-base leading-relaxed text-gray-800 whitespace-pre-line">
             {insights?.insights}
           </div>
-        </div>
-
-        {/* Closing Message */}
-        <div className="text-center">
-          <p className="text-base leading-relaxed text-gray-600">
-            Thank you for being part of this movement and inspiring the next generation of women leaders. 💜
-          </p>
         </div>
       </div>
     </div>

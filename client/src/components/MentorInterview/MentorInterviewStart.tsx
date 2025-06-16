@@ -1,15 +1,17 @@
 /* eslint-disable i18next/no-literal-string */
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 const MentorInterviewStart: React.FC = () => {
   const navigate = useNavigate();
   const { access_token } = useParams();
+  const [searchParams] = useSearchParams();
   const [mentorName, setMentorName] = useState<string>('');
   const [mentorProfile, setMentorProfile] = useState<any>(null);
   const [personalizedIntro, setPersonalizedIntro] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingIntro, setIsGeneratingIntro] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Generate personalized introduction using the backend endpoint
   const generatePersonalizedIntro = async () => {
@@ -49,6 +51,8 @@ const MentorInterviewStart: React.FC = () => {
       
       if (!access_token) {
         console.error('No access_token found:', access_token);
+        setError('Invalid access link. Please check your invitation email for the correct link.');
+        setIsLoading(false);
         return;
       }
 
@@ -87,17 +91,31 @@ const MentorInterviewStart: React.FC = () => {
           } catch (parseError) {
             console.error('JSON parse error:', parseError);
             console.error('Response was not valid JSON. This suggests the backend is returning HTML instead of JSON.');
-            setMentorName('there');
+            setError('Unable to load your interview. Please contact support if this issue persists.');
+          }
+        } else if (response.status === 404) {
+          try {
+            const errorData = await response.json();
+            setError(errorData.error || 'This interview link has expired or is no longer valid. Please contact MELD for a new invitation.');
+          } catch {
+            setError('This interview link has expired or is no longer valid. Please contact MELD for a new invitation.');
+          }
+        } else if (response.status === 403) {
+          try {
+            const errorData = await response.json();
+            setError(errorData.error || 'Access denied. This interview may have already been completed or the link has expired.');
+          } catch {
+            setError('Access denied. This interview may have already been completed or the link has expired.');
           }
         } else {
           const errorText = await response.text();
           console.error('Error fetching mentor profile:', response.status, errorText);
-          setMentorName('there');
+          setError(`Unable to access your interview (Error ${response.status}). Please try again or contact support.`);
         }
       } catch (error) {
         console.error('Error fetching mentor info:', error);
         console.error('Error details:', (error as Error).message, (error as Error).stack);
-        setMentorName('there');
+        setError('Network error. Please check your internet connection and try again.');
       } finally {
         setIsLoading(false);
       }
@@ -140,6 +158,45 @@ const MentorInterviewStart: React.FC = () => {
           <p className="text-sm text-gray-500 font-light max-w-md mx-auto leading-relaxed">
             We're tailoring questions based on your expertise to create the most meaningful conversation for young women starting their careers.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#F8F4EB] p-4">
+        <div className="w-full max-w-lg mx-auto text-center">
+          {/* MELD Logo */}
+          <div className="mb-8 flex justify-center">
+            <img
+              src="/assets/logo-b.svg"
+              className="h-10 w-auto object-contain"
+              alt="MELD"
+            />
+          </div>
+          
+          {/* Error Message */}
+          <div className="bg-white rounded-lg p-8 shadow-lg">
+            <div className="mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-serif italic text-[#B04A2F] mb-4">
+                Unable to Access Interview
+              </h1>
+              <p className="text-gray-700 mb-6 leading-relaxed">
+                {error}
+              </p>
+            </div>
+            
+            <div className="text-sm text-gray-500">
+              <p className="mb-2">Need help?</p>
+              <p>Contact MELD support for assistance with your interview invitation.</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -192,7 +249,11 @@ const MentorInterviewStart: React.FC = () => {
         {/* Ready Button */}
         <button
           className="mb-6 w-full rounded-md bg-[#B04A2F] py-3 text-lg text-white transition hover:bg-[#8a3a23]"
-          onClick={() => navigate(`/mentor-interview/${access_token}/question/1`)}
+          onClick={() => {
+            const queryString = searchParams.toString();
+            const url = `/mentor-interview/${access_token}/question/1${queryString ? `?${queryString}` : ''}`;
+            navigate(url);
+          }}
         >
           I'm ready &rarr;
         </button>

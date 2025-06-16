@@ -1,5 +1,6 @@
 const express = require('express');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
+const requireAdminAuth = require('~/server/middleware/requireAdminAuth');
 const { logger } = require('~/config');
 const fs = require('fs');
 const { FileSources } = require('librechat-data-provider');
@@ -22,6 +23,7 @@ const {
   deleteMentorInterest,
   generateAccessToken,
   getAdminMentorResponses,
+  updateMentorInterestStatus,
 } = require('../controllers/MentorInterestController');
 
 const router = express.Router();
@@ -110,6 +112,13 @@ router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
  * @access Private (requires JWT)
  */
 router.post('/:id/generate-token', requireJwtAuth, generateAccessToken);
+
+/**
+ * @route PATCH /api/mentor-interest/:id
+ * @desc Update mentor interest status (ADMIN)
+ * @access Private (requires JWT + Admin)
+ */
+router.patch('/:id', requireJwtAuth, requireAdminAuth, updateMentorInterestStatus);
 
 // ============================================
 // PUBLIC ROUTES (no authentication required)
@@ -209,8 +218,6 @@ router.post('/:access_token/response/:stage_id', validateAccessToken, createPseu
   // Apply multer middleware for optional audio file
   upload.single('audio')(req, res, next);
 }, upsertMentorResponse);
-
-
 
 /**
  * @route GET /api/mentor-interview/:access_token/response/:stage_id

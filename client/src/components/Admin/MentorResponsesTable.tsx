@@ -40,6 +40,27 @@ const generateAccessToken = async (token: string, id: string) => {
   return res.json();
 };
 
+const updateMentorStatus = async (token: string, id: string, status: string) => {
+  const res = await fetch(`/api/mentor-interest/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ status }),
+  });
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('Status update failed:', res.status, errorText);
+    throw new Error(`Failed to update status: ${res.status} ${errorText}`);
+  }
+  
+  const result = await res.json();
+  console.log('Status update response:', result);
+  return result;
+};
+
 // Helper function to check if a token is valid
 const isValidToken = (token: any): boolean => {
   return token !== null && 
@@ -52,6 +73,8 @@ export default function MentorResponsesTable() {
   const { token } = useAuthContext();
   const queryClient = useQueryClient();
   const [deleteData, setDeleteData] = useState<{ id: string; email: string } | null>(null);
+  const [statusUpdate, setStatusUpdate] = useState<{ id: string; currentStatus: string; email: string } | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['mentor-interest'],
@@ -62,7 +85,8 @@ export default function MentorResponsesTable() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteMentorResponse(token!, id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['mentor-interest']);
+      queryClient.invalidateQueries({ queryKey: ['mentor-interest'] });
+      queryClient.refetchQueries({ queryKey: ['mentor-interest'] });
       setDeleteData(null);
     },
     onError: (error) => {
@@ -74,11 +98,30 @@ export default function MentorResponsesTable() {
   const generateTokenMutation = useMutation({
     mutationFn: (id: string) => generateAccessToken(token!, id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['mentor-interest']);
+      queryClient.invalidateQueries({ queryKey: ['mentor-interest'] });
+      queryClient.refetchQueries({ queryKey: ['mentor-interest'] });
     },
     onError: (error) => {
       console.error('Failed to generate token:', error);
       alert('Failed to generate access token');
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => updateMentorStatus(token!, id, status),
+    onSuccess: (data) => {
+      console.log('Status update successful:', data);
+      // Invalidate and refetch the data
+      queryClient.invalidateQueries({ queryKey: ['mentor-interest'] });
+      queryClient.refetchQueries({ queryKey: ['mentor-interest'] });
+      setStatusUpdate(null);
+      setPendingStatus(null);
+    },
+    onError: (error) => {
+      console.error('Failed to update status:', error);
+      alert('Failed to update mentor status');
+      setStatusUpdate(null);
+      setPendingStatus(null);
     },
   });
 
@@ -88,6 +131,17 @@ export default function MentorResponsesTable() {
 
   const handleGenerateToken = (id: string) => {
     generateTokenMutation.mutate(id);
+  };
+
+  const handleStatusClick = (id: string, currentStatus: string, email: string) => {
+    setStatusUpdate({ id, currentStatus, email });
+  };
+
+  const handleStatusUpdate = (newStatus: string) => {
+    if (statusUpdate) {
+      setPendingStatus(newStatus);
+      updateStatusMutation.mutate({ id: statusUpdate.id, status: newStatus });
+    }
   };
 
   const confirmDelete = () => {
@@ -100,6 +154,11 @@ export default function MentorResponsesTable() {
     setDeleteData(null);
   };
 
+  const cancelStatusUpdate = () => {
+    setStatusUpdate(null);
+    setPendingStatus(null);
+  };
+
   const columns = useMemo(() => {
     if (!responses.length) return [];
     
@@ -109,13 +168,43 @@ export default function MentorResponsesTable() {
       key !== 'accessToken'
     );
     
-    const dataColumns = keys.map((key) => ({
+    // Define the desired column order
+    const columnOrder = ['firstName', 'lastName', 'email', 'status', 'createdAt', 'jobTitle', 'company', 'industry', 'careerStage'];
+    
+    // Sort keys according to the desired order, putting any remaining keys at the end
+    const sortedKeys = [
+      ...columnOrder.filter(key => keys.includes(key)),
+      ...keys.filter(key => !columnOrder.includes(key))
+    ];
+    
+    const dataColumns = sortedKeys.map((key) => ({
       accessorKey: key,
       header: key.charAt(0).toUpperCase() + key.slice(1),
       cell: ({ row }: any) => {
         const value = row.original[key];
         if (Array.isArray(value)) return value.join(', ');
-        if (key === 'createdAt' || key === 'updatedAt') return new Date(value).toLocaleString();
+        if (key === 'createdAt') return new Date(value).toLocaleString();
+        if (key === 'status') {
+          const id = row.original._id;
+          const email = row.original.email || 'No email';
+          return (
+            <button
+              onClick={() => handleStatusClick(id, value, email)}
+              className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${
+                value === 'submitted' 
+                  ? 'bg-green-100 text-green-800' 
+                  : value === 'rejected'
+                  ? 'bg-red-100 text-red-800'
+                  : value === 'interview started'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}
+              title="Click to change status"
+            >
+              {value}
+            </button>
+          );
+        }
         return value;
       },
     }));
@@ -153,6 +242,7 @@ export default function MentorResponsesTable() {
       cell: ({ row }: any) => {
         const accessToken = row.original.accessToken;
         const id = row.original._id;
+        const status = row.original.status;
         
         // Check if this submission has a valid access token
         if (!isValidToken(accessToken)) {
@@ -173,7 +263,15 @@ export default function MentorResponsesTable() {
           );
         }
         
-        // Show interview link for valid tokens
+        // Show interview link for valid tokens (but hide everything if submitted)
+        if (status === 'submitted') {
+          return (
+            <span className='px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800'>
+              submitted
+            </span>
+          );
+        }
+        
         return (
           <div className="flex items-center gap-2">
             <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">
@@ -197,7 +295,7 @@ export default function MentorResponsesTable() {
     allColumns.push(...dataColumns);
 
     return allColumns;
-  }, [responses, deleteMutation.isLoading, generateTokenMutation.isLoading]);
+  }, [responses, deleteMutation.isLoading, generateTokenMutation.isLoading, handleStatusClick]);
 
   if (isLoading) return <div>Loading...</div>;
   if (!responses.length) return <div>No mentor responses found.</div>;
@@ -230,6 +328,63 @@ export default function MentorResponsesTable() {
                 disabled={deleteMutation.isLoading}
               >
                 {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Update Dialog */}
+      {statusUpdate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Update Status</h3>
+            <p className="text-gray-600 mb-4">
+              Update status for{' '}
+              <span className="font-semibold text-black">{statusUpdate.email}</span>
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Current status: <span className="font-medium">{statusUpdate.currentStatus}</span>
+            </p>
+            <div className="grid grid-cols-1 gap-3 mb-6">
+              {['pending', 'submitted', 'interview started', 'rejected'].map((status) => {
+                const isCurrentStatus = status === statusUpdate.currentStatus;
+                const isPendingStatus = status === pendingStatus;
+                const isLoading = updateStatusMutation.isLoading && isPendingStatus;
+                
+                return (
+                  <Button
+                    key={status}
+                    variant={isPendingStatus ? "default" : isCurrentStatus ? "secondary" : "outline"}
+                    onClick={() => handleStatusUpdate(status)}
+                    disabled={updateStatusMutation.isLoading}
+                    className={`text-sm ${
+                      isPendingStatus ? 'opacity-100' :
+                      status === 'submitted' ? 'border-green-200 hover:bg-green-50' :
+                      status === 'rejected' ? 'border-red-200 hover:bg-red-50' :
+                      status === 'interview started' ? 'border-blue-200 hover:bg-blue-50' :
+                      'border-yellow-200 hover:bg-yellow-50'
+                    }`}
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Updating...</span>
+                      </div>
+                    ) : (
+                      status
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                onClick={cancelStatusUpdate}
+                disabled={updateStatusMutation.isLoading}
+              >
+                Cancel
               </Button>
             </div>
           </div>

@@ -134,21 +134,30 @@ async function validateAccessToken(req, res, next) {
     const { access_token } = req.params;
 
     if (!access_token) {
-      return handleError(res, { text: 'Access token required' }, 400);
+      return res.status(400).json({ error: 'Access token required' });
     }
 
-    // Find mentor interest by access token (including token fields)
+    // Find mentor interest by access token
     const mentorInterest = await MentorInterest.findOne({
       accessToken: access_token
-    }).select('+accessToken +tokenExpiresAt');
+    }).select('+accessToken');
 
     if (!mentorInterest) {
-      return handleError(res, { text: 'Invalid access token' }, 404);
+      return res.status(404).json({ error: 'Invalid access token' });
     }
 
-    // Check if token is expired
-    if (mentorInterest.tokenExpiresAt && new Date() > mentorInterest.tokenExpiresAt) {
-      return handleError(res, { text: 'Access token expired' }, 403);
+    // Block access if interview was submitted
+    if (mentorInterest.status === 'submitted') {
+      return res.status(403).json({ 
+        error: 'Interview has been completed. If you need to update your answers, please contact support.' 
+      });
+    }
+
+    // Block access if interview was rejected
+    if (mentorInterest.status === 'rejected') {
+      return res.status(403).json({ 
+        error: 'Interview application was not approved. Please contact support if you believe this is an error.' 
+      });
     }
 
     // Attach mentor interest to request (without token fields)
@@ -165,10 +174,11 @@ async function validateAccessToken(req, res, next) {
       createdAt: mentorInterest.createdAt,
       updatedAt: mentorInterest.updatedAt
     };
-
+    
     next();
-  } catch (err) {
-    return handleError(res, { text: 'Error validating access token' });
+  } catch (error) {
+    console.error('Error validating access token:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -224,6 +234,12 @@ async function getMentorInterests(req, res) {
               else: null
             }
           }
+        }
+      },
+      {
+        $project: {
+          // Exclude updatedAt field
+          updatedAt: 0
         }
       },
       {
@@ -442,6 +458,13 @@ async function upsertMentorResponse(req, res) {
           { upsert: true, new: true }
         );
 
+        // Update MentorInterest status from "pending" to "interview started" when they answer any question
+        await MentorInterest.findOneAndUpdate(
+          { _id: mentor_interest_id, status: 'pending' },
+          { status: 'interview started' },
+          { new: true }
+        );
+
         // Clean up temporary file
         try {
           await fs.unlink(req.file.path);
@@ -485,10 +508,13 @@ async function upsertMentorResponse(req, res) {
 
       // Handle rejection status separately
       if (status === 'rejected') {
+        const { question, preamble } = req.body;
         const rejectedResponse = await MentorResponse.create({
           mentor_interest: mentor_interest_id,
           stage_id: parseInt(stage_id),
           response_text: response_text,
+          question: question || 'Question not available',
+          preamble: preamble || 'Preamble not available',
           status: 'rejected',
           rejection_reason: rejection_reason || 'Question mismatch',
           version: 1
@@ -510,6 +536,14 @@ async function upsertMentorResponse(req, res) {
           status,
           version: 1
         });
+
+        // Update MentorInterest status from "approved" to "interview started" when they answer any question
+        await MentorInterest.findOneAndUpdate(
+          { _id: mentor_interest_id, status: 'approved' },
+          { status: 'interview started' },
+          { new: true }
+        );
+
         return res.status(201).json(created);
       }
 
@@ -528,6 +562,13 @@ async function upsertMentorResponse(req, res) {
           status,
           version: existing.version + 1
         },
+        { new: true }
+      );
+
+      // Update MentorInterest status from "pending" to "interview started" when they answer any question
+      await MentorInterest.findOneAndUpdate(
+        { _id: mentor_interest_id, status: 'pending' },
+        { status: 'interview started' },
         { new: true }
       );
 
@@ -692,18 +733,6 @@ Great Example Questions:
 - "Tell me about a time when you had to advocate for yourself at work—what did that conversation actually sound like?"
 - "Can you walk me through a specific moment when you felt completely out of your depth? How did you handle it?"
 - "What's a mistake you made early in your career that you're actually grateful for now? What happened?"
-- "When a teammate's work keeps coming back with major revisions needed, how do you decide whether to coach more deeply or re-scope the assignment?"
-- "What clear signals tell you it's time to let someone struggle through a problem on their own versus stepping in to unblock them?"
-- "How do you protect your own deadlines while mentoring a colleague who leans heavily on your expertise?"
-- "Tell me about a time you realized your help had turned into micromanagement. How did you reset expectations?"
-- "How do you set upfront guidelines so team members know when to ask for help and when to problem-solve independently?"
-- "What boundary or ritual keeps you from burning out when you're both the team lead and a hands-on mentor?"
-- "If a project risks slipping because a teammate can't deliver, how do you redistribute work without eroding trust?"
-- "When you need to give tough feedback, how do you keep it clear and ongoing so no one is blindsided at review time?"
-- "What's your go-to method for turning repeat questions into resources or processes that scale your mentorship?"
-- "What's the single most important thing for building team morale?"
-- "Describe a time an online post backfired—how did you clean it up and protect your reputation?"
-- "When work anxiety spikes at night, what do you do to calm down?"
 ---
 Tone: curious, confident, emotionally intelligent, honest, and helpful. You are here to get real answers for real young women trying to figure it out.
 `,
@@ -739,18 +768,7 @@ A${entry.stage}: ${entry.answer}`).join('\n\n')}`,
     
     **Next-step guidelines**
     
-    1. Treat those topics as closed—move on.
-    2. Scan the mentor's background for a *different* pillar or sub-theme where their insight would shine.
-    3. Craft one fresh, specific question that feels natural for their role and industry.
-    4. Keep it actionable or story-driven, in the MELD “smart older-sister” voice.
-    
-    Example pivots  
-    • Leadership ➜ Personal brand, first-impression stories, or salary talks  
-    • Networking ➜ Work-life boundaries, early career pivots, or money habits  
-    • Management ➜ Early mistakes, decision-making under pressure, or financial wins/losses  
-    • Industry trends ➜ Personal growth rituals, interview strategies, or team culture moments
-    
-    Return ONLY the new question (no extra text).`
+    Create a new question that is not related to the topics the mentor rejected answering.`
     });
 
     // Add final instruction
@@ -971,14 +989,12 @@ async function generateInsights(req, res) {
     
     Do **not** restate MELD’s mission, general leadership traits, or use filler like “your story truly embodies…”—focus on what they actually said.
     
-    The following line will appear directly below, so do **not** repeat it:
-    “Your answers are now part of MELD's founding story—a growing library of mentorship that will guide and inspire the next generation of women leaders.”
+    End the message with a new paragraph saying exactly this:
+    Thank you for being part of this movement and inspiring the next generation of women leaders.💜
     
     Here are their responses:
     
-    ${responseTexts}
-    
-    Write your closing message as their interviewer.`;    
+    ${responseTexts}`;    
 
     // Call ChatGPT API
     const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -988,14 +1004,10 @@ async function generateInsights(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: 'You are a warm, empathetic human interviewer who has just conducted a meaningful mentorship interview. You speak conversationally and personally, as if you are genuinely moved by what the interviewee has shared.'
-          },
-          {
-            role: 'user',
             content: prompt
           }
         ],
@@ -1019,6 +1031,16 @@ async function generateInsights(req, res) {
         status: { $ne: 'rejected' }
       },
       { status: 'submitted' }
+    );
+
+    // Update the main MentorInterest status to 'submitted' 
+    // This marks the interview as complete and starts the 12-hour access timer
+    await MentorInterest.findByIdAndUpdate(
+      req.mentorInterest._id,
+      { 
+        status: 'submitted',
+        updatedAt: new Date() // Explicitly set updatedAt for the 12-hour timer
+      }
     );
 
     res.json({
@@ -1085,28 +1107,25 @@ async function generateAccessToken(req, res) {
       return handleError(res, { text: 'Mentor interest submission not found' }, 404);
     }
 
-    // Generate new access token and expiration
+    // Generate new access token
     const crypto = require('crypto');
     const newAccessToken = crypto.randomBytes(32).toString('hex');
-    const newTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     // Update the submission with new token
     const updatedMentorInterest = await MentorInterest.findByIdAndUpdate(
       id,
       {
-        accessToken: newAccessToken,
-        tokenExpiresAt: newTokenExpiresAt
+        accessToken: newAccessToken
       },
       { new: true }
-    ).select('+accessToken +tokenExpiresAt');
+    ).select('+accessToken');
 
     logger.info(`[generateAccessToken] Generated new access token for mentor interest ${id}`);
 
     res.json({
       status: 'ok',
       message: 'Access token generated successfully',
-      accessToken: updatedMentorInterest.accessToken,
-      tokenExpiresAt: updatedMentorInterest.tokenExpiresAt
+      accessToken: updatedMentorInterest.accessToken
     });
   } catch (err) {
     logger.error('[generateAccessToken] Error:', err);
@@ -1148,7 +1167,7 @@ async function getAdminMentorResponses(req, res) {
           response_text: 1,
           status: 1,
           createdAt: 1,
-          updatedAt: 1,
+          // updatedAt: 1, // Removed updatedAt field
           mentor_id: '$mentor._id',
           mentor_name: {
             $concat: ['$mentor.firstName', ' ', { $ifNull: ['$mentor.lastName', ''] }]
@@ -1160,7 +1179,7 @@ async function getAdminMentorResponses(req, res) {
         }
       },
       {
-        $sort: { 'mentor.createdAt': -1, stage_id: 1 } // Sort by mentor creation date, then stage
+        $sort: { updatedAt: -1 } // Sort by response update date, most recent first
       }
     ]);
 
@@ -1171,11 +1190,45 @@ async function getAdminMentorResponses(req, res) {
   }
 }
 
+/**
+ * @route PATCH /api/mentor-interest/:id
+ * @desc Update mentor interest status (ADMIN)
+ * @access Private (requires JWT)
+ */
+async function updateMentorInterestStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
 
+    // Validate status
+    const validStatuses = ['pending', 'submitted', 'rejected', 'interview started'];
+    if (!status || !validStatuses.includes(status)) {
+      return handleError(res, { text: 'Invalid status. Must be one of: ' + validStatuses.join(', ') }, 400);
+    }
 
+    // Find and update the mentor interest
+    const updatedMentorInterest = await MentorInterest.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true }
+    );
 
+    if (!updatedMentorInterest) {
+      return handleError(res, { text: 'Mentor interest submission not found' }, 404);
+    }
 
+    logger.info(`[updateMentorInterestStatus] Updated status for mentor interest ${id} to ${status}`);
 
+    res.json({
+      status: 'ok',
+      message: 'Status updated successfully',
+      mentorInterest: updatedMentorInterest
+    });
+  } catch (err) {
+    logger.error('[updateMentorInterestStatus] Error:', err);
+    return handleError(res, { text: 'Error updating mentor interest status' });
+  }
+}
 
 module.exports = {
   storeQuestionInRAG,
@@ -1196,4 +1249,5 @@ module.exports = {
   deleteMentorInterest,
   generateAccessToken,
   getAdminMentorResponses,
+  updateMentorInterestStatus,
 };
