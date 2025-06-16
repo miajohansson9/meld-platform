@@ -60,58 +60,58 @@ const createPseudoUser = (req, res, next) => {
 /**
  * @route GET /api/mentor-interest
  * @desc Get all mentor interest responses (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.get('/', requireJwtAuth, getMentorInterests);
+router.get('/', requireJwtAuth, checkAdmin, getMentorInterests);
 
 /**
  * @route DELETE /api/mentor-interest/:id
  * @desc Delete a mentor interest submission (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.delete('/:id', requireJwtAuth, deleteMentorInterest);
+router.delete('/:id', requireJwtAuth, checkAdmin, deleteMentorInterest);
 
 /**
  * @route GET /api/mentor-interest/questions
  * @desc Get all mentor questions (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.get('/questions', requireJwtAuth, getMentorQuestions);
+router.get('/questions', requireJwtAuth, checkAdmin, getMentorQuestions);
 
 /**
  * @route GET /api/mentor-interest/admin-responses
  * @desc Get all mentor responses with mentor details (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.get('/admin-responses', requireJwtAuth, getAdminMentorResponses);
+router.get('/admin-responses', requireJwtAuth, checkAdmin, getAdminMentorResponses);
 
 /**
  * @route POST /api/mentor-interest/questions
  * @desc Add a new mentor question (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.post('/questions', requireJwtAuth, addMentorQuestion);
+router.post('/questions', requireJwtAuth, checkAdmin, addMentorQuestion);
 
 /**
  * @route PUT /api/mentor-interest/questions/:id
  * @desc Update an existing mentor question (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.put('/questions/:id', requireJwtAuth, updateMentorQuestion);
+router.put('/questions/:id', requireJwtAuth, checkAdmin, updateMentorQuestion);
 
 /**
  * @route POST /api/mentor-interest/questions/search
  * @desc Search all mentor questions (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.post('/questions/search', requireJwtAuth, searchMentorQuestions);
+router.post('/questions/search', requireJwtAuth, checkAdmin, searchMentorQuestions);
 
 /**
  * @route POST /api/mentor-interest/:id/generate-token
  * @desc Generate access token for existing mentor interest submission (ADMIN)
- * @access Private (requires JWT)
+ * @access Private (requires JWT + Admin)
  */
-router.post('/:id/generate-token', requireJwtAuth, generateAccessToken);
+router.post('/:id/generate-token', requireJwtAuth, checkAdmin, generateAccessToken);
 
 /**
  * @route PATCH /api/mentor-interest/:id

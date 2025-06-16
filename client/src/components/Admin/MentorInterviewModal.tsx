@@ -30,6 +30,11 @@ interface MentorInterviewModalProps {
 }
 
 export default function MentorInterviewModal({ isOpen, onClose, selectedMentor }: MentorInterviewModalProps) {
+  // Defensive check to prevent rendering issues
+  if (!isOpen || !selectedMentor) {
+    return null;
+  }
+
   return (
     <OGDialog open={isOpen} onOpenChange={onClose}>
       <OGDialogContent className="w-[95vw] max-w-none max-h-[95vh] overflow-y-auto bg-[#F8F4EB] shadow-2xl rounded-lg">

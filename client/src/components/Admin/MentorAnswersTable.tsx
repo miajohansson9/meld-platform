@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthContext } from '~/hooks/AuthContext';
-import MentorInterviewModal from './MentorInterviewModal';
 
 interface MentorResponse {
   _id: string;
@@ -20,6 +19,17 @@ interface MentorResponse {
   mentor_accessToken: string;
 }
 
+interface SelectedMentor {
+  mentor_id: string;
+  mentor_name: string;
+  mentor_email: string;
+  responses: MentorResponse[];
+}
+
+interface MentorAnswersTableProps {
+  onMentorSelect: (mentor: SelectedMentor) => void;
+}
+
 const fetchMentorAnswers = async (token: string) => {
   const res = await fetch('/api/mentor-interest/admin-responses', {
     headers: {
@@ -31,16 +41,8 @@ const fetchMentorAnswers = async (token: string) => {
   return res.json();
 };
 
-export default function MentorAnswersTable() {
+export default function MentorAnswersTable({ onMentorSelect }: MentorAnswersTableProps) {
   const { token } = useAuthContext();
-  const [selectedMentor, setSelectedMentor] = useState<{
-    mentor_id: string;
-    mentor_name: string;
-    mentor_email: string;
-    responses: MentorResponse[];
-  } | null>(null);
-
-  const [modalOpen, setModalOpen] = useState(false);
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['mentor-answers'],
@@ -57,16 +59,17 @@ export default function MentorAnswersTable() {
     // Get all responses for this mentor
     const mentorResponses = responses.filter((r: MentorResponse) => r.mentor_id === response.mentor_id);
     if (mentorResponses.length > 0) {
-      setSelectedMentor({
+      const selectedMentor: SelectedMentor = {
         mentor_id: response.mentor_id,
         mentor_name: response.mentor_name,
         mentor_email: response.mentor_email,
         responses: mentorResponses.sort((a: MentorResponse, b: MentorResponse) =>
           a.stage_id - b.stage_id  // Sort by question number (stage_id) ascending
         ),
-      });
+      };
 
-      setModalOpen(true);
+      // Use the callback to notify parent
+      onMentorSelect(selectedMentor);
     }
   };
 
@@ -147,14 +150,7 @@ export default function MentorAnswersTable() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Detailed Modal */}
-      <MentorInterviewModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        selectedMentor={selectedMentor}
-      />
+      </div>x
     </div>
   );
 } 

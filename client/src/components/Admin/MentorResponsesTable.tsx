@@ -4,7 +4,17 @@ import DataTable from '~/components/ui/DataTable';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { Button } from '~/components/ui';
 import { Trash2, ExternalLink, Plus } from 'lucide-react';
-import MentorInterviewModal from './MentorInterviewModal';
+
+interface SelectedMentor {
+  mentor_id: string;
+  mentor_name: string;
+  mentor_email: string;
+  responses: any[];
+}
+
+interface MentorResponsesTableProps {
+  onMentorSelect: (mentor: SelectedMentor) => void;
+}
 
 const fetchMentorResponses = async (token: string) => {
   const res = await fetch('/api/mentor-interest', {
@@ -81,19 +91,12 @@ const isValidToken = (token: any): boolean => {
          token.length === 64; // Valid tokens are exactly 64 characters
 };
 
-export default function MentorResponsesTable() {
+export default function MentorResponsesTable({ onMentorSelect }: MentorResponsesTableProps) {
   const { token } = useAuthContext();
   const queryClient = useQueryClient();
   const [deleteData, setDeleteData] = useState<{ id: string; email: string } | null>(null);
   const [statusUpdate, setStatusUpdate] = useState<{ id: string; currentStatus: string; email: string } | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
-  const [selectedMentor, setSelectedMentor] = useState<{
-    mentor_id: string;
-    mentor_name: string;
-    mentor_email: string;
-    responses: any[];
-  } | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['mentor-interest'],
@@ -172,15 +175,17 @@ export default function MentorResponsesTable() {
   const handleMentorRowClick = (mentorId: string, mentorName: string, mentorEmail: string) => {
     // Get all responses for this mentor
     const mentorResponses = mentorAnswers.filter((r: any) => r.mentor_id === mentorId);
-    setSelectedMentor({
+    const selectedMentor: SelectedMentor = {
       mentor_id: mentorId,
       mentor_name: mentorName,
       mentor_email: mentorEmail,
       responses: mentorResponses.sort((a: any, b: any) =>
         a.stage_id - b.stage_id  // Sort by question number (stage_id) ascending
       ),
-    });
-    setModalOpen(true);
+    };
+    
+    // Use the callback to notify parent
+    onMentorSelect(selectedMentor);
   };
 
   const confirmDelete = () => {
@@ -490,12 +495,6 @@ export default function MentorResponsesTable() {
         </div>
       )}
 
-      {/* Mentor Interview Modal */}
-      <MentorInterviewModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        selectedMentor={selectedMentor}
-      />
     </div>
   );
 } 
