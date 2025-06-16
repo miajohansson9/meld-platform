@@ -4,6 +4,7 @@ import DataTable from '~/components/ui/DataTable';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { Button } from '~/components/ui';
 import { Trash2, ExternalLink, Plus } from 'lucide-react';
+import MentorInterviewModal from './MentorInterviewModal';
 
 const fetchMentorResponses = async (token: string) => {
   const res = await fetch('/api/mentor-interest', {
@@ -13,6 +14,17 @@ const fetchMentorResponses = async (token: string) => {
     },
   });
   if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+};
+
+const fetchMentorAnswers = async (token: string) => {
+  const res = await fetch('/api/mentor-interest/admin-responses', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!res.ok) throw new Error('Failed to fetch mentor answers');
   return res.json();
 };
 
@@ -75,10 +87,23 @@ export default function MentorResponsesTable() {
   const [deleteData, setDeleteData] = useState<{ id: string; email: string } | null>(null);
   const [statusUpdate, setStatusUpdate] = useState<{ id: string; currentStatus: string; email: string } | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [selectedMentor, setSelectedMentor] = useState<{
+    mentor_id: string;
+    mentor_name: string;
+    mentor_email: string;
+    responses: any[];
+  } | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['mentor-interest'],
     queryFn: () => fetchMentorResponses(token!),
+    enabled: !!token,
+  });
+
+  const { data: mentorAnswers = [] } = useQuery({
+    queryKey: ['mentor-answers'],
+    queryFn: () => fetchMentorAnswers(token!),
     enabled: !!token,
   });
 
@@ -144,6 +169,20 @@ export default function MentorResponsesTable() {
     }
   };
 
+  const handleMentorRowClick = (mentorId: string, mentorName: string, mentorEmail: string) => {
+    // Get all responses for this mentor
+    const mentorResponses = mentorAnswers.filter((r: any) => r.mentor_id === mentorId);
+    setSelectedMentor({
+      mentor_id: mentorId,
+      mentor_name: mentorName,
+      mentor_email: mentorEmail,
+      responses: mentorResponses.sort((a: any, b: any) =>
+        a.stage_id - b.stage_id  // Sort by question number (stage_id) ascending
+      ),
+    });
+    setModalOpen(true);
+  };
+
   const confirmDelete = () => {
     if (deleteData) {
       deleteMutation.mutate(deleteData.id);
@@ -189,7 +228,10 @@ export default function MentorResponsesTable() {
           const email = row.original.email || 'No email';
           return (
             <button
-              onClick={() => handleStatusClick(id, value, email)}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent row click when clicking status
+                handleStatusClick(id, value, email);
+              }}
               className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${
                 value === 'submitted' 
                   ? 'bg-green-100 text-green-800' 
@@ -224,7 +266,10 @@ export default function MentorResponsesTable() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleDelete(id, email)}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent row click when clicking delete
+                handleDelete(id, email);
+              }}
               className="p-1 h-6 w-6 text-red-600 hover:text-red-800"
               disabled={deleteMutation.isLoading}
             >
@@ -244,6 +289,10 @@ export default function MentorResponsesTable() {
         const id = row.original._id;
         const status = row.original.status;
         
+        // Get answered questions count for this mentor
+        const mentorResponses = mentorAnswers.filter((r: any) => r.mentor_id === id);
+        const questionCount = mentorResponses.length;
+        
         // Check if this submission has a valid access token
         if (!isValidToken(accessToken)) {
           return (
@@ -252,23 +301,53 @@ export default function MentorResponsesTable() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleGenerateToken(id)}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent row click when clicking generate token
+                  handleGenerateToken(id);
+                }}
                 className="p-1 h-6 w-6 text-blue-600 hover:text-blue-800"
                 disabled={generateTokenMutation.isLoading}
                 title="Generate access token for interview"
               >
                 <Plus className="h-3 w-3" />
               </Button>
+              {questionCount > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  {questionCount}Q
+                </span>
+              )}
             </div>
           );
         }
         
-        // Show interview link for valid tokens (but hide everything if submitted)
+        // Show interview link for valid tokens (but hide everything if submitted or rejected)
         if (status === 'submitted') {
           return (
-            <span className='px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800'>
-              submitted
-            </span>
+            <div className="flex items-center gap-2">
+              <span className='px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800'>
+                submitted
+              </span>
+              {questionCount > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  {questionCount}Q
+                </span>
+              )}
+            </div>
+          );
+        }
+        
+        if (status === 'rejected') {
+          return (
+            <div className="flex items-center gap-2">
+              <span className='px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800'>
+                rejected
+              </span>
+              {questionCount > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  {questionCount}Q
+                </span>
+              )}
+            </div>
           );
         }
         
@@ -280,12 +359,20 @@ export default function MentorResponsesTable() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => window.open(`/mentor-interview/${accessToken}/start`, '_blank')}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent row click when clicking external link
+                window.open(`/mentor-interview/${accessToken}/start`, '_blank');
+              }}
               className="p-1 h-6 w-6"
               title="Open interview form"
             >
               <ExternalLink className="h-3 w-3" />
             </Button>
+            {questionCount > 0 && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                {questionCount}Q
+              </span>
+            )}
           </div>
         );
       },
@@ -302,7 +389,19 @@ export default function MentorResponsesTable() {
 
   return (
     <div className="max-w-full overflow-x-auto">
-      <DataTable columns={columns} data={responses} showCheckboxes={false} />
+      <DataTable 
+        columns={columns} 
+        data={responses} 
+        showCheckboxes={false}
+        onRowClick={(row: any) => {
+          handleMentorRowClick(
+            row._id, 
+            `${row.firstName || ''} ${row.lastName || ''}`.trim() || 'Unknown Mentor',
+            row.email || 'No email'
+          );
+        }}
+        className="[&_tbody_tr]:cursor-pointer [&_tbody_tr:hover]:bg-gray-50"
+      />
 
       {/* Delete Confirmation Dialog */}
       {deleteData && (
@@ -390,6 +489,13 @@ export default function MentorResponsesTable() {
           </div>
         </div>
       )}
+
+      {/* Mentor Interview Modal */}
+      <MentorInterviewModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        selectedMentor={selectedMentor}
+      />
     </div>
   );
 } 

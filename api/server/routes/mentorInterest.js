@@ -1,6 +1,6 @@
 const express = require('express');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
-const requireAdminAuth = require('~/server/middleware/requireAdminAuth');
+const { checkAdmin } = require('~/server/middleware/roles');
 const { logger } = require('~/config');
 const fs = require('fs');
 const { FileSources } = require('librechat-data-provider');
@@ -118,7 +118,7 @@ router.post('/:id/generate-token', requireJwtAuth, generateAccessToken);
  * @desc Update mentor interest status (ADMIN)
  * @access Private (requires JWT + Admin)
  */
-router.patch('/:id', requireJwtAuth, requireAdminAuth, updateMentorInterestStatus);
+router.patch('/:id', requireJwtAuth, checkAdmin, updateMentorInterestStatus);
 
 // ============================================
 // PUBLIC ROUTES (no authentication required)
