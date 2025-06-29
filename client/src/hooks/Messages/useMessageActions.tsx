@@ -101,14 +101,10 @@ export default function useMessageActions(props: TMessageActions) {
   const messageLabel = useMemo(() => {
     if (message?.isCreatedByUser === true) {
       return UsernameDisplay ? (user?.name ?? '') || user?.username : localize('com_user_message');
-    } else if (agent) {
-      return agent.name ?? 'Assistant';
-    } else if (assistant) {
-      return assistant.name ?? 'Assistant';
     } else {
-      return message?.sender;
+      return 'Meld AI';
     }
-  }, [message, agent, assistant, UsernameDisplay, user, localize]);
+  }, [message, UsernameDisplay, user, localize]);
 
   return {
     ask,

@@ -79,12 +79,12 @@ function ChatView({ index = 0 }: { index?: number }) {
       <ChatContext.Provider value={chatHelpers}>
         <AddedChatContext.Provider value={addedChatHelpers}>
           <Presentation>
-            <div className="flex h-full w-full flex-col">
+            <div className="flex h-full w-full flex-col bg-theme-cream">
               {!isLoading && <Header />}
               <>
                 <div
                   className={cn(
-                    'flex flex-col',
+                    'flex flex-col bg-theme-cream',
                     isLandingPage
                       ? 'flex-1 items-center justify-end sm:justify-center'
                       : 'h-full overflow-y-auto',

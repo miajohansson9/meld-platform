@@ -3,7 +3,6 @@ import { useRecoilState } from 'recoil';
 import type { TConversation, TMessage } from 'librechat-data-provider';
 import { EditIcon, Clipboard, CheckMark, ContinueIcon, RegenerateIcon } from '~/components/svg';
 import { useGenerationsByLatest, useLocalize } from '~/hooks';
-import { Fork } from '~/components/Conversations';
 import MessageAudio from './MessageAudio';
 import { cn } from '~/utils';
 import store from '~/store';
@@ -114,12 +113,11 @@ export default function HoverButtons({
           )}
         />
       )}
-      {isEditableEndpoint && (
+      {isEditableEndpoint && isCreatedByUser && (
         <button
           id={`edit-${message.messageId}`}
           className={cn(
             'hover-button rounded-md p-1 hover:bg-gray-100 hover:text-gray-500 focus:opacity-100 dark:text-gray-400/70 dark:hover:bg-gray-700 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400 md:group-hover:visible md:group-[.final-completion]:visible',
-            isCreatedByUser ? '' : 'active',
             hideEditButton ? 'opacity-0' : '',
             isEditing ? 'active text-gray-700 dark:text-gray-200' : '',
             !isLast ? 'md:opacity-0 md:group-hover:opacity-100' : '',
@@ -147,13 +145,6 @@ export default function HoverButtons({
         {isCopied ? <CheckMark className="h-[18px] w-[18px]" /> : <Clipboard size="19" />}
       </button>
       {renderRegenerate()}
-      <Fork
-        isLast={isLast}
-        messageId={message.messageId}
-        conversationId={conversation.conversationId}
-        forkingSupported={forkingSupported}
-        latestMessageId={latestMessage?.messageId}
-      />
       {continueSupported === true ? (
         <button
           className={cn(

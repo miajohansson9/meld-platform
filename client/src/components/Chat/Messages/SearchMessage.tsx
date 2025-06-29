@@ -55,10 +55,9 @@ export default function SearchMessage({ message }: Pick<TMessageProps, 'message'
         ? (user?.name ?? '') || (user?.username ?? '')
         : localize('com_user_message');
     }
-    return message?.sender ?? '';
+    return 'Meld AI';
   }, [
     message?.isCreatedByUser,
-    message?.sender,
     UsernameDisplay,
     user?.name,
     user?.username,

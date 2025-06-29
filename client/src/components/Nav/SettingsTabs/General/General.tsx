@@ -2,7 +2,6 @@ import { useRecoilState } from 'recoil';
 import Cookies from 'js-cookie';
 import React, { useContext, useCallback } from 'react';
 import UserMsgMarkdownSwitch from './UserMsgMarkdownSwitch';
-import HideSidePanelSwitch from './HideSidePanelSwitch';
 import { ThemeContext, useLocalize } from '~/hooks';
 import AutoScrollSwitch from './AutoScrollSwitch';
 import ArchivedChats from './ArchivedChats';
@@ -24,13 +23,6 @@ const toggleSwitchConfigs = [
     switchId: 'autoScroll',
     hoverCardText: undefined,
     key: 'autoScroll',
-  },
-  {
-    stateAtom: store.hideSidePanel,
-    localizationKey: 'com_nav_hide_panel',
-    switchId: 'hideSidePanel',
-    hoverCardText: undefined,
-    key: 'hideSidePanel',
   },
 ];
 

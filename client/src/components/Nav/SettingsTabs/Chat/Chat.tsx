@@ -14,13 +14,6 @@ const toggleSwitchConfigs = [
     key: 'enterToSend',
   },
   {
-    stateAtom: store.maximizeChatSpace,
-    localizationKey: 'com_nav_maximize_chat_space',
-    switchId: 'maximizeChatSpace',
-    hoverCardText: undefined,
-    key: 'maximizeChatSpace',
-  },
-  {
     stateAtom: store.centerFormOnLanding,
     localizationKey: 'com_nav_center_chat_input',
     switchId: 'centerFormOnLanding',

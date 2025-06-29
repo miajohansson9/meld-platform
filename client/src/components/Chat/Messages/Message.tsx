@@ -73,7 +73,7 @@ export default function Message(props: TMessageProps) {
             </div>
           </div>
         ) : (
-          <div className="m-auto justify-center p-4 py-2 md:gap-6 ">
+          <div className="m-auto justify-center px-4 py-3 md:px-5 lg:px-1 xl:px-5">
             <MessageRender {...props} />
           </div>
         )}

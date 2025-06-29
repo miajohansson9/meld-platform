@@ -5,6 +5,8 @@ import MessageEndpointIcon from '../Endpoints/MessageEndpointIcon';
 import ConvoIconURL from '~/components/Endpoints/ConvoIconURL';
 import { getIconEndpoint } from '~/utils';
 import { UserIcon } from '../svg';
+import { createAvatar } from '@dicebear/core';
+import { initials } from '@dicebear/collection';
 
 export default function MessageIcon(
   props: Pick<TMessageProps, 'message' | 'conversation'> & {
@@ -13,6 +15,24 @@ export default function MessageIcon(
   },
 ) {
   const { message, conversation, assistant, agent } = props;
+
+  // Generate Meld AI avatar with same styling as user avatar but red background
+  const meldAiAvatar = useMemo(() => {
+    const avatar = createAvatar(initials, {
+      seed: 'Meld AI',
+      fontFamily: ['Verdana'],
+      fontSize: 36,
+      backgroundColor: ['BD3C28'], // Use the rust red color
+      textColor: ['ffffff'], // White text
+    });
+
+    try {
+      return avatar.toDataUri();
+    } catch (error) {
+      console.error('Failed to generate Meld AI avatar:', error);
+      return '';
+    }
+  }, []);
 
   const messageSettings = useMemo(
     () => ({
@@ -41,14 +61,6 @@ export default function MessageIcon(
     }
     return result;
   }, [assistant, agent, assistantAvatar, agentAvatar]);
-  console.log('MessageIcon', {
-    endpoint,
-    iconURL,
-    assistantName,
-    assistantAvatar,
-    agentName,
-    agentAvatar,
-  });
   if (message?.isCreatedByUser !== true && iconURL && iconURL.includes('http')) {
     return (
       <ConvoIconURL
@@ -79,15 +91,22 @@ export default function MessageIcon(
     );
   }
 
+  // Show Meld AI avatar with same styling as user avatars
   return (
-    <MessageEndpointIcon
-      {...messageSettings}
-      endpoint={endpoint}
-      iconURL={avatarURL}
-      model={message?.model ?? conversation?.model}
-      assistantName={assistantName}
-      agentName={agentName}
-      size={28.8}
-    />
+    <div
+      title="Meld AI"
+      style={{
+        width: '28.8px',
+        height: '28.8px',
+      }}
+      className="relative flex items-center justify-center"
+    >
+      <img
+        className="rounded-full"
+        src={meldAiAvatar}
+        alt="Meld AI"
+        style={{ height: '28.8px', width: '28.8px' }}
+      />
+    </div>
   );
 }

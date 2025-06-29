@@ -2,6 +2,168 @@
 @tailwind components;
 @tailwind utilities;
 
+/* MELD Brand System */
+:root {
+  --theme-cream: #F8F4EB;      /* Primary background - warm cream */
+  --theme-rust: #BD3C28;       /* Primary accent - rust/terracotta */
+  --theme-terracotta: #BD3C28; /* Same as rust for consistency */
+  --theme-charcoal: #2F292B;   /* Primary text - dark gray */
+  --theme-sage: #CFCBA0;       /* Sage green */
+}
+
+/* MELD Typography - TAN-ANGLETON Serif Font Family */
+@font-face {
+  font-family: 'TAN-ANGLETON';
+  src: url('/fonts/TAN-Angleton-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TAN-ANGLETON-ITALIC';
+  src: url('/fonts/Tan-Angleton-Italic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* MELD Typography Utility Classes */
+.font-meld {
+  font-family: 'TAN-ANGLETON', serif;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.font-meld-italic {
+  font-family: 'TAN-ANGLETON-ITALIC', serif;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.font-meld-large {
+  font-family: 'TAN-ANGLETON-ITALIC', serif;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.font-meld-display {
+  font-family: 'TAN-ANGLETON', serif;
+  font-size: 2.5rem;
+  line-height: 1.1;
+}
+
+/* Override LibreChat defaults with MELD branding */
+body {
+  background-color: var(--theme-cream);
+  color: var(--theme-charcoal);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Journal-inspired components */
+.conversation-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 28px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(175, 175, 175, 0.08);
+  transition: all 0.2s ease;
+}
+
+.conversation-card:hover {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+/* Simple journal input styling */
+.journal-input {
+  border: 1px solid #E5E7EB;
+  background: #FFFFFF;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--theme-charcoal);
+  resize: none;
+  outline: none;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.journal-input:focus {
+  border-color: var(--theme-sage);
+  box-shadow: 0 0 0 3px rgba(207, 203, 160, 0.2);
+  background-color: rgba(248, 244, 235, 0.5);
+}
+
+.journal-input::placeholder {
+  color: #9CA3AF;
+}
+
+/* Elegant timestamp styling */
+.entry-timestamp {
+  font-size: 0.875rem;
+  color: #9CA3AF;
+  font-weight: 300;
+  margin-bottom: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* MELD Button Styles */
+.btn-meld-primary {
+  background-color: var(--theme-charcoal);
+  color: white;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: 'TAN-ANGLETON', serif;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-meld-primary:hover {
+  background-color: var(--theme-sage);
+  color: var(--theme-charcoal);
+  transform: translateY(-1px);
+}
+
+.btn-meld-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Enhanced focus states for accessibility */
+button:focus,
+textarea:focus,
+input:focus {
+  outline: 2px solid var(--theme-sage);
+  outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .conversation-card {
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  
+  .font-meld-large {
+    font-size: 1.5rem;
+  }
+  
+  .font-meld-display {
+    font-size: 2rem;
+  }
+}
+
+/* Fade-in animation utility */
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in forwards;
@@ -18,4 +180,46 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Message styling */
+.message-render {
+  margin-bottom: 1.25rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.message-render:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* User messages - warm journal style */
+.message-render:has(.user-turn) {
+  background: linear-gradient(145deg, rgba(255, 250, 240, 0.8), rgba(255, 245, 230, 0.6));
+  border: 1px solid rgba(248, 240, 227, 0.8);
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.message-render:has(.user-turn)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--theme-rust), var(--theme-terracotta));
+  border-radius: 16px 16px 0 0;
+  opacity: 0.7;
+}
+
+.message-render:has(.user-turn):hover {
+  background: linear-gradient(145deg, rgba(255, 250, 240, 0.9), rgba(255, 245, 230, 0.8));
+  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.1);
 } 

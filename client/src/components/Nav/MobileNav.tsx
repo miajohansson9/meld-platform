@@ -5,6 +5,7 @@ import { QueryKeys, Constants } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { Dispatch, SetStateAction } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
+import { useChatContext } from '~/Providers';
 import store from '~/store';
 
 export default function MobileNav({
@@ -15,11 +16,29 @@ export default function MobileNav({
   const localize = useLocalize();
   const queryClient = useQueryClient();
   const { newConversation } = useNewConvo();
-  const conversation = useRecoilValue(store.conversationByIndex(0));
-  const { title = 'New Chat' } = conversation || {};
+  const { conversation } = useChatContext();
+
+  // Get conversation creation date in MELD format
+  const getConversationDate = () => {
+    if (conversation?.createdAt) {
+      return new Date(conversation.createdAt).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+    // Fallback to current date for new conversations
+    return new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   return (
-    <div className="bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-center bg-white pl-1 dark:bg-gray-800 dark:text-white md:hidden">
+    <div className="bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-center bg-theme-cream pl-1 dark:bg-gray-800 dark:text-white md:hidden">
       <button
         type="button"
         data-testid="mobile-header-new-chat-button"
@@ -49,8 +68,8 @@ export default function MobileNav({
           />
         </svg>
       </button>
-      <h1 className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-center text-sm font-normal">
-        {title ?? localize('com_ui_new_chat')}
+      <h1 className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-center text-sm font-normal text-theme-charcoal">
+        {getConversationDate()}
       </h1>
       <button
         type="button"

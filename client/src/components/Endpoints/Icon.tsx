@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useMemo } from 'react';
 import type { TUser } from 'librechat-data-provider';
 import type { IconProps } from '~/common';
 import MessageEndpointIcon from './MessageEndpointIcon';
@@ -6,6 +6,8 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import useAvatar from '~/hooks/Messages/useAvatar';
 import useLocalize from '~/hooks/useLocalize';
 import { UserIcon } from '~/components/svg';
+import { createAvatar } from '@dicebear/core';
+import { initials } from '@dicebear/collection';
 import { cn } from '~/utils';
 
 type UserAvatarProps = {
@@ -70,6 +72,24 @@ const Icon: React.FC<IconProps> = memo((props) => {
   const avatarSrc = useAvatar(user);
   const localize = useLocalize();
 
+  // Generate Meld AI avatar with same styling as user avatar but red background
+  const meldAiAvatar = useMemo(() => {
+    const avatar = createAvatar(initials, {
+      seed: 'Meld AI',
+      fontFamily: ['Verdana'],
+      fontSize: 36,
+      backgroundColor: ['BD3C28'], // Use the rust red color
+      textColor: ['ffffff'], // White text
+    });
+
+    try {
+      return avatar.toDataUri();
+    } catch (error) {
+      console.error('Failed to generate Meld AI avatar:', error);
+      return '';
+    }
+  }, []);
+
   if (isCreatedByUser) {
     const username = user?.name ?? user?.username ?? localize('com_nav_user');
     return (
@@ -82,7 +102,25 @@ const Icon: React.FC<IconProps> = memo((props) => {
       />
     );
   }
-  return <MessageEndpointIcon {...props} />;
+
+  // Show Meld AI avatar with same styling as user avatars
+  return (
+    <div
+      title="Meld AI"
+      style={{
+        width: size,
+        height: size,
+      }}
+      className={cn('relative flex items-center justify-center', props.className ?? '')}
+    >
+      <img
+        className="rounded-full"
+        src={meldAiAvatar}
+        alt="Meld AI"
+        style={{ height: size, width: size }}
+      />
+    </div>
+  );
 });
 
 Icon.displayName = 'Icon';

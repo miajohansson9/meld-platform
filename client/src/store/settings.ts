@@ -19,8 +19,8 @@ const staticAtoms = {
 
 const localStorageAtoms = {
   // General settings
-  autoScroll: atomWithLocalStorage('autoScroll', false),
-  hideSidePanel: atomWithLocalStorage('hideSidePanel', false),
+  autoScroll: atomWithLocalStorage('autoScroll', true),
+  hideSidePanel: atomWithLocalStorage('hideSidePanel', true),
   fontSize: atomWithLocalStorage('fontSize', 'text-base'),
   enableUserMsgMarkdown: atomWithLocalStorage<boolean>(
     LocalStorageKeys.ENABLE_USER_MSG_MARKDOWN,
@@ -29,7 +29,7 @@ const localStorageAtoms = {
 
   // Chat settings
   enterToSend: atomWithLocalStorage('enterToSend', true),
-  maximizeChatSpace: atomWithLocalStorage('maximizeChatSpace', false),
+  maximizeChatSpace: atomWithLocalStorage('maximizeChatSpace', true),
   chatDirection: atomWithLocalStorage('chatDirection', 'LTR'),
   showCode: atomWithLocalStorage(LocalStorageKeys.SHOW_ANALYSIS_CODE, true),
   saveDrafts: atomWithLocalStorage('saveDrafts', true),
@@ -50,9 +50,9 @@ const localStorageAtoms = {
   showFooter: atomWithLocalStorage('showFooter', true),
 
   // Commands settings
-  atCommand: atomWithLocalStorage('atCommand', true),
-  plusCommand: atomWithLocalStorage('plusCommand', true),
-  slashCommand: atomWithLocalStorage('slashCommand', true),
+  atCommand: atomWithLocalStorage('atCommand', false),
+  plusCommand: atomWithLocalStorage('plusCommand', false),
+  slashCommand: atomWithLocalStorage('slashCommand', false),
 
   // Speech settings
   conversationMode: atomWithLocalStorage('conversationMode', false),

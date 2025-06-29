@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState, useMemo, memo, lazy, Suspense, useRef } from 'react';
 import { useRecoilValue } from 'recoil';
-import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import {
   useLocalize,
-  useHasAccess,
   useMediaQuery,
   useAuthContext,
   useLocalStorage,
@@ -18,7 +16,6 @@ import NewChat from './NewChat';
 import { cn } from '~/utils';
 import store from '~/store';
 
-const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
 
 const NAV_WIDTH_DESKTOP = '260px';
@@ -59,19 +56,13 @@ const Nav = memo(
     const isSmallScreen = useMediaQuery('(max-width: 768px)');
     const [newUser, setNewUser] = useLocalStorage('newUser', true);
     const [showLoading, setShowLoading] = useState(false);
-    const [tags, setTags] = useState<string[]>([]);
 
-    const hasAccessToBookmarks = useHasAccess({
-      permissionType: PermissionTypes.BOOKMARKS,
-      permission: Permissions.USE,
-    });
 
     const search = useRecoilValue(store.search);
 
     const { data, fetchNextPage, isFetchingNextPage, isLoading, isFetching, refetch } =
       useConversationsInfiniteQuery(
         {
-          tags: tags.length === 0 ? undefined : tags,
           search: search.debouncedQuery || undefined,
         },
         {
@@ -137,9 +128,7 @@ const Nav = memo(
       }
     }, [isSmallScreen, toggleNavVisible]);
 
-    useEffect(() => {
-      refetch();
-    }, [tags, refetch]);
+
 
     const loadMoreConversations = useCallback(() => {
       if (isFetchingNextPage || !computedHasNextPage) {
@@ -154,18 +143,7 @@ const Nav = memo(
       [search.enabled, isSmallScreen],
     );
 
-    const headerButtons = useMemo(
-      () =>
-        hasAccessToBookmarks && (
-          <>
-            <div className="mt-1.5" />
-            <Suspense fallback={null}>
-              <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} />
-            </Suspense>
-          </>
-        ),
-      [hasAccessToBookmarks, tags, isSmallScreen],
-    );
+    const headerButtons = null;
 
     const [isSearchLoading, setIsSearchLoading] = useState(
       !!search.query && (search.isTyping || isLoading || isFetching),
@@ -186,7 +164,7 @@ const Nav = memo(
         <div
           data-testid="nav"
           className={cn(
-            'nav active max-w-[320px] flex-shrink-0 overflow-x-hidden bg-surface-primary-alt',
+            'nav active max-w-[320px] flex-shrink-0 overflow-x-hidden bg-theme-cream border-r border-gray-200 shadow-sm',
             'md:max-w-[260px]',
           )}
           style={{
@@ -196,13 +174,15 @@ const Nav = memo(
           }}
         >
           <div className="h-full w-[320px] md:w-[260px]">
+
+            
             <div className="flex h-full flex-col">
-              <div className="flex h-full flex-col transition-opacity">
+              <div className="flex h-full flex-col">
                 <div className="flex h-full flex-col">
                   <nav
                     id="chat-history-nav"
                     aria-label={localize('com_ui_chat_history')}
-                    className="flex h-full flex-col px-2 pb-3.5 md:px-3"
+                    className="flex h-full flex-col px-4 pb-3.5 md:px-4"
                   >
                     <div className="flex flex-1 flex-col" ref={outerContainerRef}>
                       <MemoNewChat
