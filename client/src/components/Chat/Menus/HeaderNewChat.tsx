@@ -13,7 +13,7 @@ export default function HeaderNewChat() {
 
   const clickHandler: React.MouseEventHandler<HTMLButtonElement> = (e) => {
     if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
-      window.open('/c/new', '_blank');
+      window.open('/mentor/chats/new', '_blank');
       return;
     }
     queryClient.setQueryData<TMessage[]>(

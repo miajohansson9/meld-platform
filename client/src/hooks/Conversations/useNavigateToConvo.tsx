@@ -25,12 +25,12 @@ const useNavigateToConvo = (index = 0) => {
       );
       logger.log('conversation', 'Fetched fresh conversation data', data);
       setConversation(data);
-      navigate(`/c/${conversationId ?? Constants.NEW_CONVO}`, { state: { focusChat: true } });
+      navigate(`/mentor/chats/${conversationId ?? Constants.NEW_CONVO}`, { state: { focusChat: true } });
     } catch (error) {
       console.error('Error fetching conversation data on navigation', error);
       if (conversation) {
         setConversation(conversation as TConversation);
-        navigate(`/c/${conversationId}`, { state: { focusChat: true } });
+        navigate(`/mentor/chats/${conversationId}`, { state: { focusChat: true } });
       }
     }
   };
@@ -85,7 +85,7 @@ const useNavigateToConvo = (index = 0) => {
       fetchFreshData(convo);
     } else {
       setConversation(convo);
-      navigate(`/c/${convo.conversationId ?? Constants.NEW_CONVO}`, { state: { focusChat: true } });
+      navigate(`/mentor/chats/${convo.conversationId ?? Constants.NEW_CONVO}`, { state: { focusChat: true } });
     }
   };
 

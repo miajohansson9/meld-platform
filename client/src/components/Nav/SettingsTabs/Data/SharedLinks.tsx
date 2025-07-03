@@ -249,7 +249,7 @@ export default function SharedLinks() {
                   variant="ghost"
                   className="h-8 w-8 p-0 hover:bg-surface-hover"
                   onClick={() => {
-                    window.open(`/c/${row.original.conversationId}`, '_blank');
+                    window.open(`/mentor/chats/${row.original.conversationId}`, '_blank');
                   }}
                   title={localize('com_ui_view_source')}
                 >

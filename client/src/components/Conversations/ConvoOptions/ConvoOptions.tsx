@@ -91,7 +91,7 @@ function ConvoOptions({
         onSuccess: () => {
           if (currentConvoId === convoId || currentConvoId === 'new') {
             newConversation();
-            navigate('/c/new', { replace: true });
+            navigate('/mentor/chats/new', { replace: true });
           }
           retainView();
           setIsPopoverActive(false);

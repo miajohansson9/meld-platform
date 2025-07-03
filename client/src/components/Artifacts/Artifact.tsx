@@ -88,7 +88,7 @@ export function Artifact({
         lastUpdateTime: now,
       };
 
-      if (!location.pathname.includes('/c/')) {
+      if (!location.pathname.includes('/mentor/chats/')) {
         return setArtifact(currentArtifact);
       }
 

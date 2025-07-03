@@ -31,7 +31,7 @@ export default function StartupLayout({ isAuthenticated }: { isAuthenticated?: b
 
   useEffect(() => {
     if (isAuthenticated && !location.pathname.includes('/mentors/signup')) {
-      navigate('/c/new', { replace: true });
+      navigate('/mentor/chats/new', { replace: true });
     }
     if (data) {
       setStartupConfig(data);

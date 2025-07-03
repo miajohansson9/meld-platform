@@ -102,7 +102,7 @@ export default function Conversation({
     if (ctrlOrMetaKey) {
       toggleNav();
       const baseUrl = window.location.origin;
-      const path = `/c/${conversationId}`;
+      const path = `/mentor/chats/${conversationId}`;
       window.open(baseUrl + path, '_blank');
       return;
     }

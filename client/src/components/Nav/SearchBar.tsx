@@ -30,7 +30,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
   const clearSearch = useCallback(() => {
     if (location.pathname.includes('/search')) {
       newConversation({ disableFocus: true });
-      navigate('/c/new', { replace: true });
+      navigate('/mentor/chats/new', { replace: true });
     }
   }, [newConversation, location.pathname, navigate]);
 
@@ -86,7 +86,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     if (value.length > 0 && location.pathname !== '/search') {
       navigate('/search', { replace: true });
     } else if (value.length === 0 && location.pathname === '/search') {
-      navigate('/c/new', { replace: true });
+      navigate('/mentor/chats/new', { replace: true });
     }
   };
 

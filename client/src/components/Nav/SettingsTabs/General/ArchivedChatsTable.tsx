@@ -150,7 +150,7 @@ export default function ArchivedChatsTable({
             <button
               type="button"
               className="flex items-center gap-2 truncate"
-              onClick={() => window.open(`/c/${conversationId}`, '_blank')}
+              onClick={() => window.open(`/mentor/chats/${conversationId}`, '_blank')}
             >
               <MinimalIcon
                 endpoint={row.original.endpoint}
