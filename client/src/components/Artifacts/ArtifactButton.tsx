@@ -36,7 +36,7 @@ const ArtifactButton = ({ artifact }: { artifact: Artifact | null }) => {
       return;
     }
 
-    if (!location.pathname.includes('/c/')) {
+    if (!location.pathname.includes('/mentor/chats/')) {
       return;
     }
 
@@ -57,7 +57,7 @@ const ArtifactButton = ({ artifact }: { artifact: Artifact | null }) => {
       <button
         type="button"
         onClick={() => {
-          if (!location.pathname.includes('/c/')) {
+          if (!location.pathname.includes('/mentor/chats/')) {
             return;
           }
           resetCurrentArtifactId();

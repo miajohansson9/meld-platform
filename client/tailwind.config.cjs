@@ -7,7 +7,8 @@ module.exports = {
   darkMode: ['class'],
   theme: {
     fontFamily: {
-      sans: ['Inter', 'sans-serif'],
+      sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      serif: ['Playfair Display', 'Georgia', 'serif'],
       mono: ['Roboto Mono', 'monospace'],
     },
     // fontFamily: {
@@ -27,13 +28,76 @@ module.exports = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: 0 },
         },
+        'confetti-drift': {
+          '0%': {
+            transform: 'translateY(0) rotate(0deg)',
+            opacity: '1',
+          },
+          '50%': {
+            transform: 'translateY(-10px) rotate(180deg)',
+            opacity: '0.8',
+          },
+          '100%': {
+            transform: 'translateY(-20px) rotate(360deg)',
+            opacity: '0',
+          },
+        },
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out forwards',
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'confetti-drift': 'confetti-drift 2s ease-out infinite',
+      },
+      spacing: {
+        '18': '4.5rem',  // 72px
+        '72': '18rem',   // 288px
+        '84': '21rem',   // 336px
+        '96': '24rem',   // 384px
       },
       colors: {
+        // MELD Primary Color Palette
+        'meld-canvas': 'var(--meld-canvas)',
+        'meld-ink': 'var(--meld-ink)',
+        'meld-sand': 'var(--meld-sand)',
+        'meld-sage': 'var(--meld-sage)',
+        'meld-ember': 'var(--meld-ember)',
+        'meld-graysmoke': 'var(--meld-graysmoke)',
+        'meld-maroon': 'var(--meld-maroon)',
+        'meld-rose': 'var(--meld-rose)',
+        'meld-steel': 'var(--meld-steel)',
+        'meld-charcoal': 'var(--meld-charcoal)',
+        'meld-rust': 'var(--meld-rust)',
+        'meld-frost': 'var(--meld-frost)',
+        'meld-cream': 'var(--meld-cream)',
+        
+        // MELD Fragment Colors
+        'meld-fragment-quote': 'var(--meld-fragment-quote)',
+        'meld-fragment-quote-dot': 'var(--meld-fragment-quote-dot)',
+        'meld-fragment-insight': 'var(--meld-fragment-insight)',
+        'meld-fragment-insight-dot': 'var(--meld-fragment-insight-dot)',
+        'meld-fragment-question': 'var(--meld-fragment-question)',
+        'meld-fragment-question-dot': 'var(--meld-fragment-question-dot)',
+        'meld-fragment-todo': 'var(--meld-fragment-todo)',
+        'meld-fragment-todo-dot': 'var(--meld-fragment-todo-dot)',
+        'meld-fragment-general': 'var(--meld-fragment-general)',
+        'meld-fragment-general-dot': 'var(--meld-fragment-general-dot)',
+        
+        // MELD Wins Vault Colors
+        'meld-win-accent': 'var(--meld-win-accent)',
+        'meld-win-confetti-1': 'var(--meld-win-confetti-1)',
+        'meld-win-confetti-2': 'var(--meld-win-confetti-2)',
+        'meld-win-confetti-3': 'var(--meld-win-confetti-3)',
+        'meld-win-confetti-4': 'var(--meld-win-confetti-4)',
+        
+        // MELD North-Star Narrative Colors
+        'meld-value-growth': 'var(--meld-value-growth)',
+        'meld-value-integrity': 'var(--meld-value-integrity)',
+        'meld-value-courage': 'var(--meld-value-courage)',
+        'meld-value-innovation': 'var(--meld-value-innovation)',
+        'meld-value-empathy': 'var(--meld-value-empathy)',
+
+        // Legacy LibreChat colors (keep for compatibility during transition)
         gray: {
           20: '#ececf1',
           50: '#f7f7f8',
@@ -103,7 +167,8 @@ module.exports = {
         'border-medium-alt': 'var(--border-medium-alt)',
         'border-heavy': 'var(--border-heavy)',
         'border-xheavy': 'var(--border-xheavy)',
-        /* These are test styles */
+        
+        // Shadcn/ui color system (compatible with MELD)
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ['switch-unchecked']: 'hsl(var(--switch-unchecked))',
@@ -133,6 +198,16 @@ module.exports = {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
+        },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          primary: 'hsl(var(--sidebar-primary))',
+          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+          ring: 'hsl(var(--sidebar-ring))',
         },
       },
       borderRadius: {

@@ -1,73 +1,512 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* MELD Brand System */
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --theme-cream: #F8F4EB;      /* Primary background - warm cream */
-  --theme-rust: #BD3C28;       /* Primary accent - rust/terracotta */
-  --theme-terracotta: #BD3C28; /* Same as rust for consistency */
-  --theme-charcoal: #2F292B;   /* Primary text - dark gray */
-  --theme-sage: #CFCBA0;       /* Sage green */
+  /* Meld Color Palette */
+  --meld-canvas: #F9F8F5;
+  --meld-ink: #22231F;
+  --meld-sand: #D5C8A4;
+  --meld-sage: #BFCDB1;
+  --meld-ember: #E6B8AD;
+  --meld-graysmoke: #EFEDE9;
+  --meld-maroon: #692011;
+  --meld-rose: #F2DBDB;
+  --meld-steel: #3B3C50;
+  --meld-charcoal: #2F292B;
+  --meld-rust: #BD3C28;
+  --meld-frost: #DDECEA;
+  --meld-cream: #F8F4EB;
+
+  /* Fragment Tag Colors */
+  --meld-fragment-quote: #F2DBDB; /* rose - for quotes */
+  --meld-fragment-quote-dot: #D4A4A4;
+  --meld-fragment-insight: #E9F2E4; /* sage - for insights */
+  --meld-fragment-insight-dot: #BFCDB1;
+  --meld-fragment-question: #F1ECD9; /* sand - for questions */
+  --meld-fragment-question-dot: #D5C8A4;
+  --meld-fragment-todo: #DFE4E7; /* stone - for todos */
+  --meld-fragment-todo-dot: #A8B2B8;
+  --meld-fragment-general: #F9F8F5; /* canvas - for general notes */
+  --meld-fragment-general-dot: #C5C4C1;
+
+  /* Wins Vault Colors */
+  --meld-win-accent: #D5C8A4; /* sand-gold accent */
+  --meld-win-card-shadow: rgba(0, 0, 0, 0.08); /* subtle shadow */
+  --meld-win-card-shadow-hover: rgba(0, 0, 0, 0.12); /* hover shadow */
+  --meld-win-confetti-1: #D5C8A4; /* sand */
+  --meld-win-confetti-2: #BFCDB1; /* sage */
+  --meld-win-confetti-3: #F2DBDB; /* rose */
+  --meld-win-confetti-4: #E6B8AD; /* ember */
+
+  /* North-Star Narrative Colors */
+  --meld-value-growth: #C9D4C2; /* sage variant */
+  --meld-value-integrity: #D5C8A4; /* sand */
+  --meld-value-courage: #E9C4C0; /* rose variant */
+  --meld-value-innovation: #BFCDB1; /* sage */
+  --meld-value-empathy: #F2DBDB; /* rose */
+  --meld-narrative-parallax: rgba(0, 0, 0, 0.02); /* subtle parallax shadow */
+  --meld-narrative-glow: rgba(213, 200, 164, 0.3); /* sand glow */
+
+  /* Enhanced slider colors for better contrast */
+  --meld-graysmoke-darker: #E7E5DF; /* -10% lightness from graysmoke */
+  --meld-sage-60: rgba(191, 205, 177, 0.6); /* 60% opacity sage */
+  --meld-slider-track: #DCDCDC; /* Light gray track for unfilled portion */
+  --meld-slider-fill: #333333; /* Dark fill for filled portion */
+
+  /* Base tokens */
+  --font-size: 14px;
+  --font-family-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-serif: 'Playfair Display', Georgia, serif;
+  --baseline-rhythm: 8px;
+
+  /* Updated color system for Meld */
+  --background: var(--meld-canvas);
+  --foreground: var(--meld-ink);
+  --card: #ffffff;
+  --card-foreground: var(--meld-ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--meld-ink);
+  --primary: var(--meld-ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--meld-graysmoke);
+  --secondary-foreground: var(--meld-ink);
+  --muted: var(--meld-graysmoke);
+  --muted-foreground: var(--meld-charcoal);
+  --accent: var(--meld-sand);
+  --accent-foreground: var(--meld-ink);
+  --destructive: var(--meld-ember);
+  --destructive-foreground: var(--meld-ink);
+  --border: rgba(34, 35, 31, 0.1);
+  --input: transparent;
+  --input-background: #ffffff;
+  --switch-background: var(--meld-graysmoke);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: var(--meld-sand);
+  --radius: 12px;
+
+  /* Sidebar colors */
+  --sidebar: var(--meld-canvas);
+  --sidebar-foreground: var(--meld-ink);
+  --sidebar-primary: var(--meld-ink);
+  --sidebar-primary-foreground: var(--meld-canvas);
+  --sidebar-accent: var(--meld-sand);
+  --sidebar-accent-foreground: var(--meld-ink);
+  --sidebar-border: rgba(34, 35, 31, 0.08);
+  --sidebar-ring: var(--meld-sand);
 }
 
-/* MELD Typography - TAN-ANGLETON Serif Font Family */
-@font-face {
-  font-family: 'TAN-ANGLETON';
-  src: url('/fonts/TAN-Angleton-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
+.dark {
+  --background: var(--meld-charcoal);
+  --foreground: var(--meld-cream);
+  --card: var(--meld-charcoal);
+  --card-foreground: var(--meld-cream);
+  --popover: var(--meld-charcoal);
+  --popover-foreground: var(--meld-cream);
+  --primary: var(--meld-cream);
+  --primary-foreground: var(--meld-charcoal);
+  --secondary: var(--meld-steel);
+  --secondary-foreground: var(--meld-cream);
+  --muted: var(--meld-steel);
+  --muted-foreground: var(--meld-frost);
+  --accent: var(--meld-sand);
+  --accent-foreground: var(--meld-charcoal);
+  --destructive: var(--meld-ember);
+  --destructive-foreground: var(--meld-charcoal);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: var(--meld-steel);
+  --ring: var(--meld-sand);
 }
 
-@font-face {
-  font-family: 'TAN-ANGLETON-ITALIC';
-  src: url('/fonts/Tan-Angleton-Italic.ttf') format('truetype');
-  font-weight: normal;
-  font-style: italic;
-  font-display: swap;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Meld specific colors */
+  --color-meld-canvas: var(--meld-canvas);
+  --color-meld-ink: var(--meld-ink);
+  --color-meld-sand: var(--meld-sand);
+  --color-meld-sage: var(--meld-sage);
+  --color-meld-ember: var(--meld-ember);
+  --color-meld-graysmoke: var(--meld-graysmoke);
+  --color-meld-cream: var(--meld-cream);
+  --color-meld-frost: var(--meld-frost);
+  --color-meld-rose: var(--meld-rose);
+  --color-meld-charcoal: var(--meld-charcoal);
+  --color-meld-maroon: var(--meld-maroon);
+  --color-meld-steel: var(--meld-steel);
+  --color-meld-rust: var(--meld-rust);
+  --color-meld-graysmoke-darker: var(--meld-graysmoke-darker);
+  --color-meld-sage-60: var(--meld-sage-60);
+  --color-meld-slider-track: var(--meld-slider-track);
+  --color-meld-slider-fill: var(--meld-slider-fill);
+
+  /* Fragment tag colors */
+  --color-meld-fragment-quote: var(--meld-fragment-quote);
+  --color-meld-fragment-quote-dot: var(--meld-fragment-quote-dot);
+  --color-meld-fragment-insight: var(--meld-fragment-insight);
+  --color-meld-fragment-insight-dot: var(--meld-fragment-insight-dot);
+  --color-meld-fragment-question: var(--meld-fragment-question);
+  --color-meld-fragment-question-dot: var(--meld-fragment-question-dot);
+  --color-meld-fragment-todo: var(--meld-fragment-todo);
+  --color-meld-fragment-todo-dot: var(--meld-fragment-todo-dot);
+  --color-meld-fragment-general: var(--meld-fragment-general);
+  --color-meld-fragment-general-dot: var(--meld-fragment-general-dot);
+
+  /* Wins Vault colors */
+  --color-meld-win-accent: var(--meld-win-accent);
+  --color-meld-win-card-shadow: var(--meld-win-card-shadow);
+  --color-meld-win-card-shadow-hover: var(--meld-win-card-shadow-hover);
+  --color-meld-win-confetti-1: var(--meld-win-confetti-1);
+  --color-meld-win-confetti-2: var(--meld-win-confetti-2);
+  --color-meld-win-confetti-3: var(--meld-win-confetti-3);
+  --color-meld-win-confetti-4: var(--meld-win-confetti-4);
+
+  /* North-Star Narrative colors */
+  --color-meld-value-growth: var(--meld-value-growth);
+  --color-meld-value-integrity: var(--meld-value-integrity);
+  --color-meld-value-courage: var(--meld-value-courage);
+  --color-meld-value-innovation: var(--meld-value-innovation);
+  --color-meld-value-empathy: var(--meld-value-empathy);
+  --color-meld-narrative-parallax: var(--meld-narrative-parallax);
+  --color-meld-narrative-glow: var(--meld-narrative-glow);
 }
 
-/* MELD Typography Utility Classes */
-.font-meld {
-  font-family: 'TAN-ANGLETON', serif;
-  font-size: 1.1rem;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: var(--font-family-sans);
+  }
+}
+
+/**
+ * Base typography with Meld's type system
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-family: var(--font-family-serif);
+      font-size: 2rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--meld-ink);
+    }
+
+    h2 {
+      font-family: var(--font-family-serif);
+      font-size: 1.5rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--meld-ink);
+    }
+
+    h3 {
+      font-family: var(--font-family-sans);
+      font-size: 1.125rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+
+    h4 {
+      font-family: var(--font-family-sans);
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+
+    p {
+      font-family: var(--font-family-sans);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.6;
+      color: var(--meld-ink);
+    }
+
+    label {
+      font-family: var(--font-family-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+
+    button {
+      font-family: var(--font-family-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    input, textarea {
+      font-family: var(--font-family-sans);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
   line-height: 1.6;
 }
 
-.font-meld-italic {
-  font-family: 'TAN-ANGLETON-ITALIC', serif;
-  font-size: 1.1rem;
-  line-height: 1.6;
+.font-serif {
+  font-family: var(--font-family-serif);
 }
 
-.font-meld-large {
-  font-family: 'TAN-ANGLETON-ITALIC', serif;
-  font-size: 2rem;
-  line-height: 1.2;
+.font-sans {
+  font-family: var(--font-family-sans);
 }
 
-.font-meld-display {
-  font-family: 'TAN-ANGLETON', serif;
-  font-size: 2.5rem;
-  line-height: 1.1;
+.transition-meld {
+  transition: all 0.2s ease-in-out;
 }
 
-/* Override LibreChat defaults with MELD branding */
-body {
-  background-color: var(--theme-cream);
-  color: var(--theme-charcoal);
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+.transition-meld-fast {
+  transition: all 0.15s ease-in-out;
 }
 
-/* Journal-inspired components */
+.meld-input-focus {
+  border: 1px solid var(--meld-graysmoke);
+  transition: all 0.2s ease;
+}
+
+.meld-input-focus:focus {
+  border-color: var(--meld-sand);
+  box-shadow: 0 0 0 3px rgba(213, 200, 164, 0.2);
+  outline: none;
+}
+
+/* Enhanced Meld styling classes from Figma */
+.meld-slider-enhanced {
+  /* Enhanced slider with better visual feedback */
+}
+
+.meld-slider-enhanced [data-slot="slider-track"] {
+  background-color: var(--meld-graysmoke-darker);
+  height: 6px;
+  border-radius: 3px;
+}
+
+.meld-slider-enhanced [data-slot="slider-range"] {
+  background-color: var(--meld-slider-fill);
+  border-radius: 3px;
+}
+
+.meld-slider-enhanced [data-slot="slider-thumb"] {
+  width: 18px;
+  height: 18px;
+  background-color: white;
+  border: 2px solid var(--meld-slider-fill);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.meld-slider-enhanced [data-slot="slider-thumb"]:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.meld-slider-enhanced [data-slot="slider-thumb"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--meld-sand), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.meld-slider-enhanced [data-slot="slider-thumb"]:active {
+  transform: scale(0.95);
+}
+
+.meld-focus-underline {
+  position: relative;
+}
+
+.meld-focus-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--meld-sand);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.meld-focus-underline:focus-within::after {
+  opacity: 1;
+}
+
+.meld-emoji-anchors {
+  font-size: 16px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.meld-alignment-chip {
+  transition: all 0.2s ease;
+}
+
+.meld-alignment-chip-active {
+  background-color: var(--meld-sand);
+  color: var(--meld-ink);
+  border-color: var(--meld-sand);
+}
+
+.meld-alignment-chip-inactive {
+  background-color: transparent;
+  color: var(--meld-ink);
+  border-color: var(--meld-graysmoke);
+}
+
+.meld-alignment-chip-inactive:hover {
+  background-color: var(--meld-graysmoke);
+  border-color: var(--meld-sand);
+}
+
+.meld-bottom-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  border-top: 1px solid var(--meld-graysmoke);
+  margin-top: 1rem;
+}
+
+.meld-not-ready-link {
+  color: var(--meld-ink);
+  opacity: 0.6;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: opacity 0.2s ease;
+}
+
+.meld-not-ready-link:hover {
+  opacity: 0.8;
+}
+
+.meld-complete-button {
+  background-color: var(--meld-ink);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.meld-complete-button:hover {
+  background-color: var(--meld-charcoal);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.meld-complete-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* MELD-specific component styles */
+.meld-fragment-card {
+  transition: all 0.2s ease;
+  border-radius: 12px;
+}
+
+.meld-fragment-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.win-tile-card {
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.win-tile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes confetti-drift {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-10px) rotate(180deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-20px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.meld-confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: confetti-drift 2s ease-out infinite;
+  pointer-events: none;
+}
+
+/* Journal-inspired components compatible with MELD */
 .conversation-card {
   background: #FFFFFF;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   padding: 28px;
   margin-bottom: 20px;
-  border: 1px solid rgba(175, 175, 175, 0.08);
+  border: 1px solid rgba(34, 35, 31, 0.08);
   transition: all 0.2s ease;
 }
 
@@ -76,14 +515,13 @@ body {
   transform: translateY(-1px);
 }
 
-/* Simple journal input styling */
 .journal-input {
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--meld-graysmoke);
   background: #FFFFFF;
-  font-family: inherit;
+  font-family: var(--font-family-sans);
   font-size: 1rem;
   line-height: 1.5;
-  color: var(--theme-charcoal);
+  color: var(--meld-ink);
   resize: none;
   outline: none;
   width: 100%;
@@ -93,100 +531,21 @@ body {
 }
 
 .journal-input:focus {
-  border-color: var(--theme-sage);
-  box-shadow: 0 0 0 3px rgba(207, 203, 160, 0.2);
-  background-color: rgba(248, 244, 235, 0.5);
+  border-color: var(--meld-sand);
+  box-shadow: 0 0 0 3px rgba(213, 200, 164, 0.2);
+  background-color: rgba(249, 248, 245, 0.5);
 }
 
 .journal-input::placeholder {
-  color: #9CA3AF;
+  color: var(--meld-charcoal);
+  opacity: 0.6;
 }
 
-/* Elegant timestamp styling */
-.entry-timestamp {
-  font-size: 0.875rem;
-  color: #9CA3AF;
-  font-weight: 300;
-  margin-bottom: 20px;
-  font-family: system-ui, -apple-system, sans-serif;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-/* MELD Button Styles */
-.btn-meld-primary {
-  background-color: var(--theme-charcoal);
-  color: white;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  transition: all 0.2s ease;
-  border: none;
-  font-family: 'TAN-ANGLETON', serif;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.btn-meld-primary:hover {
-  background-color: var(--theme-sage);
-  color: var(--theme-charcoal);
-  transform: translateY(-1px);
-}
-
-.btn-meld-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Enhanced focus states for accessibility */
-button:focus,
-textarea:focus,
-input:focus {
-  outline: 2px solid var(--theme-sage);
-  outline-offset: 2px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .conversation-card {
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-  
-  .font-meld-large {
-    font-size: 1.5rem;
-  }
-  
-  .font-meld-display {
-    font-size: 2rem;
-  }
-}
-
-/* Fade-in animation utility */
-@layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-in forwards;
-    opacity: 0;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Message styling */
+/* Message styling updated for MELD */
 .message-render {
   margin-bottom: 1.25rem;
   background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(229, 231, 235, 0.5);
+  border: 1px solid var(--meld-graysmoke);
   border-radius: 12px;
   padding: 1.25rem;
   transition: all 0.2s ease;
@@ -195,13 +554,13 @@ input:focus {
 .message-render:hover {
   background: rgba(255, 255, 255, 0.9);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--meld-win-card-shadow);
 }
 
-/* User messages - warm journal style */
+/* User messages with MELD styling */
 .message-render:has(.user-turn) {
-  background: linear-gradient(145deg, rgba(255, 250, 240, 0.8), rgba(255, 245, 230, 0.6));
-  border: 1px solid rgba(248, 240, 227, 0.8);
+  background: linear-gradient(145deg, var(--meld-canvas), rgba(239, 237, 233, 0.6));
+  border: 1px solid var(--meld-graysmoke);
   border-radius: 16px;
   padding: 1.5rem;
   position: relative;
@@ -214,12 +573,12 @@ input:focus {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--theme-rust), var(--theme-terracotta));
+  background: linear-gradient(90deg, var(--meld-sand), var(--meld-sage));
   border-radius: 16px 16px 0 0;
   opacity: 0.7;
 }
 
 .message-render:has(.user-turn):hover {
-  background: linear-gradient(145deg, rgba(255, 250, 240, 0.9), rgba(255, 245, 230, 0.8));
-  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.1);
-} 
+  background: linear-gradient(145deg, var(--meld-canvas), var(--meld-graysmoke));
+  box-shadow: 0 4px 12px var(--meld-win-card-shadow-hover);
+}

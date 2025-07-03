@@ -23,7 +23,7 @@ function RequestPasswordReset() {
       setCountdown((prevCountdown) => {
         if (prevCountdown <= 1) {
           clearInterval(timer);
-          navigate('/c/new', { replace: true });
+          navigate('/mentor/chats/new', { replace: true });
           return 0;
         }
         return prevCountdown - 1;

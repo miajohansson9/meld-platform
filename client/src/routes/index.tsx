@@ -22,6 +22,8 @@ import MentorInterview from './Layouts/MentorInterview';
 import MentorInterviewStart from '~/components/MentorInterview/MentorInterviewStart';
 import MentorInterviewQuestion from '~/components/MentorInterview/MentorInterviewQuestion';
 import MentorInterviewComplete from '~/components/MentorInterview/MentorInterviewComplete';
+import MentorChatsRoute from './modules/MentorChatsRoute';
+import LegacyChatRedirect from './LegacyChatRedirect';
 
 
 const AuthLayout = () => (
@@ -112,11 +114,65 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Navigate to="/c/new" replace={true} />,
+            element: <Navigate to="/today" replace={true} />,
+          },
+          // MELD Module Routes
+          {
+            path: 'today',
+            lazy: () => import('~/routes/modules/TodayRoute').then(module => ({ Component: module.default })),
           },
           {
+            path: 'log',
+            lazy: () => import('~/routes/modules/LogRoute').then(module => ({ Component: module.default })),
+          },
+          {
+            path: 'coach-feed',
+            lazy: () => import('~/routes/modules/MentorFeedRoute').then(module => ({ Component: module.default })),
+          },
+          {
+            path: 'mentor',
+            children: [
+              {
+                path: 'feed',
+                lazy: () => import('~/routes/modules/MentorFeedRoute').then(module => ({ Component: module.default })),
+              },
+              {
+                path: 'chats',
+                element: <MentorChatsRoute />,
+                children: [
+                  {
+                    path: ':conversationId?',
+                    element: <ChatRoute />,
+                  },
+                ],
+              },
+              {
+                path: 'fragments',
+                lazy: () => import('~/routes/modules/FragmentsRoute').then(module => ({ Component: module.default })),
+              },
+            ],
+          },
+          {
+            path: 'library',
+            children: [
+              {
+                path: 'north-star',
+                lazy: () => import('~/routes/modules/NorthStarRoute').then(module => ({ Component: module.default })),
+              },
+              {
+                path: 'wins',
+                lazy: () => import('~/routes/modules/WinsVaultRoute').then(module => ({ Component: module.default })),
+              },
+            ],
+          },
+          {
+            path: 'me',
+            lazy: () => import('~/routes/modules/ProfileRoute').then(module => ({ Component: module.default })),
+          },
+          // Legacy routes for backward compatibility
+          {
             path: 'c/:conversationId?',
-            element: <ChatRoute />,
+            element: <LegacyChatRedirect />,
           },
           {
             path: 'search',

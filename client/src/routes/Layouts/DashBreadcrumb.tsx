@@ -49,7 +49,7 @@ export default function DashBreadcrumb() {
     setPromptsCategory('');
   }, [setPromptsName, setPromptsCategory]);
 
-  const chatLinkHandler = useCustomLink('/c/' + lastConversationId, clickCallback);
+  const chatLinkHandler = useCustomLink('/mentor/chats/' + lastConversationId, clickCallback);
   const promptsLinkHandler = useCustomLink('/d/prompts');
 
   const isPromptsPath = useMemo(
