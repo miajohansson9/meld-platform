@@ -12,7 +12,15 @@ import { AuthContextProvider } from '~/hooks/AuthContext';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
-import dashboardRoutes from './Dashboard';
+import DashboardLayout from './Dashboard/DashboardLayout';
+import TodayPage from './Dashboard/TodayPage';
+import LogPage from './Dashboard/LogPage';
+import ChatsPage from './Dashboard/ChatsPage';
+import FragmentsPage from './Dashboard/FragmentsPage';
+import NorthStarPage from './Dashboard/NorthStarPage';
+import WinsVaultPage from './Dashboard/WinsVaultPage';
+import MentorFeedPage from './Dashboard/MentorFeedPage';
+import MePage from './Dashboard/MePage';
 import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
 import Search from './Search';
@@ -105,7 +113,47 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      dashboardRoutes,
+      {
+        element: <DashboardLayout />,
+        children: [
+          {
+            path: 'today',
+            element: <TodayPage />,
+          },
+          {
+            path: 'log',
+            element: <LogPage />,
+          },
+          {
+            path: 'chats',
+            element: <ChatsPage />,
+          },
+          {
+            path: 'fragments',
+            element: <FragmentsPage />,
+          },
+          {
+            path: 'mentor/feed',
+            element: <MentorFeedPage />,
+          },
+          {
+            path: 'library/north-star',
+            element: <NorthStarPage />,
+          },
+          {
+            path: 'library/wins-vault',
+            element: <WinsVaultPage />,
+          },
+          {
+            path: 'me',
+            element: <MePage />,
+          },
+          {
+            index: true,
+            element: <Navigate to="/today" replace={true} />,
+          },
+        ],
+      },
       {
         path: '/',
         element: <Root />,

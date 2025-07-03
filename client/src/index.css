@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Figma global design tokens & utilities */
+@import "./components/figma/global.css";
+
 /* MELD Brand System */
 :root {
   --theme-cream: #F8F4EB;      /* Primary background - warm cream */
@@ -222,4 +225,189 @@ input:focus {
 .message-render:has(.user-turn):hover {
   background: linear-gradient(145deg, rgba(255, 250, 240, 0.9), rgba(255, 245, 230, 0.8));
   box-shadow: 0 4px 12px rgba(139, 69, 19, 0.1);
+} 
+
+/* Enhanced Card Visual Hierarchy */
+.meld-card {
+  @apply bg-white rounded-xl border border-meld-graysmoke/30 transition-all duration-200 shadow-sm;
+}
+
+.meld-card:hover {
+  @apply shadow-md border-meld-ink/20 -translate-y-0.5;
+}
+
+.meld-card-selected {
+  @apply ring-2 ring-meld-sand ring-offset-2;
+}
+
+.meld-card-highlighted {
+  @apply ring-2 ring-meld-sand/50 ring-offset-1;
+}
+
+/* Enhanced Icon Containers */
+.meld-icon-container {
+  @apply p-3 rounded-xl shadow-sm;
+}
+
+.meld-icon-container-sm {
+  @apply p-2.5 rounded-lg shadow-sm;
+}
+
+/* Enhanced Typography Scale */
+.meld-heading-lg {
+  @apply font-serif text-xl text-meld-ink;
+}
+
+.meld-heading-md {
+  @apply font-serif text-lg text-meld-ink;
+}
+
+.meld-body-enhanced {
+  @apply text-meld-ink leading-relaxed text-[15px] font-normal;
+}
+
+.meld-caption-enhanced {
+  @apply text-meld-ink/60 text-sm font-medium;
+}
+
+/* Enhanced Buttons */
+.meld-btn-primary {
+  @apply bg-meld-sand hover:bg-meld-sand/90 text-meld-ink font-medium px-4 py-2 h-auto;
+}
+
+.meld-btn-ghost {
+  @apply text-meld-ink/70 hover:text-meld-ink font-medium px-4 py-2 h-auto;
+}
+
+/* Enhanced Borders */
+.meld-border-light {
+  @apply border-meld-graysmoke/30;
+}
+
+.meld-border-divider {
+  @apply border-meld-graysmoke/20;
+}
+
+/* Enhanced Spacing Utilities */
+.meld-space-section {
+  @apply space-y-6;
+}
+
+.meld-space-cards {
+  @apply space-y-6;
+}
+
+.meld-space-content {
+  @apply space-y-4;
+}
+
+.meld-padding-card {
+  @apply p-6;
+}
+
+.meld-padding-section {
+  @apply p-8;
+}
+
+/* Enhanced Source Info Cards */
+.meld-source-card {
+  @apply flex items-start gap-2 p-3 bg-meld-graysmoke/30 rounded-lg;
+}
+
+/* Performance: GPU acceleration for hover animations */
+.meld-card,
+.meld-btn-primary,
+.meld-btn-ghost {
+  will-change: transform;
+}
+
+/* Smooth scrolling for card containers */
+.meld-card-container {
+  scroll-behavior: smooth;
+}
+
+/* Enhanced Focus States */
+.meld-focus-ring {
+  @apply focus-within:ring-2 focus-within:ring-meld-sand focus-within:ring-offset-2;
+}
+
+/* Micro-animations for better UX */
+@keyframes meld-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.meld-animate-in {
+  animation: meld-fade-in 0.2s ease-out;
+}
+
+/* Enhanced Filter Pills */
+.meld-filter-pill {
+  @apply relative text-xs h-8 px-3 rounded-full transition-colors;
+}
+
+.meld-filter-pill-active {
+  @apply bg-meld-sand text-meld-ink;
+}
+
+.meld-filter-pill-inactive {
+  @apply text-meld-ink/70 hover:text-meld-ink bg-meld-graysmoke/30 hover:bg-meld-sand/20;
+}
+
+/* Enhanced Badge Styling */
+.meld-badge-outline {
+  @apply text-xs px-3 py-1 bg-white border rounded-full font-medium;
+}
+
+/* Enhanced Action Areas */
+.meld-action-area {
+  @apply flex items-center gap-3 pt-2 border-t border-meld-graysmoke/20;
+}
+
+/* Enhanced Dropdown Transitions */
+.meld-dropdown-trigger {
+  @apply opacity-0 group-hover:opacity-100 transition-opacity;
+}
+
+/* Enhanced Selection States */
+.meld-multi-select-bar {
+  @apply flex items-center justify-between mt-4 p-3 bg-meld-sage/10 rounded-lg;
+}
+
+/* Enhanced Compact Layouts */
+.meld-compact-card {
+  @apply group bg-meld-graysmoke/20 rounded-lg p-4 hover:bg-meld-graysmoke/30 transition-colors cursor-pointer;
+}
+
+/* Enhanced Progress Indicators */
+.meld-progress-enhanced {
+  @apply w-2.5 h-2.5 bg-meld-sand rounded-full flex-shrink-0;
+}
+
+/* Enhanced Content Hierarchy */
+.meld-content-primary {
+  @apply text-meld-ink leading-relaxed text-[15px] mb-4 font-normal;
+}
+
+.meld-content-meta {
+  @apply text-meld-ink/40 text-xs leading-relaxed mt-1;
+}
+
+/* Enhanced Layout Grids */
+.meld-grid-responsive {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+}
+
+.meld-flex-between {
+  @apply flex items-center justify-between;
+}
+
+.meld-flex-start {
+  @apply flex items-start gap-4 flex-1;
 } 

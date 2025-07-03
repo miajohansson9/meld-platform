@@ -45,7 +45,7 @@ const PresetItems: FC<{
         <div className="flex h-full grow items-center justify-end gap-2">
           <label
             htmlFor="default-preset"
-            className="w-40 truncate rounded bg-transparent py-1 text-xs font-medium text-gray-600 transition-colors dark:bg-transparent dark:text-gray-300 sm:w-72"
+            className="w-40 truncate rounded bg-transparent py-1 text-xs font-medium text-gray-600 transition-colors dark:bg-transparent dark:text-gray-300 sm:w-80"
           >
             {defaultPreset
               ? `${localize('com_endpoint_preset_default_item')} ${defaultPreset.title}`

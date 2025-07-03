@@ -261,7 +261,7 @@ export default function UsersTable() {
 
       {/* Role Change Modal */}
       <OGDialog open={roleModalOpen} onOpenChange={setRoleModalOpen}>
-        <OGDialogContent className="max-w-md bg-background text-text-primary shadow-2xl">
+        <OGDialogContent className="max-w-md bg-white text-text-primary shadow-2xl">
           <OGDialogTitle>Change User Role</OGDialogTitle>
           
           {selectedUser && (
@@ -307,7 +307,7 @@ export default function UsersTable() {
 
       {/* Delete Confirmation Modal */}
       <OGDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <OGDialogContent className="max-w-md bg-background text-text-primary shadow-2xl">
+        <OGDialogContent className="max-w-md bg-white text-text-primary shadow-2xl">
           <OGDialogTitle>Delete User</OGDialogTitle>
           
           {selectedUser && (

@@ -47,7 +47,7 @@ export default function AdminModal({ open, onOpenChange }: { open: boolean; onOp
 
   return (
     <OGDialog open={open} onOpenChange={onOpenChange}>
-      <OGDialogContent className="w-11/12 bg-background text-text-primary shadow-2xl">
+      <OGDialogContent className="w-11/12 bg-white text-text-primary shadow-2xl">
         <OGDialogTitle>Admin Panel</OGDialogTitle>
         <Tabs className="max-w-full overflow-x-hidden" value={tab} onValueChange={handleTabChange}>
           <TabsList>

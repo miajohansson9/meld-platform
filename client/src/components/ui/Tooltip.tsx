@@ -3,6 +3,26 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { forwardRef, useMemo } from 'react';
 import { cn } from '~/utils';
 
+// Add the missing exports for compatibility
+export const TooltipProvider = Ariakit.TooltipProvider;
+export const Tooltip = ({ children, ...props }: { children: React.ReactNode }) => (
+  <div {...props}>{children}</div>
+);
+export const TooltipTrigger = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ children, ...props }, ref) => (
+    <div ref={ref} {...props}>
+      {children}
+    </div>
+  )
+);
+export const TooltipContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ children, className, ...props }, ref) => (
+    <div ref={ref} className={cn('tooltip', className)} {...props}>
+      {children}
+    </div>
+  )
+);
+
 interface TooltipAnchorProps extends Ariakit.TooltipAnchorProps {
   description: string;
   side?: 'top' | 'bottom' | 'left' | 'right';

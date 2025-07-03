@@ -1,0 +1,1134 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;500;600&display=swap');
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Meld Color Palette */
+  --meld-canvas: #F9F8F5;
+  --meld-ink: #22231F;
+  --meld-sand: #D5C8A4;
+  --meld-sage: #BFCDB1;
+  --meld-ember: #E6B8AD;
+  --meld-graysmoke: #EFEDE9;
+  --meld-maroon: #692011;
+  --meld-rose: #F2DBDB;
+  --meld-steel: #3B3C50;
+  --meld-charcoal: #2F292B;
+  --meld-rust: #BD3C28;
+  --meld-frost: #DDECEA;
+  --meld-cream: #F8F4EB;
+
+  /* Fragment Tag Colors */
+  --meld-fragment-quote: #F2DBDB; /* rose - for quotes */
+  --meld-fragment-quote-dot: #D4A4A4;
+  --meld-fragment-insight: #E9F2E4; /* sage - for insights */
+  --meld-fragment-insight-dot: #BFCDB1;
+  --meld-fragment-question: #F1ECD9; /* sand - for questions */
+  --meld-fragment-question-dot: #D5C8A4;
+  --meld-fragment-todo: #DFE4E7; /* stone - for todos */
+  --meld-fragment-todo-dot: #A8B2B8;
+  --meld-fragment-general: #F9F8F5; /* canvas - for general notes */
+  --meld-fragment-general-dot: #C5C4C1;
+
+  /* Wins Vault Colors */
+  --meld-win-accent: #D5C8A4; /* sand-gold accent */
+  --meld-win-card-shadow: rgba(0, 0, 0, 0.08); /* subtle shadow */
+  --meld-win-card-shadow-hover: rgba(0, 0, 0, 0.12); /* hover shadow */
+  --meld-win-confetti-1: #D5C8A4; /* sand */
+  --meld-win-confetti-2: #BFCDB1; /* sage */
+  --meld-win-confetti-3: #F2DBDB; /* rose */
+  --meld-win-confetti-4: #E6B8AD; /* ember */
+
+  /* North-Star Narrative Colors */
+  --meld-value-growth: #C9D4C2; /* sage variant */
+  --meld-value-integrity: #D5C8A4; /* sand */
+  --meld-value-courage: #E9C4C0; /* rose variant */
+  --meld-value-innovation: #BFCDB1; /* sage */
+  --meld-value-empathy: #F2DBDB; /* rose */
+  --meld-narrative-parallax: rgba(0, 0, 0, 0.02); /* subtle parallax shadow */
+  --meld-narrative-glow: rgba(213, 200, 164, 0.3); /* sand glow */
+
+  /* Enhanced slider colors for better contrast */
+  --meld-graysmoke-darker: #E7E5DF; /* -10% lightness from graysmoke */
+  --meld-sage-60: rgba(191, 205, 177, 0.6); /* 60% opacity sage */
+  --meld-slider-track: #DCDCDC; /* Light gray track for unfilled portion */
+  --meld-slider-fill: #333333; /* Dark fill for filled portion */
+
+  /* Base tokens */
+  --font-size: 14px;
+  --font-family-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-serif: 'Playfair Display', Georgia, serif;
+  --baseline-rhythm: 8px;
+
+  /* Updated color system for Meld */
+  --background: var(--meld-canvas);
+  --foreground: var(--meld-ink);
+  --card: 0 0% 100%;
+  --card-foreground: var(--meld-ink);
+  --popover: 0 0% 100%;
+  --popover-foreground: var(--meld-ink);
+  --primary: var(--meld-ink);
+  --primary-foreground: 0 0% 100%;
+  --secondary: var(--meld-graysmoke);
+  --secondary-foreground: var(--meld-ink);
+  --muted: var(--meld-graysmoke);
+  --muted-foreground: var(--meld-charcoal);
+  --accent: var(--meld-sand);
+  --accent-foreground: var(--meld-ink);
+  --destructive: var(--meld-ember);
+  --destructive-foreground: var(--meld-ink);
+  --input: transparent;
+  --input-background: 0 0% 100%;
+  --switch-background: var(--meld-graysmoke);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: var(--meld-sand);
+  --border: 0 0% 89.8%;
+  --radius: 12px;
+
+  /* Sidebar colors */
+  --sidebar: var(--meld-canvas);
+  --sidebar-foreground: var(--meld-ink);
+  --sidebar-primary: var(--meld-ink);
+  --sidebar-primary-foreground: var(--meld-canvas);
+  --sidebar-accent: var(--meld-sand);
+  --sidebar-accent-foreground: var(--meld-ink);
+  --sidebar-border: rgba(34, 35, 31, 0.08);
+  --sidebar-ring: var(--meld-sand);
+}
+
+.dark {
+  --background: var(--meld-charcoal);
+  --foreground: var(--meld-cream);
+  --card: 11 14% 18%;
+  --card-foreground: var(--meld-cream);
+  --popover: 11 14% 18%;
+  --popover-foreground: var(--meld-cream);
+  --primary: var(--meld-cream);
+  --primary-foreground: var(--meld-charcoal);
+  --secondary: var(--meld-steel);
+  --secondary-foreground: var(--meld-cream);
+  --muted: var(--meld-steel);
+  --muted-foreground: var(--meld-frost);
+  --accent: var(--meld-sand);
+  --accent-foreground: var(--meld-charcoal);
+  --destructive: var(--meld-ember);
+  --destructive-foreground: var(--meld-charcoal);
+  --input: var(--meld-steel);
+  --ring: var(--meld-sand);
+  --border: 0 0% 14.9%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Meld specific colors */
+  --color-meld-canvas: var(--meld-canvas);
+  --color-meld-ink: var(--meld-ink);
+  --color-meld-sand: var(--meld-sand);
+  --color-meld-sage: var(--meld-sage);
+  --color-meld-ember: var(--meld-ember);
+  --color-meld-graysmoke: var(--meld-graysmoke);
+  --color-meld-cream: var(--meld-cream);
+  --color-meld-frost: var(--meld-frost);
+  --color-meld-graysmoke-darker: var(--meld-graysmoke-darker);
+  --color-meld-sage-60: var(--meld-sage-60);
+  --color-meld-slider-track: var(--meld-slider-track);
+  --color-meld-slider-fill: var(--meld-slider-fill);
+
+  /* Fragment tag colors */
+  --color-meld-fragment-quote: var(--meld-fragment-quote);
+  --color-meld-fragment-quote-dot: var(--meld-fragment-quote-dot);
+  --color-meld-fragment-insight: var(--meld-fragment-insight);
+  --color-meld-fragment-insight-dot: var(--meld-fragment-insight-dot);
+  --color-meld-fragment-question: var(--meld-fragment-question);
+  --color-meld-fragment-question-dot: var(--meld-fragment-question-dot);
+  --color-meld-fragment-todo: var(--meld-fragment-todo);
+  --color-meld-fragment-todo-dot: var(--meld-fragment-todo-dot);
+  --color-meld-fragment-general: var(--meld-fragment-general);
+  --color-meld-fragment-general-dot: var(--meld-fragment-general-dot);
+
+  /* Wins Vault colors */
+  --color-meld-win-accent: var(--meld-win-accent);
+  --color-meld-win-card-shadow: var(--meld-win-card-shadow);
+  --color-meld-win-card-shadow-hover: var(--meld-win-card-shadow-hover);
+  --color-meld-win-confetti-1: var(--meld-win-confetti-1);
+  --color-meld-win-confetti-2: var(--meld-win-confetti-2);
+  --color-meld-win-confetti-3: var(--meld-win-confetti-3);
+  --color-meld-win-confetti-4: var(--meld-win-confetti-4);
+
+  /* North-Star Narrative colors */
+  --color-meld-value-growth: var(--meld-value-growth);
+  --color-meld-value-integrity: var(--meld-value-integrity);
+  --color-meld-value-courage: var(--meld-value-courage);
+  --color-meld-value-innovation: var(--meld-value-innovation);
+  --color-meld-value-empathy: var(--meld-value-empathy);
+  --color-meld-narrative-parallax: var(--meld-narrative-parallax);
+  --color-meld-narrative-glow: var(--meld-narrative-glow);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-white text-foreground font-sans;
+    font-family: var(--font-family-sans);
+  }
+}
+
+/**
+ * Base typography with Meld's type system
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-family: var(--font-family-serif);
+      font-size: 2rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--meld-ink);
+    }
+
+    h2 {
+      font-family: var(--font-family-serif);
+      font-size: 1.5rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--meld-ink);
+    }
+
+    h3 {
+      font-family: var(--font-family-sans);
+      font-size: 1.125rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+
+    h4 {
+      font-family: var(--font-family-sans);
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+
+    p {
+      font-family: var(--font-family-sans);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+
+    label {
+      font-family: var(--font-family-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--meld-ink);
+    }
+
+    button {
+      font-family: var(--font-family-sans);
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    input, textarea {
+      font-family: var(--font-family-sans);
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+  font-family: var(--font-family-sans);
+}
+
+/* Custom utilities for Meld */
+.font-serif {
+  font-family: var(--font-family-serif);
+}
+
+.font-sans {
+  font-family: var(--font-family-sans);
+}
+
+/* Animation utilities */
+.transition-meld {
+  transition: all 200ms ease-out;
+}
+
+.transition-meld-fast {
+  transition: all 160ms ease-out;
+}
+
+/* Focus styles for inputs */
+.meld-input-focus {
+  border-bottom: 2px solid transparent;
+  transition: border-color 200ms ease-out;
+}
+
+.meld-input-focus:focus {
+  outline: none;
+  border-bottom-color: var(--meld-sand);
+}
+
+/* Enhanced slider styles - targeting Radix UI components properly */
+.meld-slider-enhanced, .meld-slider-enhanced .slider {
+  height: 8px;
+}
+
+/* Target the Radix Slider Track (background) */
+.meld-slider-enhanced [data-slot="slider-track"],
+.meld-slider-enhanced .slider-track {
+  background-color: #E5E7EB !important; /* Light gray background */
+  height: 8px !important;
+  border-radius: 4px !important;
+  position: relative;
+}
+
+/* Target the Radix Slider Range (filled portion) */
+.meld-slider-enhanced [data-slot="slider-range"],
+.meld-slider-enhanced .slider-range {
+  background-color: #000000 !important; /* Pure black fill */
+  height: 8px !important;
+  border-radius: 4px !important;
+}
+
+/* Target the Radix Slider Thumb (handle) */
+.meld-slider-enhanced [data-slot="slider-thumb"],
+.meld-slider-enhanced .slider-thumb {
+  width: 20px !important;
+  height: 20px !important;
+  background-color: #ffffff !important;
+  border: 3px solid #000000 !important; /* Black border */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  transition: all 200ms ease-out !important;
+  cursor: pointer !important;
+  border-radius: 50% !important;
+}
+
+.meld-slider-enhanced [data-slot="slider-thumb"]:hover,
+.meld-slider-enhanced .slider-thumb:hover {
+  border-color: #000000 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  transform: scale(1.1) !important;
+}
+
+.meld-slider-enhanced [data-slot="slider-thumb"]:focus,
+.meld-slider-enhanced .slider-thumb:focus {
+  outline: none !important;
+  border-color: #000000 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.meld-slider-enhanced [data-slot="slider-thumb"]:active,
+.meld-slider-enhanced .slider-thumb:active {
+  transform: scale(1.05) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Alternative approach - target any slider inside MorningSegment */
+[data-component="morning-segment"] .slider-track {
+  background-color: #E5E7EB !important;
+  height: 8px !important;
+  border-radius: 4px !important;
+}
+
+[data-component="morning-segment"] .slider-range {
+  background-color: #000000 !important;
+  height: 8px !important;
+  border-radius: 4px !important;
+}
+
+[data-component="morning-segment"] .slider-thumb {
+  width: 20px !important;
+  height: 20px !important;
+  background-color: #ffffff !important;
+  border: 3px solid #000000 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Daily Compass specific styles */
+.daily-compass-slider {
+  height: 8px;
+}
+
+.daily-compass-slider [role="slider"],
+.daily-compass-slider [data-radix-collection-item] {
+  width: 20px !important;
+  height: 20px !important;
+  background-color: #ffffff !important;
+  border: 3px solid #000000 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  cursor: pointer !important;
+}
+
+.daily-compass-slider [data-orientation="horizontal"] {
+  height: 8px;
+  background-color: #E5E7EB;
+  border-radius: 4px;
+}
+
+.daily-compass-slider [data-orientation="horizontal"] > span {
+  background-color: #000000;
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* Enhanced targeting for Radix UI slider thumbs */
+.daily-compass-slider span[role="slider"],
+.daily-compass-slider span[data-radix-collection-item],
+.daily-compass-slider .slider-thumb,
+.daily-compass-slider [data-slider-thumb] {
+  width: 20px !important;
+  height: 20px !important;
+  background-color: #ffffff !important;
+  border: 3px solid #000000 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  cursor: pointer !important;
+}
+
+/* Hover and focus states for slider thumbs */
+.daily-compass-slider span[role="slider"]:hover,
+.daily-compass-slider span[data-radix-collection-item]:hover,
+.daily-compass-slider .slider-thumb:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Focus underline animation for textareas */
+.meld-focus-underline {
+  position: relative;
+  transition: all 200ms ease-out;
+}
+
+.meld-focus-underline::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: var(--meld-sand);
+  transition: width 300ms ease-out;
+}
+
+.meld-focus-underline:focus-within::after {
+  width: 100%;
+}
+
+/* Enhanced emoji anchors */
+.meld-emoji-anchors {
+  font-size: 20px; /* Larger emojis */
+  opacity: 0.85; /* Higher visibility */
+}
+
+/* Chip styles for alignment */
+.meld-alignment-chip {
+  transition: all 200ms ease-out;
+  border-width: 1px;
+}
+
+.meld-alignment-chip-active {
+  background-color: var(--meld-sage) !important;
+  color: white !important;
+  border-color: var(--meld-sage) !important;
+}
+
+.meld-alignment-chip-inactive {
+  background-color: transparent;
+  color: rgba(34, 35, 31, 0.7);
+  border-color: rgba(34, 35, 31, 0.2);
+}
+
+.meld-alignment-chip-inactive:hover {
+  color: var(--meld-ink);
+  border-color: var(--meld-sage);
+}
+
+/* New bottom section styling */
+.meld-bottom-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(34, 35, 31, 0.08);
+  margin-top: 1.5rem;
+}
+
+.meld-not-ready-link {
+  color: rgba(34, 35, 31, 0.6);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 200ms ease-out;
+}
+
+.meld-not-ready-link:hover {
+  color: var(--meld-ink);
+}
+
+.meld-complete-button {
+  background-color: var(--meld-sand);
+  color: var(--meld-ink);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 200ms ease-out;
+}
+
+.meld-complete-button:hover {
+  background-color: rgba(213, 200, 164, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.meld-complete-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Fragment-specific utilities */
+.meld-fragment-dot-quote {
+  background-color: var(--meld-fragment-quote-dot);
+}
+
+.meld-fragment-dot-insight {
+  background-color: var(--meld-fragment-insight-dot);
+}
+
+.meld-fragment-dot-question {
+  background-color: var(--meld-fragment-question-dot);
+}
+
+.meld-fragment-dot-todo {
+  background-color: var(--meld-fragment-todo-dot);
+}
+
+.meld-fragment-dot-general {
+  background-color: var(--meld-fragment-general-dot);
+}
+
+/* Fragment card hover animations */
+.meld-fragment-card {
+  transition: all 200ms ease-out;
+}
+
+.meld-fragment-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Dropdown menu fixes */
+[data-radix-popper-content-wrapper] > div,
+[data-radix-dropdown-menu-content],
+[role="menu"] {
+  background-color: white !important;
+  border: 1px solid hsl(0 0% 89.8%) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* More specific targeting for dropdown content */
+[data-radix-popper-content-wrapper] {
+  z-index: 50;
+}
+
+[data-radix-popper-content-wrapper] > div {
+  background-color: white !important;
+  border: 1px solid hsl(0 0% 89.8%) !important;
+  border-radius: 6px !important;
+  padding: 4px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Cluster bubble hover effects */
+.meld-cluster-bubble {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.meld-cluster-bubble:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Weave modal drag-and-drop styling */
+.meld-weave-fragment {
+  transition: all 200ms ease-out;
+}
+
+.meld-weave-fragment:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Wins Vault specific styles */
+.win-tile-card {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px var(--meld-win-card-shadow);
+}
+
+.win-tile-card:hover {
+  box-shadow: 0 4px 12px var(--meld-win-card-shadow-hover);
+}
+
+/* Success confetti animation */
+@keyframes confetti-drift {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.meld-confetti {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: confetti-drift 1s ease-out forwards;
+}
+
+.meld-confetti:nth-child(1) {
+  background-color: var(--meld-win-confetti-1);
+  left: 50%;
+  animation-delay: 0s;
+}
+
+.meld-confetti:nth-child(2) {
+  background-color: var(--meld-win-confetti-2);
+  left: 52%;
+  animation-delay: 0.1s;
+}
+
+.meld-confetti:nth-child(3) {
+  background-color: var(--meld-win-confetti-3);
+  left: 48%;
+  animation-delay: 0.2s;
+}
+
+.meld-confetti:nth-child(4) {
+  background-color: var(--meld-win-confetti-4);
+  left: 54%;
+  animation-delay: 0.3s;
+}
+
+/* Win tile hover enhancement */
+.win-tile-card .group-hover\:opacity-100 {
+  transition: opacity 200ms ease-out;
+}
+
+/* Trophy watercolor effect */
+.meld-trophy-watercolor {
+  background: linear-gradient(135deg, 
+    var(--meld-sand) 0%, 
+    var(--meld-sage) 30%, 
+    var(--meld-rose) 60%, 
+    var(--meld-sand) 100%);
+  opacity: 0.6;
+  filter: blur(0.5px);
+}
+
+/* Win badge styling */
+.meld-win-badge {
+  background: linear-gradient(135deg, var(--meld-sand), var(--meld-win-accent));
+  color: var(--meld-ink);
+  font-weight: 500;
+}
+
+/* Timeline entry enhancement */
+.meld-timeline-entry {
+  transition: all 200ms ease-out;
+  border-left: 3px solid transparent;
+}
+
+.meld-timeline-entry:hover {
+  border-left-color: var(--meld-win-accent);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px var(--meld-win-card-shadow);
+}
+
+/* Monthly digest card styling */
+.meld-digest-card {
+  background: linear-gradient(135deg, 
+    var(--meld-sage) 0%, 
+    var(--meld-sage) 50%, 
+    var(--meld-win-accent) 100%);
+  border: 1px solid rgba(191, 205, 177, 0.3);
+}
+
+/* Share rail preview card */
+.meld-share-preview {
+  background: linear-gradient(135deg, var(--meld-canvas), var(--meld-graysmoke));
+  border: 1px solid var(--meld-win-accent);
+}
+
+/* North-Star Narrative specific styles */
+.meld-narrative-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, 
+    var(--meld-value-growth) 0%, 
+    var(--meld-value-integrity) 50%, 
+    var(--meld-value-courage) 100%);
+}
+
+.meld-narrative-hero.value-growth {
+  background: linear-gradient(135deg, var(--meld-value-growth), var(--meld-sage));
+}
+
+.meld-narrative-hero.value-integrity {
+  background: linear-gradient(135deg, var(--meld-value-integrity), var(--meld-sand));
+}
+
+.meld-narrative-hero.value-courage {
+  background: linear-gradient(135deg, var(--meld-value-courage), var(--meld-rose));
+}
+
+.meld-narrative-hero.value-innovation {
+  background: linear-gradient(135deg, var(--meld-value-innovation), var(--meld-sage));
+}
+
+.meld-narrative-hero.value-empathy {
+  background: linear-gradient(135deg, var(--meld-value-empathy), var(--meld-rose));
+}
+
+/* Gentle parallax scroll effect */
+.meld-narrative-parallax {
+  transform: translateY(0);
+  transition: transform 100ms ease-out;
+}
+
+/* Prose section styling */
+.prose-section {
+  position: relative;
+  transition: all 200ms ease-out;
+}
+
+.prose-section:hover {
+  transform: translateX(2px);
+}
+
+/* Edit controls hover animation */
+.prose-section .group:hover .absolute {
+  transform: translateX(0);
+}
+
+.prose-section .absolute {
+  transform: translateX(8px);
+  transition: transform 200ms ease-out;
+}
+
+/* Goal alignment table enhancements */
+.meld-goal-table-row {
+  transition: all 200ms ease-out;
+  border-left: 3px solid transparent;
+}
+
+.meld-goal-table-row:hover {
+  border-left-color: var(--meld-narrative-glow);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px var(--meld-narrative-parallax);
+}
+
+/* Data source chips */
+.meld-data-source-chip {
+  transition: all 200ms ease-out;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.meld-data-source-chip:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--meld-narrative-parallax);
+}
+
+/* Enhanced confidence bar styling */
+.meld-confidence-bar {
+  background: linear-gradient(90deg, var(--meld-sage), var(--meld-sage));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.meld-confidence-track {
+  background: var(--meld-graysmoke);
+  border-radius: 4px;
+}
+
+/* Confidence bar color variants */
+.meld-confidence-high {
+  background: linear-gradient(90deg, var(--meld-sage), var(--meld-sage));
+}
+
+.meld-confidence-medium {
+  background: linear-gradient(90deg, var(--meld-sand), var(--meld-sand));
+}
+
+.meld-confidence-low {
+  background: linear-gradient(90deg, var(--meld-ember), var(--meld-ember));
+}
+
+/* Version history diff highlights */
+.meld-version-diff {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    var(--meld-narrative-glow) 50%, 
+    transparent 100%);
+  padding: 2px 0;
+  border-radius: 2px;
+}
+
+/* Narrative headline glow effect */
+.meld-narrative-headline {
+  position: relative;
+  background: linear-gradient(135deg, var(--meld-ink), var(--meld-charcoal));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 20px var(--meld-narrative-glow);
+}
+
+/* Watercolor landscape animation */
+@keyframes landscape-drift {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translateX(-10px) scale(1.02);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 0.2;
+  }
+}
+
+.meld-landscape-animation {
+  animation: landscape-drift 20s ease-in-out infinite;
+}
+
+/* Alignment badge hover effects */
+.meld-alignment-badge {
+  transition: all 200ms ease-out;
+}
+
+.meld-alignment-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Share modal preview card */
+.meld-share-preview-card {
+  background: linear-gradient(135deg, 
+    var(--meld-canvas) 0%, 
+    var(--meld-graysmoke) 100%);
+  border: 1px solid var(--meld-narrative-glow);
+  box-shadow: 0 4px 12px var(--meld-narrative-parallax);
+}
+
+/* Feedback buttons animation */
+.meld-feedback-button {
+  transition: all 200ms ease-out;
+}
+
+.meld-feedback-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.meld-feedback-button.active {
+  transform: scale(0.95);
+}
+
+/* Comment box slide-in animation */
+@keyframes comment-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.meld-comment-box {
+  animation: comment-slide-in 200ms ease-out;
+}
+
+/* Navigation breadcrumb styling */
+.meld-narrative-breadcrumb {
+  color: var(--meld-ink);
+  opacity: 0.6;
+  transition: opacity 200ms ease-out;
+}
+
+.meld-narrative-breadcrumb:hover {
+  opacity: 1;
+}
+
+/* Call-to-action strip enhancement */
+.meld-cta-strip {
+  background: linear-gradient(135deg, 
+    var(--meld-graysmoke) 0%, 
+    rgba(239, 237, 233, 0.8) 100%);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(213, 200, 164, 0.2);
+}
+
+/* Insight rail sticky positioning */
+.meld-insight-rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+/* Chapter word count badge */
+.meld-chapter-meta {
+  opacity: 0.7;
+  transition: opacity 200ms ease-out;
+}
+
+.prose-section:hover .meld-chapter-meta {
+  opacity: 1;
+}
+
+/* Enhanced interaction styles */
+.meld-value-crest {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.meld-value-crest:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Jump navigation styling */
+.meld-jump-nav {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(34, 35, 31, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all 200ms ease-out;
+}
+
+.meld-jump-nav-item {
+  transition: all 160ms ease-out;
+}
+
+.meld-jump-nav-item:hover {
+  background: rgba(213, 200, 164, 0.1);
+  transform: translateX(2px);
+}
+
+.meld-jump-nav-item.active {
+  background: var(--meld-sand);
+  color: var(--meld-ink);
+  font-weight: 500;
+}
+
+/* Alternate row shading */
+.meld-table-row-alt {
+  background: rgba(249, 248, 245, 0.7);
+}
+
+/* Enhanced goal completion states */
+.meld-goal-completed {
+  opacity: 0.6;
+  transition: opacity 200ms ease-out;
+}
+
+.meld-goal-completed .goal-title {
+  text-decoration: line-through;
+  color: var(--meld-ink);
+}
+
+/* Change tracking enhancements */
+.meld-change-item {
+  transition: all 200ms ease-out;
+  border-radius: 6px;
+}
+
+.meld-change-item:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.meld-change-icon-add {
+  color: var(--meld-sage);
+}
+
+.meld-change-icon-change {
+  color: var(--meld-sand);
+}
+
+.meld-change-icon-default {
+  color: rgba(34, 35, 31, 0.6);
+}
+
+/* Enhanced CTA strip states */
+.meld-cta-urgent {
+  background: linear-gradient(135deg, 
+    var(--meld-ember) 0%, 
+    rgba(230, 184, 173, 0.8) 100%);
+  border: 1px solid var(--meld-ember);
+  animation: pulse-urgent 2s ease-in-out infinite;
+}
+
+@keyframes pulse-urgent {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(230, 184, 173, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(230, 184, 173, 0);
+  }
+}
+
+/* Value highlight enhancements */
+.meld-value-highlight {
+  background: linear-gradient(135deg, 
+    transparent 0%, 
+    var(--meld-narrative-glow) 20%, 
+    transparent 100%);
+  padding: 1px 0;
+  border-radius: 2px;
+  transition: all 200ms ease-out;
+}
+
+.meld-value-highlight:hover {
+  background: var(--meld-narrative-glow);
+}
+
+/* Pull quote styling */
+.meld-pull-quote {
+  background: linear-gradient(135deg, 
+    rgba(239, 237, 233, 0.7) 0%, 
+    rgba(239, 237, 233, 0.4) 100%);
+  border-left: 4px solid var(--meld-sage);
+  backdrop-filter: blur(2px);
+  transition: all 200ms ease-out;
+}
+
+.meld-pull-quote:hover {
+  background: rgba(239, 237, 233, 0.8);
+  transform: translateX(2px);
+}
+
+/* Version history dropdown enhancements */
+.meld-version-item {
+  transition: all 160ms ease-out;
+}
+
+.meld-version-item:hover {
+  background: rgba(239, 237, 233, 0.5);
+  transform: translateX(1px);
+}
+
+/* Data source drawer enhancements */
+.meld-source-preview {
+  background: linear-gradient(135deg, 
+    var(--meld-canvas) 0%, 
+    var(--meld-graysmoke) 100%);
+  border: 1px solid rgba(213, 200, 164, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 200ms ease-out;
+}
+
+.meld-source-preview:hover {
+  border-color: var(--meld-sand);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Mute button states */
+.meld-mute-button {
+  transition: all 200ms ease-out;
+}
+
+.meld-mute-button.muted {
+  background: rgba(230, 184, 173, 0.2);
+  color: var(--meld-ember);
+  border-color: var(--meld-ember);
+}
+
+.meld-mute-button.muted:hover {
+  background: rgba(230, 184, 173, 0.3);
+}
+
+/* Tooltip styling */
+.meld-tooltip {
+  background: var(--meld-charcoal);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

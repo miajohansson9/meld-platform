@@ -156,7 +156,7 @@ function Speech() {
       value={advancedMode ? 'advanced' : 'simple'}
     >
       <div className="sticky -top-1 z-50 mb-4 bg-white dark:bg-gray-700">
-        <Tabs.List className="flex justify-center bg-background">
+        <Tabs.List className="flex justify-center bg-white">
           <Tabs.Trigger
             onClick={() => setAdvancedMode(false)}
             className={cn(

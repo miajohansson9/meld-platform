@@ -54,6 +54,14 @@ export default function Header() {
           <div className="text-theme-charcoal text-sm font-light tracking-wide ml-4 hidden md:block">
             {getConversationDate()}
           </div>
+
+          {/* Dashboard Link - temporary for testing */}
+          <a 
+            href="/dashboard" 
+            className="text-theme-charcoal text-sm underline hover:text-theme-sage transition-colors ml-4"
+          >
+            Dashboard (Beta)
+          </a>
         </div>
 
         {/* Right side - Coach Mode Toggle */}
@@ -78,7 +86,6 @@ export default function Header() {
               />
             </button>
           </div>
-
 
         </div>
       </div>

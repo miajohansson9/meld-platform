@@ -142,5 +142,9 @@
       "admin/",
       "packages/"
     ]
+  },
+  "dependencies": {
+    "@radix-ui/react-avatar": "^1.1.10",
+    "@radix-ui/react-scroll-area": "^1.2.9"
   }
 }

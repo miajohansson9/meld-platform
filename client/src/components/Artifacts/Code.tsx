@@ -80,7 +80,7 @@ export const CodeMarkdown = memo(
     }, [content, isSubmitting, userScrolled]);
 
     return (
-      <div ref={scrollRef} className="max-h-full overflow-y-auto">
+      <div ref={scrollRef} className="h-full max-h-full overflow-y-auto">
         <ReactMarkdown
           /* @ts-ignore */
           rehypePlugins={rehypePlugins}
