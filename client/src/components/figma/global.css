@@ -6,7 +6,7 @@
   /* Meld Color Palette */
   --meld-canvas: #F9F8F5;
   --meld-ink: #22231F;
-  --meld-sand: #D5C8A4;
+  --meld-sand: #BFCDB1;
   --meld-sage: #BFCDB1;
   --meld-ember: #E6B8AD;
   --meld-graysmoke: #EFEDE9;
@@ -475,7 +475,7 @@ html {
 
 .meld-alignment-chip-active {
   background-color: var(--meld-sage) !important;
-  color: white !important;
+  color: var(--meld-ink) !important;
   border-color: var(--meld-sage) !important;
 }
 
@@ -523,7 +523,7 @@ html {
 }
 
 .meld-complete-button:hover {
-  background-color: rgba(213, 200, 164, 0.9);
+  background-color: var(--meld-sand);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }

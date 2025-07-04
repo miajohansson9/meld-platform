@@ -65,6 +65,18 @@ interface ContextItem {
   action?: string;
 }
 
+interface ChatsModuleProps {
+  onChatInfoChange?: (chatInfo: {
+    title: string;
+    contextChips: string[];
+    isPinned: boolean;
+  } | null) => void;
+  onRef?: (ref: {
+    toggleAIProfile: () => void;
+    handleThreadAction: (action: string) => void;
+  }) => void;
+}
+
 const mockThreads: ChatThread[] = [
   {
     id: '1',
@@ -183,7 +195,7 @@ const mockContextByCategory = {
   ]
 };
 
-export function ChatsModule() {
+export function ChatsModule({ onChatInfoChange, onRef }: ChatsModuleProps = {}) {
   const [selectedThread, setSelectedThread] = useState<string>('1');
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -207,6 +219,32 @@ export function ChatsModule() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mockMessages]);
+
+  // Notify parent when chat info changes
+  useEffect(() => {
+    if (currentThread && onChatInfoChange) {
+      onChatInfoChange({
+        title: currentThread.title,
+        contextChips: currentThread.contextChips,
+        isPinned: currentThread.isPinned
+      });
+    } else if (!currentThread && onChatInfoChange) {
+      onChatInfoChange(null);
+    }
+  }, [currentThread, onChatInfoChange]);
+
+  // Set up ref for parent to call functions
+  useEffect(() => {
+    if (onRef) {
+      onRef({
+        toggleAIProfile: () => setShowAIProfile(prev => !prev),
+        handleThreadAction: (action: string) => {
+          // Handle thread actions like pin, export, mute
+          console.log('Thread action:', action);
+        }
+      });
+    }
+  }, [onRef]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -314,7 +352,7 @@ export function ChatsModule() {
         <p className="text-meld-ink/70 leading-relaxed mb-4">
           Start a chat and I'll respond instantly.
         </p>
-        <Button className="bg-meld-sand hover:bg-meld-sand/90 text-meld-ink">
+        <Button className="bg-meld-frost hover:bg-meld-frost/90 text-meld-ink">
           <Plus className="w-4 h-4 mr-2" />
           New Chat
         </Button>
@@ -337,7 +375,7 @@ export function ChatsModule() {
   return (
     <div className="flex-1 flex h-full">
       {/* Zone A: Thread List (280px) */}
-      <div className="w-80 border-r border-meld-ink/20 flex flex-col bg-white">
+      <div className="w-80 border-r border-meld-ink/20 flex flex-col">
         {/* Thread List Header */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -345,7 +383,7 @@ export function ChatsModule() {
             {/* New Chat Pill Button */}
             <Button
               size="sm"
-              className="bg-meld-sand hover:bg-meld-sand/90 text-meld-ink px-3 py-2 h-8 rounded-full"
+              className="bg-meld-frost hover:bg-meld-frost/90 text-meld-ink px-3 py-2 h-8 rounded-full"
               title="Instant Help Chat"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -461,104 +499,27 @@ export function ChatsModule() {
       </div>
 
       {/* Zone B: Conversation Canvas - Now takes available space */}
-      <div className="flex-1 flex flex-col bg-white min-w-0">
-        {/* Conversation Header */}
-        {currentThread && (
-          <div className="px-8 py-5 border-b border-meld-ink/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* AI Avatar */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAIProfile(!showAIProfile)}
-                  className="p-2 h-auto hover:bg-meld-sage/10"
-                  title="AI Profile & Privacy"
-                >
-                  <Atom className="w-5 h-5 text-meld-sage" strokeWidth={1.5} />
-                </Button>
-
-                <h1 className="font-serif text-xl text-meld-ink">
-                  {currentThread.title}
-                </h1>
-
-                {/* Context Chips */}
-                <div className="flex gap-2 flex-wrap">
-                  {currentThread.contextChips.map((chip, idx) => (
-                    <Button
-                      key={idx}
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-3 text-xs bg-meld-graysmoke/50 hover:bg-meld-sand/20 text-meld-ink/70 hover:text-meld-ink"
-                    >
-                      {chip.startsWith('#') ? (
-                        <Hash className="w-3 h-3 mr-1" />
-                      ) : chip.startsWith('Fragment') ? (
-                        <FileText className="w-3 h-3 mr-1" />
-                      ) : (
-                        <Target className="w-3 h-3 mr-1" />
-                      )}
-                      {chip}
-                    </Button>
-                  ))}
-                </div>
-
-                {currentThread.isPinned && (
-                  <Star className="w-5 h-5 text-meld-sand fill-current" />
-                )}
-              </div>
-
-              {/* Always visible kebab with tooltip */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-2"
-                    title="Thread options (⌘.)"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <Pin className="w-4 h-4 mr-2" />
-                    {currentThread.isPinned ? 'Unpin' : 'Pin'} chat
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <VolumeX className="w-4 h-4 mr-2" />
-                    Mute for 7 days
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* AI Profile Panel - moved to top if shown */}
+        {showAIProfile && currentThread && (
+          <div className="p-4 bg-meld-sage/10 border-b border-meld-sage/20">
+            <h4 className="font-medium text-meld-ink mb-2">AI Coach Profile</h4>
+            <p className="text-sm text-meld-ink/70 mb-3">
+              Your personal AI mentor, trained on evidence-based coaching principles and your personal development data.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="text-xs">
+                Privacy Policy
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs">
+                Data Usage
+              </Button>
             </div>
-
-            {/* AI Profile Panel */}
-            {showAIProfile && (
-              <div className="mt-4 p-4 bg-meld-sage/10 rounded-lg border border-meld-sage/20">
-                <h4 className="font-medium text-meld-ink mb-2">AI Coach Profile</h4>
-                <p className="text-sm text-meld-ink/70 mb-3">
-                  Your personal AI mentor, trained on evidence-based coaching principles and your personal development data.
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="text-xs">
-                    Privacy Policy
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-xs">
-                    Data Usage
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
         {/* Messages - Now uses full available width with proper constraints */}
-        <ScrollArea className="flex-1 px-8">
+        <ScrollArea className="flex-1 mx-[40px] min-w-0">
           <div className="space-y-6 pt-8">
             {mockMessages.map((message) => (
               <div
@@ -570,11 +531,11 @@ export function ChatsModule() {
               >
                 <div
                   className={cn(
-                    "px-5 py-4 rounded-xl relative max-w-[70%]",
+                    "px-5 py-4 rounded-xl relative",
                     message.sender === 'user'
-                      ? "bg-transparent border border-meld-sand text-meld-ink focus-within:ring-2 focus-within:ring-meld-sand"
+                      ? "bg-meld-frost max-w-[70%] border border-meld-frost text-meld-ink focus-within:ring-2 focus-within:ring-meld-sand"
                       : message.sender === 'ai'
-                        ? "bg-[#F6F6F3] text-meld-ink"
+                        ? "bg-[#F6F6F3] text-meld-ink max-w-[93%]"
                         : "bg-meld-graysmoke/50 text-meld-ink/70 text-center text-sm"
                   )}
                   tabIndex={0}
@@ -596,22 +557,6 @@ export function ChatsModule() {
                       </div>
                     ) : (
                       <p className="leading-relaxed">{message.content}</p>
-                    )}
-                  </div>
-
-                  {/* Timestamp and reactions */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-meld-ink/60" style={{ fontSize: '11px' }}>
-                      {message.timestamp}
-                    </span>
-                    {message.sender === 'user' && message.reactions && (
-                      <div className="flex gap-1">
-                        {message.reactions.map((reaction, idx) => (
-                          <span key={idx} className="hover:scale-110 transition-transform cursor-pointer">
-                            {reaction}
-                          </span>
-                        ))}
-                      </div>
                     )}
                   </div>
 
@@ -669,53 +614,55 @@ export function ChatsModule() {
         </ScrollArea>
 
         {/* Composer */}
-        <div className="p-6 border-t border-meld-ink/20">
-          <div className="flex items-end gap-4">
-            <div className="flex-1 relative">
-              <Textarea
-                ref={textareaRef}
-                placeholder="Type a thought..."
-                value={messageText}
-                onChange={handleTextChange}
-                onKeyDown={handleKeyDown}
-                className="min-h-[48px] max-h-32 resize-none pr-16 border-meld-ink/20 focus:border-meld-sand"
-                rows={1}
-                maxLength={MAX_CHARS}
-              />
+        <div className="p-6 px-[40px] border-t border-meld-ink/20 bg-meld-canvas">
+          <div className="max-w-[1000px] mx-auto">
+            <div className="flex items-end gap-4">
+              <div className="flex-1 relative">
+                <Textarea
+                  ref={textareaRef}
+                  placeholder="Type a thought..."
+                  value={messageText}
+                  onChange={handleTextChange}
+                  onKeyDown={handleKeyDown}
+                  className="bg-white min-h-[48px] max-h-32 resize-none pr-16 border-meld-ink/20 focus:border-meld-sand"
+                  rows={1}
+                  maxLength={MAX_CHARS}
+                />
 
-              {/* Attachment & Voice Buttons */}
-              <div className="absolute right-3 top-3 flex gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Paperclip className="w-4 h-4 text-meld-ink/60" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Mic className="w-4 h-4 text-meld-ink/60" />
-                </Button>
+                {/* Attachment & Voice Buttons */}
+                <div className="absolute right-3 top-3 flex gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Paperclip className="w-4 h-4 text-meld-ink/60" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Mic className="w-4 h-4 text-meld-ink/60" />
+                  </Button>
+                </div>
               </div>
+
+              <Button
+                onClick={handleSendMessage}
+                disabled={!messageText.trim()}
+                className="bg-meld-sand hover:bg-meld-sand/90 text-meld-ink px-6"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Send
+              </Button>
             </div>
 
-            <Button
-              onClick={handleSendMessage}
-              disabled={!messageText.trim()}
-              className="bg-meld-sand hover:bg-meld-sand/90 text-meld-ink px-6"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Send
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between mt-3">
-            <p className="text-xs text-meld-ink/50">
-              Press Enter to send, Shift+Enter for new line • Try /summarise or /task
-            </p>
-            {charCount > 120 && (
-              <span className={cn(
-                "text-xs",
-                charCount > MAX_CHARS * 0.8 ? "text-meld-ember" : "text-meld-ink/60"
-              )}>
-                {charCount}/{MAX_CHARS}
-              </span>
-            )}
+            <div className="flex items-center justify-between mt-3">
+              <p className="text-xs text-meld-ink/50">
+                Press Enter to send, Shift+Enter for new line • Try /summarise or /task
+              </p>
+              {charCount > 120 && (
+                <span className={cn(
+                  "text-xs",
+                  charCount > MAX_CHARS * 0.8 ? "text-meld-ember" : "text-meld-ink/60"
+                )}>
+                  {charCount}/{MAX_CHARS}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -84,7 +84,7 @@ export function ReflectionSegment({ className }: ReflectionSegmentProps) {
                 <Button
                   size="sm"
                   onClick={() => console.log('Start Narrative Compass')}
-                  className="bg-meld-sage hover:bg-meld-sage/90 text-white"
+                  className="bg-meld-sage hover:bg-meld-sage/90 text-meld-ink"
                 >
                   Start now
                 </Button>

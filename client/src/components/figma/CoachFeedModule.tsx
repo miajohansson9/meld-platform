@@ -372,7 +372,7 @@ export default function CoachFeedModule({
       <div className={cn("bg-white rounded-xl border border-meld-ink/20", className)}>
         <div className="p-6 border-b border-meld-graysmoke/30">
           <div className="flex items-center justify-between">
-            <h2 className="font-serif text-lg text-meld-ink">Mentor Insights</h2>
+            <h2 className="font-serif text-lg text-meld-ink">Mentor Feed</h2>
             {unreadCount > 0 && (
               <span className="text-sm text-meld-ink/60">
                 {unreadCount} unread
@@ -475,11 +475,11 @@ export default function CoachFeedModule({
   return (
     <div className={cn("w-full", className)}>
       {/* Header */}
-      <div className="p-6 lg:p-8 pb-0">
+      <div className="mt-12 mb-12">
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="font-serif text-xl text-meld-ink mb-1">
-              Mentor Insights
+              Mentor Feed
             </h1>
             <div className="flex items-center gap-4">
               <p className="text-meld-ink/60 text-sm">
@@ -551,7 +551,7 @@ export default function CoachFeedModule({
 
       {/* Cards List */}
       <div ref={cardsRef}>
-        <div className="p-6 lg:p-8 space-y-6">{isLoading ? (
+        <div className="flex flex-col gap-4">{isLoading ? (
               // Show skeleton cards while loading
               Array.from({ length: maxItems || 3 }).map((_, index) => (
                 <div key={`skeleton-${index}`} className="meld-animate-in">

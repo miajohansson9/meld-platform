@@ -529,7 +529,7 @@ export function FragmentsModule() {
                           </span>
                         ))}
                         {fragment.tags.length > 2 && (
-                          <span className="text-xs px-2 py-1 bg-meld-graysmoke/30 text-meld-ink/70 border border-meld-ink/20 rounded-full font-medium">
+                          <span className="text-xs px-2 py-1 bg-meld-canvas/30 text-meld-ink/70 border border-meld-ink/20 rounded-full font-medium">
                             +{fragment.tags.length - 2}
                           </span>
                         )}
@@ -630,7 +630,7 @@ export function FragmentsModule() {
     return (
       <div className="flex-1 flex h-full">
         {/* Zone A: Capture Rail Skeleton */}
-        <div className="w-80 border-r border-meld-ink/20 bg-meld-graysmoke/20 p-6">
+        <div className="w-80 border-r border-meld-ink/20 bg-meld-canvas/20 p-6">
           <div className="space-y-4">
             <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
             <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -649,7 +649,7 @@ export function FragmentsModule() {
         </div>
 
         {/* Zone C: Detail Rail Skeleton */}
-        <div className="w-80 border-l border-gray-200 bg-meld-graysmoke/20 p-6">
+        <div className="w-80 border-l border-gray-200 bg-meld-canvas/20 p-6">
           <div className="space-y-4">
             <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
             <div className="h-20 bg-gray-200 rounded animate-pulse"></div>
@@ -663,7 +663,7 @@ export function FragmentsModule() {
   return (
     <div className="flex-1 flex h-full">
       {/* Zone A: Capture Rail (240px) */}
-      <div className="w-80 border-r border-meld-ink/20 bg-meld-graysmoke/20 flex flex-col">
+      <div className="w-80 border-r border-meld-ink/20 bg-meld-canvas/20 flex flex-col">
         <div className="p-6 space-y-4">
           {/* Quick Capture Button */}
           <Button
@@ -747,7 +747,7 @@ export function FragmentsModule() {
       {/* Zone B: Fragment Canvas (760px) */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="p-8 border-b border-meld-ink/20">
+        <div className="p-8 pb-0">
           <div className="flex items-center justify-between mb-4">            
             {selectedFragments.length > 0 && (
               <div className="flex items-center gap-2">
@@ -787,7 +787,7 @@ export function FragmentsModule() {
 
           {/* View Tabs */}
           <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'inbox' | 'themes')}>
-            <TabsList className="grid w-full grid-cols-2 bg-meld-graysmoke/50">
+            <TabsList className="grid w-full grid-cols-2 bg-meld-canvas/50">
               <TabsTrigger value="inbox" className="data-[state=active]:bg-white">
                 <List className="w-4 h-4 mr-2" />
                 Inbox
@@ -811,7 +811,7 @@ export function FragmentsModule() {
       </div>
 
       {/* Zone C: Detail/Preview Rail (240px) */}
-      <div className="w-80 border-l border-gray-200 bg-meld-graysmoke/20 flex flex-col">
+      <div className="w-80 bg-meld-sage/20 border-l border-gray-200 flex flex-col">
         {selectedFragment ? (
           <div className="p-6 space-y-4">
             <div>
@@ -981,7 +981,7 @@ export function FragmentsModule() {
                   {fragments
                     .filter(f => selectedFragments.includes(f.id))
                     .map((fragment) => (
-                      <div key={fragment.id} className="p-3 bg-meld-graysmoke/50 rounded-lg text-sm">
+                      <div key={fragment.id} className="p-3 bg-meld-canvas/50 rounded-lg text-sm">
                         <p className="text-meld-ink leading-relaxed">
                           {fragment.content.substring(0, 120)}
                           {fragment.content.length > 120 && '...'}

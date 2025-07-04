@@ -102,8 +102,8 @@ export function EntryCard({
       {/* Main card */}
       <div
         className={cn(
-          "ml-8 bg-white rounded-lg transition-all duration-200 cursor-pointer group border border-gray-100",
-          isHovered && "shadow-lg transform translate-y-[-1px] border-meld-ink/20",
+          "ml-8 bg-white rounded-lg transition-all duration-200 cursor-pointer group border border-meld-ink/20",
+          isHovered && "shadow-lg transform translate-y-[-1px]",
           isFocused && "ring-2 ring-meld-sand ring-offset-2",
           className
         )}

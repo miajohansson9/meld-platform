@@ -280,7 +280,7 @@ Dashboard Layout
 - `/dashboard` - New main dashboard entry point
 - `/today` - Today module view
 - `/log` - Log timeline view  
-- `/mentor` - Mentor insights
+- `/mentor` - Mentor Feed
 - `/mentor/feed` - Mentor feed
 - `/chats` - New modular chats interface
 - `/fragments` - Fragments management

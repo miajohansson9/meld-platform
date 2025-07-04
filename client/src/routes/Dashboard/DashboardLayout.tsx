@@ -1,10 +1,14 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { DashboardSidebar, FloatingActionButton } from '~/components/figma';
 import { useAuthContext } from '~/hooks';
 
 export default function DashboardLayout() {
   const { isAuthenticated } = useAuthContext();
+  const location = useLocation();
+
+  // Hide floating action button on chat page
+  const shouldShowFloatingActionButton = !location.pathname.includes('/chats');
 
   if (!isAuthenticated) {
     return null;
@@ -20,8 +24,8 @@ export default function DashboardLayout() {
         <Outlet />
       </div>
       
-      {/* Floating Action Button */}
-      <FloatingActionButton />
+      {/* Floating Action Button - hidden on chat page */}
+      {shouldShowFloatingActionButton && <FloatingActionButton />}
     </div>
   );
 } 

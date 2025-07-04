@@ -147,7 +147,7 @@ module.exports = {
         /* Meld Figma Design Tokens */
         'meld-canvas': '#F9F8F5',
         'meld-ink': '#22231F',
-        'meld-sand': '#D5C8A4',
+        'meld-sand': 'var(--meld-sand)',
         'meld-sage': '#BFCDB1',
         'meld-ember': '#E6B8AD',
         'meld-graysmoke': '#EFEDE9',

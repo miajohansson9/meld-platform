@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Target, Clock } from 'lucide-react';
+import { Target, Clock, Frown, Meh, Smile, Laugh, Sparkles, Moon, Coffee, Focus, Zap, Flame, Star, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { Slider } from '../ui/Slider';
@@ -26,16 +26,22 @@ export function MorningSegment({ className }: MorningSegmentProps) {
   // Mock yesterday's intention
   const yesterdayIntention = "delegate sprint brief";
 
-  // Updated emoji anchors to match the screenshots
-  const moodEmojis = ['😞', '😐', '🙂', '😃', '✨']; // From first screenshot
+  // Professional mood icons using Lucide
+  const moodIcons = [
+    { icon: Frown, color: 'text-meld-ink/40' },
+    { icon: Meh, color: 'text-meld-ink/60' },
+    { icon: Smile, color: 'text-meld-sage' },
+    { icon: Laugh, color: 'text-meld-sage' },
+    { icon: Sparkles, color: 'text-meld-sand' }
+  ];
   
-  // Updated energy scale to match second screenshot
+  // Professional energy scale using Lucide icons
   const energyScale = [
-    { emoji: '💤', label: 'Drained', description: 'Physically or mentally depleted' },
-    { emoji: '🤤', label: 'Steady', description: 'Awake, calm, baseline focus' },
-    { emoji: '😌', label: 'Focused', description: 'Intent, clear, but not amped' },
-    { emoji: '⚡', label: 'Energised', description: 'High drive, ready to push' },
-    { emoji: '🔥', label: 'Powerful', description: 'Peak momentum, confident, on-fire' }
+    { icon: Moon, label: 'Drained', description: 'Physically or mentally depleted', color: 'text-meld-ink/40' },
+    { icon: Coffee, label: 'Steady', description: 'Awake, calm, baseline focus', color: 'text-meld-ink/60' },
+    { icon: Focus, label: 'Focused', description: 'Intent, clear, but not amped', color: 'text-meld-sage' },
+    { icon: Zap, label: 'Energised', description: 'High drive, ready to push', color: 'text-meld-sage' },
+    { icon: Flame, label: 'Powerful', description: 'Peak momentum, confident, on-fire', color: 'text-meld-sand' }
   ];
 
   // Show character counter after 60 chars
@@ -101,10 +107,10 @@ export function MorningSegment({ className }: MorningSegmentProps) {
     return energyScale[clampedIndex].label;
   };
 
-  const getEnergyEmoji = (value: number) => {
+  const getEnergyIcon = (value: number) => {
     const scaleIndex = Math.floor((value / 100) * 4);
     const clampedIndex = Math.max(0, Math.min(4, scaleIndex));
-    return energyScale[clampedIndex].emoji;
+    return energyScale[clampedIndex].icon;
   };
 
   const handleComplete = () => {
@@ -176,11 +182,14 @@ export function MorningSegment({ className }: MorningSegmentProps) {
               </span>
             </div>
             
-            {/* Emoji anchors */}
+            {/* Icon anchors */}
             <div className="flex justify-between px-1 mb-3">
-              {moodEmojis.map((emoji, index) => (
-                <span key={index} className="text-xl">{emoji}</span>
-              ))}
+              {moodIcons.map((mood, index) => {
+                const IconComponent = mood.icon;
+                return (
+                  <IconComponent key={index} className={cn("w-6 h-6", mood.color)} strokeWidth={2} />
+                );
+              })}
             </div>
             
             <Slider
@@ -205,11 +214,14 @@ export function MorningSegment({ className }: MorningSegmentProps) {
               </span>
             </div>
             
-            {/* Energy emoji anchors */}
+            {/* Energy icon anchors */}
             <div className="flex justify-between px-1 mb-3">
-              {energyScale.map((item, index) => (
-                <span key={index} className="text-xl">{item.emoji}</span>
-              ))}
+              {energyScale.map((item, index) => {
+                const IconComponent = item.icon;
+                return (
+                  <IconComponent key={index} className={cn("w-6 h-6", item.color)} strokeWidth={2} />
+                );
+              })}
             </div>
             
             <Slider
@@ -231,7 +243,7 @@ export function MorningSegment({ className }: MorningSegmentProps) {
             value={focusIntention}
             onChange={(e) => setFocusIntention(e.target.value)}
             placeholder="In one sentence, what will move you forward today?"
-            className="w-full p-4 border border-meld-graysmoke rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-meld-sand/50 focus:border-meld-sand bg-white text-meld-ink placeholder-meld-ink/40 text-sm leading-relaxed min-h-[100px]"
+            className="w-full p-4 border border-meld-graysmoke rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-meld-sage/50 focus:border-meld-sage bg-white text-meld-ink placeholder-meld-ink/40 text-sm leading-relaxed min-h-[100px]"
             rows={3}
           />
           {focusIntention.length > 0 && (
@@ -248,24 +260,26 @@ export function MorningSegment({ className }: MorningSegmentProps) {
             <button
               onClick={() => setAlignment('aligned')}
               className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 meld-alignment-chip",
+                "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 meld-alignment-chip flex items-center gap-2",
                 alignment === 'aligned' 
                   ? 'meld-alignment-chip-active' 
                   : 'meld-alignment-chip-inactive'
               )}
             >
-              ✨ Aligned
+              <Star className="w-3.5 h-3.5" strokeWidth={1.5} />
+              Aligned
             </button>
             <button
               onClick={() => setAlignment('realign')}
               className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 meld-alignment-chip",
+                "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 meld-alignment-chip flex items-center gap-2",
                 alignment === 'realign' 
                   ? 'meld-alignment-chip-active' 
                   : 'meld-alignment-chip-inactive'
               )}
             >
-              🔄 Re-align
+              <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
+              Re-align
             </button>
           </div>
           
