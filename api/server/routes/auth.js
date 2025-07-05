@@ -4,6 +4,7 @@ const {
   registrationController,
   resetPasswordController,
   resetPasswordRequestController,
+  validateSignupCodeController,
 } = require('~/server/controllers/AuthController');
 const { loginController } = require('~/server/controllers/auth/LoginController');
 const { logoutController } = require('~/server/controllers/auth/LogoutController');
@@ -45,6 +46,7 @@ router.post(
   loginController,
 );
 router.post('/refresh', refreshController);
+router.post('/validate-signup-code', checkBan, validateSignupCodeController);
 router.post(
   '/register',
   registerLimiter,

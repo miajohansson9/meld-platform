@@ -285,3 +285,16 @@ export const confirmTwoFactor = () => '/api/auth/2fa/confirm';
 export const disableTwoFactor = () => '/api/auth/2fa/disable';
 export const regenerateBackupCodes = () => '/api/auth/2fa/backup/regenerate';
 export const verifyTwoFactorTemp = () => '/api/auth/2fa/verify-temp';
+
+/* Views */
+export const views = {
+  compass: () => '/api/views/compass',
+  wins: () => '/api/views/wins',
+};
+
+/* Interactions */
+export const interactions = () => '/api/interactions';
+export const interaction = (id: string) => `/api/interactions/${id}`;
+
+/* Reflection */
+export const generateReflectionQuestion = () => '/api/reflection/generate-question';

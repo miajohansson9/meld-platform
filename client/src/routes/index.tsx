@@ -8,9 +8,11 @@ import {
   ApiErrorWatcher,
   TwoFactorScreen,
 } from '~/components/Auth';
+import RegistrationWizard from '~/components/Auth/RegistrationWizard';
 import { AuthContextProvider } from '~/hooks/AuthContext';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
+import WizardLayout from './Layouts/WizardLayout';
 import LoginLayout from './Layouts/Login';
 import DashboardLayout from './Dashboard/DashboardLayout';
 import TodayPage from './Dashboard/TodayPage';
@@ -21,6 +23,7 @@ import NorthStarPage from './Dashboard/NorthStarPage';
 import WinsVaultPage from './Dashboard/WinsVaultPage';
 import MentorFeedPage from './Dashboard/MentorFeedPage';
 import MePage from './Dashboard/MePage';
+import WelcomePage from './Welcome/WelcomePage';
 import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
 import Search from './Search';
@@ -51,10 +54,6 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       {
-        path: 'register',
-        element: <Registration />,
-      },
-      {
         path: 'forgot-password',
         element: <RequestPasswordReset />,
       },
@@ -69,8 +68,24 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: 'register',
+    element: <WizardLayout />,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: <RegistrationWizard />,
+      },
+    ],
+  },
+  {
     path: 'verify',
     element: <VerifyEmail />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: 'welcome',
+    element: <WelcomePage />,
     errorElement: <RouteErrorBoundary />,
   },
   // SECURE mentor interview routes - access token required (REMOVED OLD ROUTES)

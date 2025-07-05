@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { useRegisterUserMutation } from 'librechat-data-provider/react-query';
 import type { TRegisterUser, TError } from 'librechat-data-provider';
@@ -17,6 +17,7 @@ const Registration: React.FC = () => {
     watch,
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<TRegisterUser>({ mode: 'onChange' });
   const password = watch('password');
@@ -29,6 +30,16 @@ const Registration: React.FC = () => {
   const queryParams = new URLSearchParams(location.search);
   const token = queryParams.get('token');
 
+  // Check for signup code from sessionStorage
+  useEffect(() => {
+    const storedSignupCode = sessionStorage.getItem('meld_signup_code');
+    if (storedSignupCode) {
+      setValue('signup_code', storedSignupCode);
+      // Clear it from sessionStorage after using it
+      sessionStorage.removeItem('meld_signup_code');
+    }
+  }, [setValue]);
+
   const registerUser = useRegisterUserMutation({
     onMutate: () => {
       setIsSubmitting(true);
@@ -40,7 +51,8 @@ const Registration: React.FC = () => {
         setCountdown((prevCountdown) => {
           if (prevCountdown <= 1) {
             clearInterval(timer);
-            navigate('/c/new', { replace: true });
+            // Navigate to today page with tour parameter to start onboarding
+            navigate('/today?tour=checkin', { replace: true });
             return 0;
           } else {
             return prevCountdown - 1;
@@ -110,13 +122,7 @@ const Registration: React.FC = () => {
           className="rounded-md border border-green-500 bg-green-500/10 px-3 py-2 text-sm text-gray-600 dark:text-gray-200 w-full min-w-80 max-w-sm mx-auto sm:max-w-md"
           role="alert"
         >
-          {localize(
-            startupConfig?.emailEnabled
-              ? 'com_auth_registration_success_generic'
-              : 'com_auth_registration_success_insecure',
-          ) +
-            ' ' +
-            localize('com_auth_email_verification_redirecting', { 0: countdown.toString() })}
+          Welcome to MELD! Starting your onboarding journey in {countdown} seconds...
         </div>
       )}
       {!startupConfigError && !isFetching && (

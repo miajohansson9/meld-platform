@@ -27,6 +27,9 @@ const keys = require('./keys');
 const user = require('./user');
 const ask = require('./ask');
 const mentorInterest = require('./mentorInterest');
+const interactions = require('./interactions');
+const views = require('./views');
+const reflection = require('./reflection');
 
 module.exports = {
   ask,
@@ -58,4 +61,7 @@ module.exports = {
   categories,
   staticRoute,
   mentorInterest,
+  interactions,
+  views,
+  reflection,
 };

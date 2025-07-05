@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Bell, Plus, Hash, FileText, Target, Star, MoreHorizontal, Pin, Download, VolumeX, Atom } from 'lucide-react';
+import React from 'react';
+import DateHeader from './DateHeader';
+import { ChevronLeft, ChevronRight, Bell, Plus, Hash, FileText, Target, Star, MoreHorizontal, Pin, Download, VolumeX, Atom, Calendar } from 'lucide-react';
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui';
 import { cn } from '~/utils';
 
@@ -14,18 +15,13 @@ interface ChatInfo {
 interface HeaderBarProps {
   className?: string;
   chatInfo?: ChatInfo;
+  date?: string;
+  onDateChange?: (date: string) => void;
+  showDateNav?: boolean;
 }
 
-export default function HeaderBar({ className, chatInfo }: HeaderBarProps) {
-  const [showPrevDate, setShowPrevDate] = useState(false);
-  const [showNextDate, setShowNextDate] = useState(false);
-
+export default function HeaderBar({ className, chatInfo, date, onDateChange, showDateNav }: HeaderBarProps) {
   const currentDate = new Date();
-  const prevDate = new Date(currentDate);
-  prevDate.setDate(currentDate.getDate() - 1);
-  const nextDate = new Date(currentDate);
-  nextDate.setDate(currentDate.getDate() + 1);
-
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -34,26 +30,51 @@ export default function HeaderBar({ className, chatInfo }: HeaderBarProps) {
       year: 'numeric'
     });
   };
+  const currentDateString = formatDate(currentDate);
 
-  const formatShortDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
-    });
+  // Check if the selected date is today
+  const today = new Date();
+  const todayString = (() => {
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+  const isToday = date === todayString;
+
+  // Get previous and next dates for tooltips
+  const getPrevDate = () => {
+    if (!date) return null;
+    const current = new Date(date + 'T00:00:00'); // Parse as local date
+    current.setDate(current.getDate() - 1);
+    return current.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  const currentDateString = formatDate(currentDate);
+  const getNextDate = () => {
+    if (!date || isToday) return null;
+    const current = new Date(date + 'T00:00:00'); // Parse as local date
+    current.setDate(current.getDate() + 1);
+    return current.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const handleTodayClick = () => {
+    if (onDateChange && !isToday) {
+      onDateChange(todayString);
+    }
+  };
 
   return (
     <div className={cn("flex items-center justify-between px-6 py-4 bg-meld-canvas border-b border-gray-200", className)}>
-      {/* Left: Date */}
-      <div className="flex items-center gap-4">
-        <div className="text-sm text-meld-ink/70 uppercase tracking-wider">
-          {currentDateString.replace(',', ' ·')}
-        </div>
+      {/* Left: Date display or empty for balance */}
+      <div className="flex items-center gap-4 w-1/3">
+        {!showDateNav && (
+          <div className="text-sm text-meld-ink/70 uppercase tracking-wider">
+            {currentDateString.replace(',', ' ·')}
+          </div>
+        )}
       </div>
 
-      {/* Center: Title and Navigation (or Chat Info) */}
+      {/* Center: Date Navigation or Chat Info */}
       {chatInfo ? (
         <div className="flex items-center gap-4 flex-1 justify-center max-w-4xl">
           {/* AI Avatar */}
@@ -113,10 +134,6 @@ export default function HeaderBar({ className, chatInfo }: HeaderBarProps) {
                 <Pin className="w-4 h-4 mr-2" />
                 {chatInfo.isPinned ? 'Unpin' : 'Pin'} chat
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => chatInfo.onThreadAction?.('export')}>
-                <Download className="w-4 h-4 mr-2" />
-                Export PDF
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => chatInfo.onThreadAction?.('mute')}>
                 <VolumeX className="w-4 h-4 mr-2" />
                 Mute for 7 days
@@ -124,48 +141,92 @@ export default function HeaderBar({ className, chatInfo }: HeaderBarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      ) : (
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="p-2 hover:bg-meld-graysmoke/50"
-              onMouseEnter={() => setShowPrevDate(true)}
-              onMouseLeave={() => setShowPrevDate(false)}
-            >
-              <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
-            </Button>
-            {showPrevDate && (
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-meld-ink text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                {formatShortDate(prevDate)}
-              </div>
-            )}
-          </div>
-          
-          <h1 className="font-serif text-2xl text-meld-ink">Today</h1>
-          
-          <div className="relative">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="p-2 hover:bg-meld-graysmoke/50"
-              onMouseEnter={() => setShowNextDate(true)}
-              onMouseLeave={() => setShowNextDate(false)}
-            >
-              <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
-            </Button>
-            {showNextDate && (
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-meld-ink text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                {formatShortDate(nextDate)}
+      ) : showDateNav && date && onDateChange ? (
+        <div className="flex items-center gap-4 justify-center">
+          {/* Enhanced Date Navigation */}
+          <div className="flex items-center gap-2">
+            {/* Previous Day Button */}
+            <div className="relative group">
+              <button
+                onClick={() => {
+                  const current = new Date(date + 'T00:00:00'); // Parse as local date
+                  current.setDate(current.getDate() - 1);
+                  const year = current.getFullYear();
+                  const month = String(current.getMonth() + 1).padStart(2, '0');
+                  const day = String(current.getDate()).padStart(2, '0');
+                  onDateChange(`${year}-${month}-${day}`);
+                }}
+                className="p-2 hover:bg-meld-canvas rounded-lg transition-colors"
+                aria-label="Previous day"
+              >
+                <ChevronLeft className="w-5 h-5 text-meld-ink/60" />
+              </button>
+              {getPrevDate() && (
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  <div className="bg-meld-ink text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    {getPrevDate()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Date Display */}
+            <DateHeader date={date} onDateChange={onDateChange} />
+
+            {/* Next Day Button */}
+            <div className="relative group">
+              <button
+                onClick={() => {
+                  const current = new Date(date + 'T00:00:00'); // Parse as local date
+                  current.setDate(current.getDate() + 1);
+                  const year = current.getFullYear();
+                  const month = String(current.getMonth() + 1).padStart(2, '0');
+                  const day = String(current.getDate()).padStart(2, '0');
+                  onDateChange(`${year}-${month}-${day}`);
+                }}
+                className="p-2 hover:bg-meld-canvas rounded-lg transition-colors"
+                aria-label="Next day"
+                disabled={isToday}
+                style={isToday ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+              >
+                <ChevronRight className="w-5 h-5 text-meld-ink/60" />
+              </button>
+              {getNextDate() && (
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  <div className="bg-meld-ink text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    {getNextDate()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Today Shortcut Button */}
+            {!isToday && (
+              <div className="relative group ml-2">
+                <button
+                  onClick={handleTodayClick}
+                  className="p-2 hover:bg-meld-sage/10 rounded-lg transition-colors"
+                  aria-label="Go to today"
+                >
+                  <Calendar className="w-4 h-4 text-meld-sage" />
+                </button>
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  <div className="bg-meld-ink text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Today
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
+      ) : (
+        <div className="flex items-center gap-4 justify-center">
+          <h1 className="font-serif text-2xl text-meld-ink">Today</h1>
+        </div>
       )}
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 w-1/3 justify-end">
         {/* Profile */}
         <div className="w-8 h-8 rounded-full bg-meld-sand flex items-center justify-center">
           <span className="text-meld-ink font-medium text-sm">MJ</span>

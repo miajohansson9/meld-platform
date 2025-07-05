@@ -93,9 +93,52 @@ const refreshController = async (req, res) => {
   }
 };
 
+const validateSignupCodeController = async (req, res) => {
+  try {
+    const { signupCode } = req.body;
+    const validSignupCode = process.env.SIGNUP_CODE;
+
+    if (!signupCode) {
+      return res.status(400).json({ 
+        message: 'Signup code is required',
+        valid: false 
+      });
+    }
+
+    if (!validSignupCode) {
+      logger.error('[validateSignupCodeController] SIGNUP_CODE environment variable not set');
+      return res.status(500).json({ 
+        message: 'Server configuration error',
+        valid: false 
+      });
+    }
+
+    const isValid = signupCode.toUpperCase() === validSignupCode.toUpperCase();
+    
+    if (isValid) {
+      return res.status(200).json({ 
+        message: 'Valid signup code',
+        valid: true 
+      });
+    } else {
+      return res.status(400).json({ 
+        message: 'Invalid signup code',
+        valid: false 
+      });
+    }
+  } catch (err) {
+    logger.error('[validateSignupCodeController]', err);
+    return res.status(500).json({ 
+      message: 'Something went wrong',
+      valid: false 
+    });
+  }
+};
+
 module.exports = {
   refreshController,
   registrationController,
   resetPasswordController,
   resetPasswordRequestController,
+  validateSignupCodeController,
 };

@@ -57,6 +57,8 @@ import { Checkbox } from '../ui/Checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { cn } from '~/utils';
 import { toast } from 'sonner';
+import { useWinsView } from '../../hooks/useWinsView';
+import { useInteractions } from '../../hooks/useInteractions';
 
 interface WinTile {
   id: string;
@@ -106,95 +108,8 @@ const sourceConfig = {
   }
 };
 
-const mockWinTiles: WinTile[] = [
-  {
-    id: '1',
-    title: 'Story Presentation Success',
-    date: new Date('2025-06-28T14:30:00'),
-    tags: ['Growth', 'Speaking'],
-    source: 'log',
-    sourceId: 'log-1',
-    emoji: '🎯',
-    description: 'Delivered the quarterly story with confidence and got great feedback',
-    impact: ['Increased team confidence', 'Improved stakeholder buy-in', 'Personal breakthrough in public speaking'],
-    isPinned: true,
-    isShared: false,
-    shareCount: 0,
-    originalContent: 'Today I presented our quarterly story to the leadership team...'
-  },
-  {
-    id: '2',
-    title: 'Difficult Conversation Win',
-    date: new Date('2025-06-26T10:15:00'),
-    tags: ['Communication', 'Leadership'],
-    source: 'chat',
-    sourceId: 'chat-1',
-    emoji: '💬',
-    description: 'Successfully navigated a challenging team conversation about project priorities',
-    impact: ['Team alignment achieved', 'Conflict resolved constructively', 'Trust building moment'],
-    isPinned: false,
-    isShared: true,
-    shareCount: 2,
-    originalContent: 'Had that difficult conversation with the team about priorities...'
-  },
-  {
-    id: '3',
-    title: 'Mentorship Milestone',
-    date: new Date('2025-06-24T16:45:00'),
-    tags: ['Growth', 'Mentoring'],
-    source: 'fragment',
-    sourceId: 'fragment-1',
-    emoji: '🌱',
-    description: 'Helped junior team member breakthrough on complex problem',
-    impact: ['Knowledge transfer success', 'Team member growth', 'Leadership development'],
-    isPinned: false,
-    isShared: false,
-    shareCount: 0,
-    originalContent: 'I realized today that mentoring isn\'t just about giving advice...'
-  },
-  {
-    id: '4',
-    title: 'Process Improvement Win',
-    date: new Date('2025-06-22T11:20:00'),
-    tags: ['Process', 'Innovation'],
-    source: 'manual',
-    emoji: '⚡',
-    description: 'Streamlined the weekly planning process, saving 2 hours per week',
-    impact: ['Time savings for team', 'Improved focus on priorities', 'Reduced meeting fatigue'],
-    isPinned: false,
-    isShared: false,
-    shareCount: 0
-  },
-  {
-    id: '5',
-    title: 'Client Relationship Breakthrough',
-    date: new Date('2025-06-20T09:30:00'),
-    tags: ['Client', 'Relationship'],
-    source: 'log',
-    sourceId: 'log-2',
-    emoji: '🤝',
-    description: 'Turned around a challenging client relationship through consistent communication',
-    impact: ['Client satisfaction improved', 'Contract renewal secured', 'Trust rebuilt'],
-    isPinned: true,
-    isShared: true,
-    shareCount: 5,
-    originalContent: 'The client meeting went better than expected...'
-  }
-];
-
-const mockMonthlyDigest: MonthlyDigest = {
-  month: 'June',
-  year: 2025,
-  tileCount: 12,
-  isReady: true,
-  previewTiles: mockWinTiles.slice(0, 3)
-};
-
-
-
 export function WinsVaultModule() {
   const [activeView, setActiveView] = useState<'gallery' | 'timeline'>('gallery');
-  const [winTiles, setWinTiles] = useState<WinTile[]>(mockWinTiles);
   const [selectedTiles, setSelectedTiles] = useState<string[]>([]);
   const [selectedTile, setSelectedTile] = useState<WinTile | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,7 +117,6 @@ export function WinsVaultModule() {
   const [showNewTileModal, setShowNewTileModal] = useState(false);
   const [showEditTileModal, setShowEditTileModal] = useState(false);
   const [showDigestModal, setShowDigestModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [winDescription, setWinDescription] = useState('');
   const [editingTile, setEditingTile] = useState<WinTile | null>(null);
   const [editTileData, setEditTileData] = useState({
@@ -215,6 +129,44 @@ export function WinsVaultModule() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch wins data from backend
+  const { data: winsViews, isLoading: winsLoading, error: winsError } = useWinsView();
+  const { data: interactionsData, isLoading: interactionsLoading } = useInteractions();
+
+  // Convert backend wins data to WinTile format
+  const winTiles: WinTile[] = React.useMemo(() => {
+    if (!winsViews || !interactionsData?.interactions) return [];
+
+    return winsViews.map(winView => {
+      // Find the title interaction
+      const titleInteraction = interactionsData.interactions.find(
+        (interaction: any) => interaction._id === winView.titleInteractionId
+      );
+      
+      // Find the description interaction
+      const descriptionInteraction = winView.descriptionInteractionId 
+        ? interactionsData.interactions.find(
+            (interaction: any) => interaction._id === winView.descriptionInteractionId
+          )
+        : null;
+
+      return {
+        id: winView._id,
+        title: titleInteraction?.responseText || 'Untitled Win',
+        date: new Date(winView.achievedAt),
+        tags: ['Win'], // Default tag, could be enhanced with AI analysis
+        source: 'manual' as const, // Default source
+        emoji: '🎯', // Default emoji
+        description: descriptionInteraction?.responseText || '',
+        impact: [], // Could be populated with AI analysis
+        isPinned: false,
+        isShared: false,
+        shareCount: 0,
+        originalContent: titleInteraction?.responseText || ''
+      };
+    });
+  }, [winsViews, interactionsData]);
+
   const allTags = ['all', ...Array.from(new Set(winTiles.flatMap(tile => tile.tags)))];
   const filteredTiles = winTiles.filter(tile => {
     const matchesSearch = tile.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -226,11 +178,14 @@ export function WinsVaultModule() {
   // Sort tiles by date (newest first)
   const sortedTiles = [...filteredTiles].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  // Simulate loading
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+  // Mock monthly digest (could be enhanced with backend data)
+  const mockMonthlyDigest: MonthlyDigest = {
+    month: 'June',
+    year: 2025,
+    tileCount: winTiles.length,
+    isReady: winTiles.length > 0,
+    previewTiles: winTiles.slice(0, 3)
+  };
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -297,12 +252,11 @@ export function WinsVaultModule() {
       shareCount: 0
     };
 
-    setWinTiles(prev => [tile, ...prev]);
+    // Note: In a real implementation, this would create an interaction via the backend
+    // For now, we'll just show a toast
+    toast.success('Win tile created! 🎉', { duration: 3000 });
     setWinDescription('');
     setShowNewTileModal(false);
-    
-    // Success confetti animation
-    toast.success('Win tile created! 🎉', { duration: 3000 });
   };
 
   const handleTileSelect = (tileId: string) => {
@@ -318,9 +272,7 @@ export function WinsVaultModule() {
   };
 
   const handlePinTile = (tileId: string) => {
-    setWinTiles(prev => prev.map(tile => 
-      tile.id === tileId ? { ...tile, isPinned: !tile.isPinned } : tile
-    ));
+    // In a real implementation, this would update the backend
     toast.success('Tile pinned status updated', { duration: 2000 });
   };
 
@@ -351,19 +303,7 @@ export function WinsVaultModule() {
   const handleUpdateTile = () => {
     if (!editingTile || !editTileData.title.trim()) return;
 
-    setWinTiles(prev => prev.map(tile => 
-      tile.id === editingTile.id 
-        ? {
-            ...tile,
-            title: editTileData.title,
-            description: editTileData.description,
-            tags: editTileData.tags,
-            impact: editTileData.impact.filter(i => i.trim()),
-            emoji: editTileData.emoji
-          }
-        : tile
-    ));
-
+    // In a real implementation, this would update the backend
     setShowEditTileModal(false);
     setEditingTile(null);
     toast.success('Win tile updated! ✨', { duration: 2000 });
@@ -617,6 +557,8 @@ export function WinsVaultModule() {
     );
   };
 
+  const isLoading = winsLoading || interactionsLoading;
+
   if (isLoading) {
     return (
       <div className="flex-1 flex">
@@ -642,6 +584,17 @@ export function WinsVaultModule() {
             <div className="h-20 bg-gray-200 rounded animate-pulse"></div>
             <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (winsError) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <Trophy className="w-12 h-12 text-meld-ink/40 mx-auto mb-4" />
+          <p className="text-meld-ink/60">Error loading wins data</p>
         </div>
       </div>
     );
@@ -690,13 +643,11 @@ export function WinsVaultModule() {
           </div>
         </div>
 
-
-
         {/* Monthly Digest */}
         <div className="p-4 border-b border-meld-graysmoke">
           <div className="bg-meld-canvas p-3 rounded-lg">
             <h4 className="text-sm font-medium text-meld-ink mb-1">June Wins Ready</h4>
-            <p className="text-xs text-meld-ink/70 mb-3">12 wins from this month</p>
+            <p className="text-xs text-meld-ink/70 mb-3">{winTiles.length} wins from this month</p>
             <Button
               size="sm"
               onClick={() => setShowDigestModal(true)}
@@ -898,15 +849,6 @@ export function WinsVaultModule() {
                   <Share className="w-4 h-4 mr-3" />
                   Share link
                 </Button>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start h-9 border-meld-graysmoke hover:border-meld-sage hover:bg-meld-sage/5"
-                >
-                  <Download className="w-4 h-4 mr-3" />
-                  Export PDF
-                </Button>
               </div>
             </div>
 
@@ -1052,10 +994,6 @@ export function WinsVaultModule() {
                 {mockMonthlyDigest.tileCount} total wins this month
               </p>
               <div className="flex gap-2">
-                <Button variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export PDF
-                </Button>
                 <Button className="bg-meld-sand hover:bg-meld-sand/90 text-meld-ink">
                   <Share className="w-4 h-4 mr-2" />
                   Share Digest

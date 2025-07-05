@@ -3,6 +3,7 @@ const validateRegistration = require('./validateRegistration');
 const validateImageRequest = require('./validateImageRequest');
 const buildEndpointOption = require('./buildEndpointOption');
 const validateMessageReq = require('./validateMessageReq');
+const validateInteraction = require('./validateInteraction');
 const checkDomainAllowed = require('./checkDomainAllowed');
 const concurrentLimiter = require('./concurrentLimiter');
 const validateEndpoint = require('./validateEndpoint');
@@ -46,6 +47,7 @@ module.exports = {
   concurrentLimiter,
   checkDomainAllowed,
   validateMessageReq,
+  validateInteraction,
   buildEndpointOption,
   validateRegistration,
   validateImageRequest,

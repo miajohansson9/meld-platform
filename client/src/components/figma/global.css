@@ -1132,3 +1132,653 @@ html {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Onboarding Story Animations */
+.story-slide-enter {
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.story-slide-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.story-slide-exit {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 400ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.story-slide-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* Visual Preview Cards */
+.story-visual-card {
+  transform: perspective(1000px) rotateY(-5deg);
+  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.story-visual-card:hover {
+  transform: perspective(1000px) rotateY(0deg) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Pagination Dots Enhancement */
+.story-pagination-dot {
+  position: relative;
+  overflow: hidden;
+}
+
+.story-pagination-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, var(--meld-sage), var(--meld-sand));
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.story-pagination-dot.active::before {
+  opacity: 1;
+}
+
+/* Background Gradient Animation */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.story-background-animated {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Fragment Flow Animation */
+@keyframes fragment-flow {
+  0% {
+    transform: translateX(-10px);
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(10px);
+    opacity: 0.7;
+  }
+}
+
+.story-fragment-flow {
+  animation: fragment-flow 2s ease-in-out infinite;
+}
+
+/* Mentor Message Typing Effect */
+@keyframes typing-cursor {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.story-typing-cursor::after {
+  content: '|';
+  animation: typing-cursor 1s infinite;
+  color: var(--meld-sage);
+}
+
+/* Enhanced Button Hover Effects for Onboarding */
+.story-cta-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.story-cta-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 600ms;
+}
+
+.story-cta-button:hover::before {
+  left: 100%;
+}
+
+.story-cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(191, 205, 177, 0.4);
+}
+
+/* Slide Transition Improvements */
+.story-slide-container {
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mobile Swipe Indicators */
+.story-swipe-hint {
+  opacity: 0.6;
+  animation: swipe-hint 2s ease-in-out infinite;
+}
+
+@keyframes swipe-hint {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+/* Welcome Page Scroll Animations */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.welcome-animate-in {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+
+.welcome-animate-left {
+  animation: fade-in-left 0.8s ease-out forwards;
+}
+
+.welcome-animate-right {
+  animation: fade-in-right 0.8s ease-out forwards;
+}
+
+/* Staggered animation delays for welcome sections */
+.welcome-section:nth-child(1) { animation-delay: 0.1s; }
+.welcome-section:nth-child(2) { animation-delay: 0.2s; }
+.welcome-section:nth-child(3) { animation-delay: 0.3s; }
+.welcome-section:nth-child(4) { animation-delay: 0.4s; }
+.welcome-section:nth-child(5) { animation-delay: 0.5s; }
+
+/* Enhanced image hover effects for welcome page */
+.welcome-image {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.welcome-image:hover {
+  transform: scale(1.02) translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Welcome page specific header styling */
+.welcome-header {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(249, 248, 245, 0.9);
+  border-bottom: 1px solid rgba(239, 237, 233, 0.3);
+}
+
+/* Enhanced arrow down animation */
+.welcome-arrow {
+  animation: welcome-bounce 2s infinite;
+}
+
+@keyframes welcome-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Welcome CTA section styling */
+.welcome-cta-section {
+  background: linear-gradient(135deg, 
+    rgba(191, 205, 177, 0.2) 0%, 
+    rgba(249, 248, 245, 1) 50%, 
+    rgba(221, 236, 234, 0.3) 100%);
+}
+
+/* Welcome text reveal animation */
+.welcome-text-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: welcome-text-reveal 0.8s ease-out forwards;
+}
+
+@keyframes welcome-text-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Welcome section spacing and rhythm */
+.welcome-section-spacing {
+  margin-bottom: 8rem; /* 128px */
+}
+
+@media (max-width: 768px) {
+  .welcome-section-spacing {
+    margin-bottom: 4rem; /* 64px */
+  }
+}
+
+/* Welcome parallax effect for background */
+.welcome-parallax {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Welcome gradient text effect */
+.welcome-gradient-text {
+  background: linear-gradient(135deg, var(--meld-ink) 0%, var(--meld-sage) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Enhanced Welcome Page Styling with Full Color Palette */
+
+/* Science Section Styling */
+.welcome-science-section {
+  background: linear-gradient(135deg, 
+    rgba(221, 236, 234, 0.3) 0%, 
+    rgba(249, 248, 245, 1) 50%, 
+    rgba(191, 205, 177, 0.2) 100%);
+  border: 1px solid rgba(221, 236, 234, 0.4);
+}
+
+/* Audience Section Styling */
+.welcome-audience-section {
+  background: linear-gradient(135deg, 
+    rgba(242, 219, 219, 0.4) 0%, 
+    rgba(248, 244, 235, 0.6) 50%, 
+    rgba(249, 248, 245, 1) 100%);
+  border: 1px solid rgba(242, 219, 219, 0.3);
+}
+
+/* Enhanced Audience Cards */
+.welcome-audience-card-positive {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(191, 205, 177, 0.2);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-audience-card-positive::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(191, 205, 177, 0.6) 50%, 
+    transparent 100%);
+}
+
+.welcome-audience-card-positive:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(191, 205, 177, 0.4);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 20px 40px rgba(191, 205, 177, 0.2),
+    0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.welcome-audience-card-negative {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(189, 60, 40, 0.2);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-audience-card-negative::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(189, 60, 40, 0.6) 50%, 
+    transparent 100%);
+}
+
+.welcome-audience-card-negative:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(189, 60, 40, 0.4);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 20px 40px rgba(189, 60, 40, 0.2),
+    0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* CTA Section Dark Theme */
+.welcome-cta-dark {
+  background: linear-gradient(135deg, 
+    #2F292B 0%, 
+    #3B3C50 50%, 
+    #2F292B 100%);
+  position: relative;
+}
+
+.welcome-cta-dark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 30% 40%, rgba(191, 205, 177, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(189, 60, 40, 0.1) 0%, transparent 50%);
+  opacity: 0.6;
+}
+
+/* Enhanced CTA Button */
+.welcome-cta-button {
+  background: linear-gradient(135deg, 
+    var(--meld-sage) 0%, 
+    rgba(191, 205, 177, 0.9) 100%);
+  border: 2px solid rgba(191, 205, 177, 0.3);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.welcome-cta-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.3) 50%, 
+    transparent 100%);
+  transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.welcome-cta-button:hover::before {
+  left: 100%;
+}
+
+.welcome-cta-button:hover {
+  background: linear-gradient(135deg, 
+    rgba(191, 205, 177, 0.95) 0%, 
+    var(--meld-sage) 100%);
+  border-color: rgba(191, 205, 177, 0.5);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 
+    0 20px 40px rgba(191, 205, 177, 0.4),
+    0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Icon Circles */
+.welcome-icon-circle-sage {
+  background: rgba(191, 205, 177, 0.2);
+  transition: all 0.3s ease;
+}
+
+.welcome-icon-circle-rust {
+  background: rgba(189, 60, 40, 0.2);
+  transition: all 0.3s ease;
+}
+
+.welcome-audience-card-positive:hover .welcome-icon-circle-sage {
+  background: rgba(191, 205, 177, 0.3);
+  transform: scale(1.1);
+}
+
+.welcome-audience-card-negative:hover .welcome-icon-circle-rust {
+  background: rgba(189, 60, 40, 0.3);
+  transform: scale(1.1);
+}
+
+/* Badge Enhancements */
+.welcome-badge-steel {
+  background: rgba(59, 60, 80, 0.1);
+  border: 1px solid rgba(59, 60, 80, 0.2);
+  color: #3B3C50;
+}
+
+.welcome-badge-maroon {
+  background: rgba(105, 32, 17, 0.1);
+  border: 1px solid rgba(105, 32, 17, 0.2);
+  color: #692011;
+}
+
+.welcome-badge-sage-cta {
+  background: rgba(191, 205, 177, 0.2);
+  border: 1px solid rgba(191, 205, 177, 0.3);
+  color: #BFCDB1;
+}
+
+/* Enhanced Dots with Color-Specific Glow */
+.welcome-dot-sage {
+  box-shadow: 0 0 6px rgba(191, 205, 177, 0.4);
+}
+
+.welcome-dot-rust {
+  box-shadow: 0 0 6px rgba(189, 60, 40, 0.4);
+}
+
+.welcome-dot-steel {
+  box-shadow: 0 0 6px rgba(59, 60, 80, 0.4);
+}
+
+/* List Item Hover Effects */
+.welcome-list-item {
+  transition: all 0.2s ease;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.welcome-list-item:hover {
+  background: rgba(191, 205, 177, 0.1);
+  transform: translateX(4px);
+}
+
+.welcome-list-item-negative:hover {
+  background: rgba(189, 60, 40, 0.1);
+}
+
+/* Trust Indicators Styling */
+.welcome-trust-indicators {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Registration Wizard Animations */
+.wizard-slide-enter {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+.wizard-slide-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.wizard-slide-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.wizard-slide-exit-active {
+  opacity: 0;
+  transform: translateX(-24px);
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.wizard-progress-dot {
+  transition: all 250ms ease-out;
+}
+
+.wizard-progress-dot.filled {
+  background: radial-gradient(circle, currentColor 0%, currentColor 100%);
+  animation: radial-wipe 250ms ease-out;
+}
+
+@keyframes radial-wipe {
+  0% {
+    background: radial-gradient(circle at center, currentColor 0%, transparent 0%);
+  }
+  100% {
+    background: radial-gradient(circle at center, currentColor 100%, transparent 100%);
+  }
+}
+
+.wizard-input-focus {
+  border-bottom-width: 2px;
+  transition: border-bottom-width 200ms ease-out, border-color 200ms ease-out;
+}
+
+.wizard-input-focus:focus {
+  border-bottom-width: 4px;
+}
+
+.wizard-goal-tile {
+  transition: all 200ms ease-out;
+}
+
+.wizard-goal-tile:hover {
+  transform: scale(1.02);
+}
+
+.wizard-goal-tile.selected {
+  transform: scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.wizard-tone-chip {
+  transition: all 200ms ease-out;
+}
+
+.wizard-tone-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.wizard-tone-chip.selected {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(191, 205, 177, 0.3);
+}
+
+/* Enhanced Registration Wizard Progress */
+.wizard-progress-dot.filled {
+  box-shadow: 0 0 0 3px rgba(191, 205, 177, 0.2);
+}
+
+.wizard-progress-dot:hover {
+  transform: scale(1.3);
+}
+
+.wizard-progress-dot.filled:hover {
+  transform: scale(1.4);
+}
+
+@keyframes enhanced-radial-wipe {
+  0% {
+    background: radial-gradient(circle at center, currentColor 0%, transparent 0%);
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    background: radial-gradient(circle at center, currentColor 100%, transparent 100%);
+    transform: scale(1.25);
+  }
+}
+
+.wizard-progress-dot.filled {
+  animation: enhanced-radial-wipe 300ms ease-out;
+}
+
+/* Progress bar pulse animation */
+.wizard-progress-bar {
+  background: linear-gradient(90deg, #BFCDB1, #A8B89A, #BFCDB1);
+  background-size: 200% 100%;
+  animation: progress-pulse 2s ease-in-out infinite;
+}
+
+@keyframes progress-pulse {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Time estimate pulse */
+.wizard-time-estimate {
+  animation: time-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes time-pulse {
+  0% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}

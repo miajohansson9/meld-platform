@@ -814,3 +814,57 @@ export function verifyTwoFactorTemp(
 ): Promise<t.TVerify2FATempResponse> {
   return request.post(endpoints.verifyTwoFactorTemp(), payload);
 }
+
+/* Views */
+export function getCompassViews(params?: { date?: string }): Promise<any> {
+  const url = params?.date 
+    ? `${endpoints.views.compass()}?date=${params.date}`
+    : endpoints.views.compass();
+  
+  return request.get(url).then((response: any) => {
+    // The response might be wrapped in a data property
+    const data = response?.data || response;
+    return data;
+  }).catch((error) => {
+    console.error('Error fetching compass views:', error);
+    throw error;
+  });
+}
+
+export function getWinsViews(params?: { date?: string }): Promise<any> {
+  const url = params?.date 
+    ? `${endpoints.views.wins()}?date=${params.date}`
+    : endpoints.views.wins();
+  
+  return request.get(url).then((response: any) => {
+    const data = response?.data || response;
+    return data;
+  }).catch((error) => {
+    console.error('Error fetching wins views:', error);
+    throw error;
+  });
+}
+
+/* Interactions */
+export function createInteraction(data: any): Promise<any> {
+  return request.post(endpoints.interactions(), data);
+}
+
+/* Reflection */
+export function generateReflectionQuestion(data: { date: string; intention: string; topics: string[] }): Promise<{ question: string; prompt: string }> {
+  return request.post(endpoints.generateReflectionQuestion(), data);
+}
+
+export function getInteractions(params?: {
+  kind?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}): Promise<any> {
+  return request.get(endpoints.interactions(), { params });
+}
+
+export function getInteraction(id: string): Promise<any> {
+  return request.get(endpoints.interaction(id));
+}

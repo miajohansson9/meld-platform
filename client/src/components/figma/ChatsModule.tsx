@@ -485,10 +485,6 @@ export function ChatsModule({ onChatInfoChange, onRef }: ChatsModuleProps = {}) 
                         <Archive className="w-4 h-4 mr-2" />
                         Archive
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Download className="w-4 h-4 mr-2" />
-                        Export PDF
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

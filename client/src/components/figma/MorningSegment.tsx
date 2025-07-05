@@ -1,30 +1,109 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Target, Clock, Frown, Meh, Smile, Laugh, Sparkles, Moon, Coffee, Focus, Zap, Flame, Star, RotateCcw } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Textarea } from '../ui/Textarea';
+import React, { useState, useEffect } from 'react';
+import { Target, Frown, Meh, Smile, Laugh, Sparkles, Moon, Coffee, Focus, Zap, Flame, Loader2, Users, BookOpen, ListChecks, HeartPulse, Handshake, PenTool, Bed, Brain, CheckCircle } from 'lucide-react';
 import { Slider } from '../ui/Slider';
 import { toast } from 'sonner';
 import { cn } from '~/utils';
+import { CompassView } from '../../data-provider/Views';
+import { useCreateInteraction } from '../../hooks/useInteractions';
+
+type Priority =
+  | 'deepWork'
+  | 'learning'
+  | 'admin'
+  | 'wellbeing'
+  | 'relationships'
+  | 'creative'
+  | 'rest'
+  | 'collaboration'
+  | 'mindset';
 
 interface MorningSegmentProps {
   className?: string;
+  date?: string;
+  compassData?: CompassView[];
+  isLoading?: boolean;
+  error?: any;
 }
 
-export function MorningSegment({ className }: MorningSegmentProps) {
-  const [mood, setMood] = useState([70]);
-  const [energy, setEnergy] = useState([60]); // Will map to "Focused" (3/5)
-  const [focusIntention, setFocusIntention] = useState('');
-  const [alignment, setAlignment] = useState<'aligned' | 'realign' | null>(null);
-  const [realignReason, setRealignReason] = useState('');
-  const [showCharCounter, setShowCharCounter] = useState(false);
-  const [showPastSelfSuggestion, setShowPastSelfSuggestion] = useState(false);
-  const [isInputFocused, setIsInputFocused] = useState(false);
-  const [dayCount, setDayCount] = useState(2); // Mock: user's second day
-  const focusTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const realignTextareaRef = useRef<HTMLTextAreaElement>(null);
+export function MorningSegment({ className, date, compassData, isLoading, error }: MorningSegmentProps) {
+  // Use today's date if no date is provided
+  const today = new Date();
+  const todayString = (() => {
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+  const currentDate = date || todayString;
+  
+  // Check if the selected date is today
+  const isToday = currentDate === todayString;
+  
+  // Get the compass data for the selected date
+  const currentCompass = Array.isArray(compassData)
+    ? compassData.find(compass => compass.date === currentDate)
+    : null;
 
-  // Mock yesterday's intention
-  const yesterdayIntention = "delegate sprint brief";
+  // Priority options configuration
+  const priorityOptions: { value: Priority; label: string; Icon: typeof Target }[] = [
+    { value: 'deepWork',       label: 'Deep Work',      Icon: Target },
+    { value: 'collaboration',  label: 'Collaboration',  Icon: Users },
+    { value: 'learning',       label: 'Learning',       Icon: BookOpen },
+    { value: 'admin',          label: 'Admin',          Icon: ListChecks },
+    { value: 'wellbeing',      label: 'Well-being',     Icon: HeartPulse },
+    { value: 'relationships',  label: 'Relationships',  Icon: Handshake },
+    { value: 'creative',       label: 'Creative Play',  Icon: PenTool },
+    { value: 'rest',           label: 'Rest / Reset',   Icon: Bed },
+    { value: 'mindset',        label: 'Mindset Shift',  Icon: Brain },
+  ];
+
+  // Dynamic placeholder map
+  const placeholderByPriority: Record<Priority, string> = {
+    deepWork:      'What concrete output will prove today\'s focus sprint was a win?',
+    collaboration: 'Which conversation must finish with a clear decision or next step?',
+    learning:      'What new idea or skill will you deliberately practice?',
+    admin:         'Which lingering task will you close out and remove from your mental tabs?',
+    wellbeing:     'What specific action will leave you physically recharged by tonight?',
+    relationships: 'Who will you invest in today, and how will you show up for them?',
+    creative:      'What tangible creative thing will you finish for the joy of it?',
+    rest:          'What will make today feel restorative when you look back this evening?',
+    mindset:       'Which mindset will you practice in every interaction, and how will you know it stuck?'
+  };
+
+  const [mood, setMood] = useState([currentCompass?.mood || 70]);
+  const [energy, setEnergy] = useState([currentCompass?.energy || 60]);
+  const [priority, setPriority] = useState<Priority | null>(null);
+  const [priorityNote, setPriorityNote] = useState('');
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  const createInteractionMutation = useCreateInteraction();
+
+  // Update state when compass data changes
+  useEffect(() => {
+    if (currentCompass) {
+      setMood([currentCompass.mood || 70]);
+      setEnergy([currentCompass.energy || 60]);
+      
+      // Load priority and priority note from compass data
+      if (currentCompass.priority) {
+        setPriority(currentCompass.priority as Priority);
+      } else {
+        setPriority(null);
+      }
+      
+      if (currentCompass.priorityNote) {
+        setPriorityNote(currentCompass.priorityNote);
+      } else {
+        setPriorityNote('');
+      }
+    } else {
+      // Reset state when no compass data
+      setMood([70]);
+      setEnergy([60]);
+      setPriority(null);
+      setPriorityNote('');
+    }
+  }, [currentCompass, currentDate]);
 
   // Professional mood icons using Lucide
   const moodIcons = [
@@ -44,36 +123,6 @@ export function MorningSegment({ className }: MorningSegmentProps) {
     { icon: Flame, label: 'Powerful', description: 'Peak momentum, confident, on-fire', color: 'text-meld-sand' }
   ];
 
-  // Show character counter after 60 chars
-  useEffect(() => {
-    setShowCharCounter(focusIntention.length >= 60);
-  }, [focusIntention]);
-
-  // Show past-self suggestion on second day
-  useEffect(() => {
-    if (dayCount > 1 && focusIntention.length > 0 && !showPastSelfSuggestion) {
-      const timer = setTimeout(() => {
-        setShowPastSelfSuggestion(true);
-      }, 2000); // Show after 2 seconds of typing
-      return () => clearTimeout(timer);
-    }
-  }, [focusIntention, dayCount, showPastSelfSuggestion]);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (realignTextareaRef.current) {
-      realignTextareaRef.current.style.height = 'auto';
-      realignTextareaRef.current.style.height = `${Math.min(realignTextareaRef.current.scrollHeight, 80)}px`;
-    }
-  }, [realignReason]);
-
-  // Auto-toggle alignment when user types in re-align reason
-  useEffect(() => {
-    if (realignReason.trim() && alignment !== 'realign') {
-      setAlignment('realign');
-    }
-  }, [realignReason, alignment]);
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,16 +130,13 @@ export function MorningSegment({ className }: MorningSegmentProps) {
         if (e.key === 'Enter') {
           e.preventDefault();
           handleComplete();
-        } else if (e.altKey && e.key === 'a') {
-          e.preventDefault();
-          setAlignment(alignment === 'aligned' ? 'realign' : 'aligned');
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [alignment]);
+  }, []);
 
   const getMoodLabel = (value: number) => {
     if (value >= 85) return 'Wonderful';
@@ -101,53 +147,74 @@ export function MorningSegment({ className }: MorningSegmentProps) {
   };
 
   const getEnergyLabel = (value: number) => {
-    // Map 0-100 to 1-5 scale
     const scaleIndex = Math.floor((value / 100) * 4);
     const clampedIndex = Math.max(0, Math.min(4, scaleIndex));
     return energyScale[clampedIndex].label;
   };
 
-  const getEnergyIcon = (value: number) => {
-    const scaleIndex = Math.floor((value / 100) * 4);
-    const clampedIndex = Math.max(0, Math.min(4, scaleIndex));
-    return energyScale[clampedIndex].icon;
-  };
-
-  const handleComplete = () => {
-    if (!focusIntention.trim()) {
-      toast.error("Please share what will move you forward today.");
+  const handleComplete = async () => {
+    if (!priority) {
+      toast.error("Pick your top priority for today.");
       return;
     }
 
-    if (alignment === null) {
-      toast.error("Please check your alignment with yesterday's intention.");
+    if (!priorityNote.trim()) {
+      toast.error("Add a quick note about that priority.");
       return;
     }
 
-    // Post check-in integration toast
-    toast.success("Daily Compass saved — you'll see how it shapes your North Star in Log tonight.", {
-      duration: 3000,
-      position: 'bottom-center'
-    });
+    try {
+      // Create interactions for mood, energy, and priority
+      const interactions = [
+        {
+          kind: 'compass' as const,
+          promptText: 'How are you feeling?',
+          numericAnswer: mood[0],
+          captureMethod: 'slider' as const,
+          interactionMeta: { type: 'mood', scale: 'mood-scale' }
+        },
+        {
+          kind: 'compass' as const,
+          promptText: 'Which best describes your energy?',
+          numericAnswer: energy[0],
+          captureMethod: 'slider' as const,
+          interactionMeta: { type: 'energy', scale: 'energy-scale' }
+        },
+        {
+          kind: 'compass' as const,
+          promptText: 'Top Priority',
+          responseText: priority,
+          captureMethod: 'text' as const,
+          interactionMeta: { type: 'priority', priorityType: priority }
+        },
+        {
+          kind: 'compass' as const,
+          promptText: priorityNote ? placeholderByPriority[priority] : 'Priority Note',
+          responseText: priorityNote,
+          captureMethod: 'text' as const,
+          interactionMeta: { type: 'priority-note', priorityType: priority }
+        }
+      ];
 
-    console.log('Morning check-in completed:', {
-      mood: mood[0],
-      energy: energy[0],
-      energyLabel: getEnergyLabel(energy[0]),
-      focusIntention,
-      alignment,
-      realignReason
-    });
-  };
+      // Save all interactions
+      await Promise.all(
+        interactions.map(interaction => 
+          createInteractionMutation.mutateAsync(interaction)
+        )
+      );
 
-  const handleUsePastIntention = () => {
-    setFocusIntention(yesterdayIntention);
-    setAlignment('aligned');
-    setShowPastSelfSuggestion(false);
-  };
+      // Mark as completed
+      setIsCompleted(true);
 
-  const handleIgnorePastIntention = () => {
-    setShowPastSelfSuggestion(false);
+      toast.success("Daily Compass saved — you'll see how it shapes your North Star in Log tonight.", {
+        duration: 3000,
+        position: 'bottom-center'
+      });
+
+    } catch (error) {
+      console.error('Error saving compass data:', error);
+      toast.error("Failed to save your compass data. Please try again.");
+    }
   };
 
   const handleSkip = () => {
@@ -157,17 +224,85 @@ export function MorningSegment({ className }: MorningSegmentProps) {
     });
   };
 
+  // Handle error state
+  if (error) {
+    console.error('Error loading compass data:', error);
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={cn("bg-white rounded-xl border border-meld-ink/20 overflow-hidden", className)}>
+        <div className="p-6 lg:p-8 border-b border-meld-ink/20">
+          <div className="flex items-center gap-3 mb-2">
+            <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+            <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
+          </div>
+          <div className="flex items-center gap-3 text-meld-ink/60">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Loading compass data...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show no data message for previous days
+  if (!isToday && !currentCompass) {
+    return (
+      <div className={cn("bg-white rounded-xl border border-meld-ink/20 overflow-hidden", className)}>
+        <div className="p-6 lg:p-8 border-b border-meld-ink/20">
+          <div className="flex items-center gap-3 mb-2">
+            <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+            <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
+          </div>
+          <p className="text-sm text-meld-ink/50">
+            No compass data available for {new Date(currentDate).toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'short',
+              day: 'numeric',
+            })}.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Determine if form should be disabled (submitted state)
+  const isSubmitted = currentCompass && !isToday;
+  const isCompassComplete = currentCompass && currentCompass.mood !== undefined && currentCompass.energy !== undefined && currentCompass.priority && currentCompass.priorityNote;
+  const isDisabled = Boolean(isSubmitted) || createInteractionMutation.isLoading || isCompleted || Boolean(isCompassComplete);
+
   return (
-    <div className={cn("bg-white rounded-xl border border-meld-ink/20 overflow-hidden", className)} data-component="morning-segment">
+    <div className={cn(
+      "bg-white rounded-xl border border-meld-ink/20 overflow-hidden",
+      (isDisabled || isCompleted) && "opacity-60",
+      className
+    )} data-component="morning-segment">
       {/* Header */}
       <div className="p-6 lg:p-8 border-b border-meld-ink/20">
-        <div className="flex items-center gap-3 mb-2">
-          <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
-          <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 mb-2">
+            <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+            <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
+          </div>
+          {(isSubmitted || isCompleted || isCompassComplete) && (
+            <div className="bg-meld-sage text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2">
+              <CheckCircle className="w-3 h-3" strokeWidth={2} />
+              Completed
+            </div>
+          )}
         </div>
-        <p className="text-sm text-meld-ink/70 leading-relaxed">
-          Orient for today.
-        </p>
+        {(isCompleted || isCompassComplete) ? (
+          <div className="flex items-center gap-2 text-sm text-meld-sage font-medium">
+            <CheckCircle className="w-4 h-4" strokeWidth={2} />
+            <span>Great job! Your compass is set for today.</span>
+          </div>
+        ) : (
+          <p className="text-sm text-meld-ink/70 leading-relaxed">
+            Orient for today.
+          </p>
+        )}
       </div>
 
       <div className="p-6 lg:p-8 space-y-8">
@@ -184,10 +319,10 @@ export function MorningSegment({ className }: MorningSegmentProps) {
             
             {/* Icon anchors */}
             <div className="flex justify-between px-1 mb-3">
-              {moodIcons.map((mood, index) => {
-                const IconComponent = mood.icon;
+              {moodIcons.map((moodIcon, index) => {
+                const IconComponent = moodIcon.icon;
                 return (
-                  <IconComponent key={index} className={cn("w-6 h-6", mood.color)} strokeWidth={2} />
+                  <IconComponent key={index} className={cn("w-6 h-6", moodIcon.color)} strokeWidth={2} />
                 );
               })}
             </div>
@@ -200,6 +335,7 @@ export function MorningSegment({ className }: MorningSegmentProps) {
               className="w-full daily-compass-slider"
               aria-valuetext={`Feeling ${mood[0]}/100: ${getMoodLabel(mood[0])}`}
               role="slider"
+              disabled={isDisabled}
             />
           </div>
 
@@ -232,85 +368,75 @@ export function MorningSegment({ className }: MorningSegmentProps) {
               className="w-full daily-compass-slider"
               aria-valuetext={`Energy: ${getEnergyLabel(energy[0])}`}
               role="slider"
+              disabled={isDisabled}
             />
           </div>
         </div>
 
-        {/* Focus Intention - Full width */}
+        {/* Priority Selector - Full width */}
         <div className="space-y-4">
-          <label className="text-sm font-medium text-meld-ink block">Focus Intention</label>
+          <label className="text-sm font-medium text-meld-ink block">Top Priority</label>
+          <div className="flex flex-wrap gap-3">
+            {priorityOptions.map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                onClick={() => !isDisabled && setPriority(value)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all duration-200',
+                  priority === value
+                    ? 'bg-meld-sage text-white shadow-sm'
+                    : 'bg-meld-graysmoke/40 text-meld-ink/70 hover:bg-meld-graysmoke/60',
+                  isDisabled && 'cursor-not-allowed opacity-50'
+                )}
+                disabled={isDisabled}
+              >
+                <Icon className="w-4 h-4" strokeWidth={1.5} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Priority Note - Full width */}
+        <div className="space-y-4">
+          <label className="text-sm font-medium text-meld-ink block">Priority Note</label>
           <textarea
-            value={focusIntention}
-            onChange={(e) => setFocusIntention(e.target.value)}
-            placeholder="In one sentence, what will move you forward today?"
+            value={priorityNote}
+            onChange={(e) => setPriorityNote(e.target.value)}
+            placeholder={
+              priority
+                ? placeholderByPriority[priority]
+                : 'Pick a priority above to see a tailored prompt…'
+            }
             className="w-full p-4 border border-meld-graysmoke rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-meld-sage/50 focus:border-meld-sage bg-white text-meld-ink placeholder-meld-ink/40 text-sm leading-relaxed min-h-[100px]"
             rows={3}
+            disabled={isDisabled}
           />
-          {focusIntention.length > 0 && (
-            <div className="text-xs text-meld-ink/50 text-right">
-              {focusIntention.length} characters
-            </div>
-          )}
-        </div>
-
-        {/* Alignment - Responsive grid */}
-        <div className="space-y-4">
-          <label className="text-sm font-medium text-meld-ink block">Alignment</label>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setAlignment('aligned')}
-              className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 meld-alignment-chip flex items-center gap-2",
-                alignment === 'aligned' 
-                  ? 'meld-alignment-chip-active' 
-                  : 'meld-alignment-chip-inactive'
-              )}
-            >
-              <Star className="w-3.5 h-3.5" strokeWidth={1.5} />
-              Aligned
-            </button>
-            <button
-              onClick={() => setAlignment('realign')}
-              className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 meld-alignment-chip flex items-center gap-2",
-                alignment === 'realign' 
-                  ? 'meld-alignment-chip-active' 
-                  : 'meld-alignment-chip-inactive'
-              )}
-            >
-              <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
-              Re-align
-            </button>
-          </div>
-          
-          {alignment === 'realign' && (
-            <div className="mt-5">
-              <Textarea
-                ref={realignTextareaRef}
-                placeholder="What's nudging you off-course?"
-                value={realignReason}
-                onChange={(e) => setRealignReason(e.target.value)}
-                className="min-h-[60px] max-h-20 resize-none border-meld-graysmoke focus:border-meld-sage overflow-hidden"
-                maxLength={120}
-                rows={2}
-              />
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Bottom Section */}
-      <div className="meld-bottom-section px-6 lg:px-8 pb-6 lg:pb-8">
-        <button className="meld-not-ready-link">
-          Skip for now
-        </button>
-        <button 
-          onClick={handleComplete}
-          className="meld-complete-button"
-        >
-          Complete Check-in
-        </button>
-      </div>
+      {/* Bottom Section - Only show for today if not completed */}
+      {(isToday && !isCompassComplete && !isCompleted) && (
+        <div className="meld-bottom-section px-6 lg:px-8 pb-6 lg:pb-8">
+          <button className="meld-not-ready-link" onClick={handleSkip}>
+            Skip for now
+          </button>
+          <button 
+            onClick={handleComplete}
+            className="meld-complete-button"
+            disabled={isDisabled}
+          >
+            {createInteractionMutation.isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Saving...
+              </>
+            ) : (
+              'Complete Check-in'
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
