@@ -1,21 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Frown, Meh, Smile, Laugh, Sparkles, Moon, Coffee, Focus, Zap, Flame, Loader2, Users, BookOpen, ListChecks, HeartPulse, Handshake, PenTool, Bed, Brain, CheckCircle } from 'lucide-react';
+import { Target, Frown, Meh, Smile, Laugh, Sparkles, Moon, Coffee, Focus, Zap, Flame, Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
 import { Slider } from '../ui/Slider';
 import { toast } from 'sonner';
 import { cn } from '~/utils';
 import { CompassView } from '../../data-provider/Views';
-import { useCreateInteraction } from '../../hooks/useInteractions';
-
-type Priority =
-  | 'deepWork'
-  | 'learning'
-  | 'admin'
-  | 'wellbeing'
-  | 'relationships'
-  | 'creative'
-  | 'rest'
-  | 'collaboration'
-  | 'mindset';
+import { useCreateInteraction, useUpdateInteraction, useCompassInteractionsForDate } from '../../hooks/useInteractions';
 
 interface MorningSegmentProps {
   className?: string;
@@ -44,67 +33,30 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
     ? compassData.find(compass => compass.date === currentDate)
     : null;
 
-  // Priority options configuration
-  const priorityOptions: { value: Priority; label: string; Icon: typeof Target }[] = [
-    { value: 'deepWork',       label: 'Deep Work',      Icon: Target },
-    { value: 'collaboration',  label: 'Collaboration',  Icon: Users },
-    { value: 'learning',       label: 'Learning',       Icon: BookOpen },
-    { value: 'admin',          label: 'Admin',          Icon: ListChecks },
-    { value: 'wellbeing',      label: 'Well-being',     Icon: HeartPulse },
-    { value: 'relationships',  label: 'Relationships',  Icon: Handshake },
-    { value: 'creative',       label: 'Creative Play',  Icon: PenTool },
-    { value: 'rest',           label: 'Rest / Reset',   Icon: Bed },
-    { value: 'mindset',        label: 'Mindset Shift',  Icon: Brain },
-  ];
+  // Determine if compass is complete
+  const isCompassComplete = currentCompass && currentCompass.mood !== undefined && currentCompass.energy !== undefined;
 
-  // Dynamic placeholder map
-  const placeholderByPriority: Record<Priority, string> = {
-    deepWork:      'What concrete output will prove today\'s focus sprint was a win?',
-    collaboration: 'Which conversation must finish with a clear decision or next step?',
-    learning:      'What new idea or skill will you deliberately practice?',
-    admin:         'Which lingering task will you close out and remove from your mental tabs?',
-    wellbeing:     'What specific action will leave you physically recharged by tonight?',
-    relationships: 'Who will you invest in today, and how will you show up for them?',
-    creative:      'What tangible creative thing will you finish for the joy of it?',
-    rest:          'What will make today feel restorative when you look back this evening?',
-    mindset:       'Which mindset will you practice in every interaction, and how will you know it stuck?'
-  };
-
+  // State for interactive form
   const [mood, setMood] = useState([currentCompass?.mood || 70]);
   const [energy, setEnergy] = useState([currentCompass?.energy || 60]);
-  const [priority, setPriority] = useState<Priority | null>(null);
-  const [priorityNote, setPriorityNote] = useState('');
+  const [note, setNote] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
+  const [showJournalingScreen, setShowJournalingScreen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [existingInteractionIds, setExistingInteractionIds] = useState<{
+    mood?: string;
+    energy?: string;
+    note?: string;
+  }>({});
 
   const createInteractionMutation = useCreateInteraction();
+  const updateInteractionMutation = useUpdateInteraction();
 
-  // Update state when compass data changes
-  useEffect(() => {
-    if (currentCompass) {
-      setMood([currentCompass.mood || 70]);
-      setEnergy([currentCompass.energy || 60]);
-      
-      // Load priority and priority note from compass data
-      if (currentCompass.priority) {
-        setPriority(currentCompass.priority as Priority);
-      } else {
-        setPriority(null);
-      }
-      
-      if (currentCompass.priorityNote) {
-        setPriorityNote(currentCompass.priorityNote);
-      } else {
-        setPriorityNote('');
-      }
-    } else {
-      // Reset state when no compass data
-      setMood([70]);
-      setEnergy([60]);
-      setPriority(null);
-      setPriorityNote('');
-    }
-  }, [currentCompass, currentDate]);
-
+  // Get existing compass interactions for today when editing
+  const { data: existingInteractions } = useCompassInteractionsForDate(
+    isEditing ? currentDate : ''
+  );
+  
   // Professional mood icons using Lucide
   const moodIcons = [
     { icon: Frown, color: 'text-meld-ink/40' },
@@ -123,6 +75,61 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
     { icon: Flame, label: 'Powerful', description: 'Peak momentum, confident, on-fire', color: 'text-meld-sand' }
   ];
 
+  // Helper functions
+  const getMoodLabel = (value: number) => {
+    if (value >= 85) return 'Wonderful';
+    if (value >= 70) return 'Great';
+    if (value >= 55) return 'Good';
+    if (value >= 40) return 'Okay';
+    return 'Low';
+  };
+
+  const getEnergyLabel = (value: number) => {
+    const scaleIndex = Math.floor((value / 100) * 4);
+    const clampedIndex = Math.max(0, Math.min(4, scaleIndex));
+    return energyScale[clampedIndex].label;
+  };
+
+  // Update state when compass data changes (only for today)
+  useEffect(() => {
+    if (isToday && currentCompass) {
+      setMood([currentCompass.mood || 70]);
+      setEnergy([currentCompass.energy || 60]);
+      setNote(currentCompass.note || '');
+      // If there's existing data, determine which screen to show
+      const hasSliderData = currentCompass.mood !== undefined && currentCompass.energy !== undefined;
+      const hasNoteData = currentCompass.note;
+      setShowJournalingScreen(hasSliderData && !hasNoteData);
+    } else if (isToday) {
+      // Reset state when no compass data for today
+      setMood([70]);
+      setEnergy([60]);
+      setNote('');
+      setShowJournalingScreen(false);
+    }
+  }, [currentCompass, currentDate, isToday]);
+
+  // Populate existing interaction IDs when editing
+  useEffect(() => {
+    if (isEditing && existingInteractions) {
+      const ids: { mood?: string; energy?: string; note?: string } = {};
+      
+      existingInteractions.forEach((interaction: any) => {
+        const type = interaction.interactionMeta?.type;
+        if (type && interaction._id) {
+          ids[type as keyof typeof ids] = interaction._id;
+          
+          // Set the saved note interaction ID if it exists
+          if (type !== 'mood' && type !== 'energy') {
+            // setSavedNoteInteractionId(interaction._id); // This line is removed
+          }
+        }
+      });
+      
+      setExistingInteractionIds(ids);
+    }
+  }, [isEditing, existingInteractions]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -138,79 +145,208 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const getMoodLabel = (value: number) => {
-    if (value >= 85) return 'Wonderful';
-    if (value >= 70) return 'Great';
-    if (value >= 55) return 'Good';
-    if (value >= 40) return 'Okay';
-    return 'Low';
+  // Event handlers
+  const handleContinueToJournaling = () => {
+    setShowJournalingScreen(true);
   };
 
-  const getEnergyLabel = (value: number) => {
-    const scaleIndex = Math.floor((value / 100) * 4);
-    const clampedIndex = Math.max(0, Math.min(4, scaleIndex));
-    return energyScale[clampedIndex].label;
+  const handleBackToSliders = () => {
+    setShowJournalingScreen(false);
+    setIsEditing(false);
   };
+
+  const handleEditCompass = () => {
+    // Enter edit mode and populate with existing data
+    setIsEditing(true);
+    setIsCompleted(false);
+    // Reset existing interaction IDs - they'll be populated by the useEffect
+    setExistingInteractionIds({});
+    
+    if (currentCompass) {
+      setMood([currentCompass.mood || 70]);
+      setEnergy([currentCompass.energy || 60]);
+      setNote(currentCompass.note || '');
+      // If there's a note, start on journaling screen
+      if (currentCompass.note) {
+        setShowJournalingScreen(true);
+      } else {
+        setShowJournalingScreen(false);
+      }
+    }
+  };
+
+  // const handleExtractCommitment = async () => { // This function is removed
+  //   console.log('🚀 handleExtractCommitment called with savedNoteInteractionId:', savedNoteInteractionId);
+  //   if (!savedNoteInteractionId) return;
+    
+  //   setIsExtracting(true);
+  //   extractMutation.mutate(savedNoteInteractionId, {
+  //     onSuccess: (data) => {
+  //       console.log('✅ Commitment extraction success:', data);
+  //       if (data.hasCommitment && data.commitment) {
+  //         setExtractedCommitment(data.commitment);
+  //         setEditedCommitment(data.commitment);
+  //         setShowCommitmentScreen(true);
+  //       } else {
+  //         // No commitment found, skip to completion
+  //         console.log('ℹ️ No commitment found in journaling');
+  //         toast.info("No specific commitment found in your journaling.");
+  //       }
+  //       setIsExtracting(false);
+  //     },
+  //     onError: (error) => {
+  //       console.error('❌ Commitment extraction error:', error);
+  //       setIsExtracting(false);
+  //       toast.error("Failed to analyze your journaling.");
+  //     }
+  //   });
+  // };
+
+  // const handlePostCommitment = () => { // This function is removed
+  //   if (!editedCommitment.trim() || !savedNoteInteractionId) return;
+    
+  //   postMutation.mutate({
+  //     commitmentText: editedCommitment,
+  //     interactionId: savedNoteInteractionId,
+  //     city: 'San Francisco' // TODO: Get from user profile
+  //   }, {
+  //     onSuccess: () => {
+  //       setShowCommunityScreen(true);
+  //     }
+  //   });
+  // };
+
+  // const handleSkipCommitment = () => { // This function is removed
+  //   toast.success("Your reflection is complete.", {
+  //     duration: 2000,
+  //     position: 'bottom-center'
+  //   });
+  // };
+
+  // const handleBackFromCommitment = () => { // This function is removed
+  //   setShowCommitmentScreen(false);
+  //   setShowJournalingScreen(true);
+  // };
+
+  // const handleBackFromCommunity = () => { // This function is removed
+  //   setShowCommunityScreen(false);
+  //   setShowCommitmentScreen(true);
+  // };
+
+  // const handleEditCompass = () => { // This function is removed
+  //   // Enter edit mode and populate with existing data
+  //   setIsEditing(true);
+  //   setIsCompleted(false);
+  //   // Reset all screen states
+  //   setShowCommitmentScreen(false);
+  //   setShowCommunityScreen(false);
+  //   // Clear commitment data
+  //   setExtractedCommitment('');
+  //   setEditedCommitment('');
+  //   setSavedNoteInteractionId(null);
+  //   // Reset existing interaction IDs - they'll be populated by the useEffect
+  //   setExistingInteractionIds({});
+    
+  //   if (currentCompass) {
+  //     setMood([currentCompass.mood || 70]);
+  //     setEnergy([currentCompass.energy || 60]);
+  //     setNote(currentCompass.note || '');
+  //     // If there's a note, start on journaling screen
+  //     if (currentCompass.note) {
+  //       setShowJournalingScreen(true);
+  //     } else {
+  //       setShowJournalingScreen(false);
+  //     }
+  //   }
+  // };
 
   const handleComplete = async () => {
-    if (!priority) {
-      toast.error("Pick your top priority for today.");
-      return;
-    }
-
-    if (!priorityNote.trim()) {
-      toast.error("Add a quick note about that priority.");
-      return;
-    }
-
     try {
-      // Create interactions for mood, energy, and priority
-      const interactions = [
+      // Prepare interaction data
+      const interactionData = [
         {
-          kind: 'compass' as const,
-          promptText: 'How are you feeling?',
-          numericAnswer: mood[0],
-          captureMethod: 'slider' as const,
-          interactionMeta: { type: 'mood', scale: 'mood-scale' }
+          type: 'mood',
+          data: {
+            kind: 'compass' as const,
+            promptText: 'How are you feeling?',
+            numericAnswer: mood[0],
+            captureMethod: 'slider' as const,
+            interactionMeta: { type: 'mood', scale: 'mood-scale' }
+          }
         },
         {
-          kind: 'compass' as const,
-          promptText: 'Which best describes your energy?',
-          numericAnswer: energy[0],
-          captureMethod: 'slider' as const,
-          interactionMeta: { type: 'energy', scale: 'energy-scale' }
-        },
-        {
-          kind: 'compass' as const,
-          promptText: 'Top Priority',
-          responseText: priority,
-          captureMethod: 'text' as const,
-          interactionMeta: { type: 'priority', priorityType: priority }
-        },
-        {
-          kind: 'compass' as const,
-          promptText: priorityNote ? placeholderByPriority[priority] : 'Priority Note',
-          responseText: priorityNote,
-          captureMethod: 'text' as const,
-          interactionMeta: { type: 'priority-note', priorityType: priority }
+          type: 'energy',
+          data: {
+            kind: 'compass' as const,
+            promptText: 'Which best describes your energy?',
+            numericAnswer: energy[0],
+            captureMethod: 'slider' as const,
+            interactionMeta: { type: 'energy', scale: 'energy-scale' }
+          }
         }
       ];
 
-      // Save all interactions
-      await Promise.all(
-        interactions.map(interaction => 
-          createInteractionMutation.mutateAsync(interaction)
-        )
+      let noteInteractionId = null;
+
+      // Add note interaction if there's content
+      if (note.trim()) {
+        interactionData.push({
+          type: 'note',
+          data: {
+            kind: 'compass',
+            promptText: 'Daily Note',
+            responseText: note.trim(),
+            captureMethod: 'text',
+            interactionMeta: { type: 'note' }
+          } as any
+        });
+      }
+
+      console.log('💾 Saving interactions:', { 
+        interactionCount: interactionData.length,
+        hasNote: !!note.trim(),
+        isEditing
+      });
+
+      // Save/update all interactions
+      const results = await Promise.all(
+        interactionData.map(async ({ type, data }) => {
+          const existingId = existingInteractionIds[type as keyof typeof existingInteractionIds];
+          
+          if (existingId && isEditing) {
+            console.log(`🔄 Updating ${type} interaction:`, existingId);
+            // Update existing interaction
+            return updateInteractionMutation.mutateAsync({ id: existingId, data });
+          } else {
+            console.log(`➕ Creating new ${type} interaction`);
+            // Create new interaction
+            return createInteractionMutation.mutateAsync(data);
+          }
+        })
       );
+
+      console.log('✅ All interactions saved:', results);
+
+      // Get the note interaction ID if it was created/updated
+      if (note.trim()) {
+        const noteIndex = interactionData.findIndex(item => item.type === 'note');
+        if (noteIndex !== -1 && results[noteIndex]?._id) {
+          noteInteractionId = results[noteIndex]._id;
+          // setSavedNoteInteractionId(noteInteractionId); // This line is removed
+          console.log('📝 Note interaction saved with ID:', noteInteractionId);
+        } else {
+          console.error('❌ Failed to get note interaction ID:', {
+            noteIndex,
+            result: results[noteIndex],
+            resultId: results[noteIndex]?._id
+          });
+        }
+      }
 
       // Mark as completed
       setIsCompleted(true);
-
-      toast.success("Daily Compass saved — you'll see how it shapes your North Star in Log tonight.", {
-        duration: 3000,
-        position: 'bottom-center'
-      });
-
+      setIsEditing(false); // Reset editing state
+  
     } catch (error) {
       console.error('Error saving compass data:', error);
       toast.error("Failed to save your compass data. Please try again.");
@@ -227,6 +363,17 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
   // Handle error state
   if (error) {
     console.error('Error loading compass data:', error);
+    return (
+      <div className={cn("bg-white rounded-xl border border-meld-ink/20 overflow-hidden", className)}>
+        <div className="p-6 lg:p-8 border-b border-meld-ink/20">
+          <div className="flex items-center gap-3 mb-2">
+            <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+            <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
+          </div>
+          <p className="text-sm text-red-600">Error loading compass data</p>
+        </div>
+      </div>
+    );
   }
 
   // Show loading state
@@ -268,175 +415,273 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
     );
   }
 
-  // Determine if form should be disabled (submitted state)
-  const isSubmitted = currentCompass && !isToday;
-  const isCompassComplete = currentCompass && currentCompass.mood !== undefined && currentCompass.energy !== undefined && currentCompass.priority && currentCompass.priorityNote;
-  const isDisabled = Boolean(isSubmitted) || createInteractionMutation.isLoading || isCompleted || Boolean(isCompassComplete);
+  // Show summary view for previous days WITH data, or for today when completed (unless actively editing or in commitment flow)
+  const shouldShowSummary = (!isToday && currentCompass) || 
+                           (isToday && !isEditing && (isCompleted || isCompassComplete) && !showJournalingScreen);
+  
+  // Debug logging
+  console.log('🔍 MorningSegment render state:', {
+    isToday,
+    isEditing,
+    isCompleted,
+    isCompassComplete,
+    showJournalingScreen,
+    shouldShowSummary,
+    // extractedCommitment: extractedCommitment.substring(0, 50) + '...' // This line is removed
+  });
+  
+  if (shouldShowSummary) {
+    // Use current state data if we just completed editing, otherwise use database data
+    const displayData = isCompleted ? {
+      mood: mood[0],
+      energy: energy[0],
+      note: note
+    } : currentCompass;
+
+    return (
+      <div className={cn("bg-white rounded-xl border border-meld-ink/20 overflow-hidden", className)}>
+        {/* Header */}
+        <div className="p-6 lg:p-8 border-b border-meld-ink/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 mb-2">
+              <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+              <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-meld-sage text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2">
+                <CheckCircle className="w-3 h-3" strokeWidth={2} />
+                Completed
+              </div>
+              {isToday && (
+                <button 
+                  onClick={handleEditCompass}
+                  className="text-meld-ink/60 hover:text-meld-ink text-sm font-medium transition-colors"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-meld-sage font-medium">
+            <CheckCircle className="w-4 h-4" strokeWidth={2} />
+            <span>
+              {isToday ? "Great job! Your compass is set for today." : "Compass completed for this day."}
+            </span>
+          </div>
+        </div>
+
+        {/* Summary Data */}
+        <div className="p-6 lg:p-8 space-y-6 bg-meld-graysmoke/10">
+          {/* Mood and Energy Summary */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-meld-ink/70">Mood:</span>
+              <span className="text-sm font-medium text-meld-ink">
+                {getMoodLabel(displayData?.mood || 70)} ({displayData?.mood || 70})
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-meld-ink/70">Energy:</span>
+              <span className="text-sm font-medium text-meld-ink">
+                {getEnergyLabel(displayData?.energy || 60)} ({displayData?.energy || 60})
+              </span>
+            </div>
+          </div>
+
+          {/* Daily Note */}
+          {displayData?.note && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-meld-ink">Today's Intention:</h4>
+              <div className="bg-white rounded-lg p-4 border border-meld-ink/10">
+                <p className="text-sm text-meld-ink leading-relaxed">
+                  {displayData.note}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // INTERACTIVE FORM FOR TODAY ONLY (when not completed)
+  const isDisabled = createInteractionMutation.isLoading || isCompleted;
 
   return (
     <div className={cn(
       "bg-white rounded-xl border border-meld-ink/20 overflow-hidden",
-      (isDisabled || isCompleted) && "opacity-60",
+      isDisabled && "opacity-60",
       className
     )} data-component="morning-segment">
       {/* Header */}
       <div className="p-6 lg:p-8 border-b border-meld-ink/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 mb-2">
-            <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
-            <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
-          </div>
-          {(isSubmitted || isCompleted || isCompassComplete) && (
-            <div className="bg-meld-sage text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2">
-              <CheckCircle className="w-3 h-3" strokeWidth={2} />
-              Completed
-            </div>
-          )}
+        <div className="flex items-center gap-3 mb-2">
+          <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+          <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
         </div>
-        {(isCompleted || isCompassComplete) ? (
-          <div className="flex items-center gap-2 text-sm text-meld-sage font-medium">
-            <CheckCircle className="w-4 h-4" strokeWidth={2} />
-            <span>Great job! Your compass is set for today.</span>
-          </div>
-        ) : (
-          <p className="text-sm text-meld-ink/70 leading-relaxed">
-            Orient for today.
-          </p>
-        )}
+        <p className="text-sm text-meld-ink/70 leading-relaxed">
+          {showJournalingScreen 
+            ? 'Take a moment to visualize your day ahead.' 
+            : 'Orient for today.'
+          }
+        </p>
       </div>
 
-      <div className="p-6 lg:p-8 space-y-8">
-        {/* Mood and Energy Sliders - Side by side on larger screens */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12">
-          {/* Mood Slider */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-meld-ink">How are you feeling?</label>
-              <span className="text-sm text-meld-ink/60 font-medium">
-                {getMoodLabel(mood[0])}
-              </span>
-            </div>
-            
-            {/* Icon anchors */}
-            <div className="flex justify-between px-1 mb-3">
-              {moodIcons.map((moodIcon, index) => {
-                const IconComponent = moodIcon.icon;
-                return (
-                  <IconComponent key={index} className={cn("w-6 h-6", moodIcon.color)} strokeWidth={2} />
-                );
-              })}
-            </div>
-            
-            <Slider
-              value={mood}
-              onValueChange={setMood}
-              max={100}
-              step={5}
-              className="w-full daily-compass-slider"
-              aria-valuetext={`Feeling ${mood[0]}/100: ${getMoodLabel(mood[0])}`}
-              role="slider"
-              disabled={isDisabled}
-            />
-          </div>
+      {/* Interactive Content */}
+      <div className="transition-all duration-300 ease-in-out">
+        {showJournalingScreen ? (
+          // Phase 2: Full-Screen Journaling
+          <div className="min-h-[60vh] flex flex-col animate-fade-in">
+            {/* Journaling Content */}
+            <div className="flex-1 p-8 lg:p-12 space-y-8">
+              {/* Science-backed prompt with generous spacing */}
+              <div className="max-w-2xl mx-auto text-center space-y-6">
+                <p className="text-sm text-meld-ink/60 leading-relaxed">
+                  Studies show that mentally rehearsing your day in the morning boosts focus and follow-through.
+                </p>
+                <h3 className="text-2xl font-serif text-meld-ink leading-relaxed">
+                  With that in mind, what does a great version of today look like for you?
+                </h3>
+                
+                {/* Breathing dot animation */}
+                <div className="flex justify-center pt-2">
+                  <div className="w-2 h-2 bg-meld-sage/30 rounded-full animate-pulse"></div>
+                </div>
+              </div>
 
-          {/* Energy Slider - Enhanced */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-meld-ink">
-                Which best describes your energy?
-              </label>
-              <span className="text-sm text-meld-ink/60 font-medium">
-                {getEnergyLabel(energy[0])}
-              </span>
-            </div>
-            
-            {/* Energy icon anchors */}
-            <div className="flex justify-between px-1 mb-3">
-              {energyScale.map((item, index) => {
-                const IconComponent = item.icon;
-                return (
-                  <IconComponent key={index} className={cn("w-6 h-6", item.color)} strokeWidth={2} />
-                );
-              })}
-            </div>
-            
-            <Slider
-              value={energy}
-              onValueChange={setEnergy}
-              max={100}
-              step={5}
-              className="w-full daily-compass-slider"
-              aria-valuetext={`Energy: ${getEnergyLabel(energy[0])}`}
-              role="slider"
-              disabled={isDisabled}
-            />
-          </div>
-        </div>
+              {/* Full-width journaling area */}
+              <div className="max-w-3xl mx-auto">
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="What does today look like?"
+                  className="w-full p-6 border-0 bg-transparent resize-none focus:outline-none text-meld-ink placeholder-meld-ink/40 text-base leading-relaxed min-h-[300px] font-serif"
+                  disabled={isDisabled}
+                  autoFocus
+                />
+              </div>
 
-        {/* Priority Selector - Full width */}
-        <div className="space-y-4">
-          <label className="text-sm font-medium text-meld-ink block">Top Priority</label>
-          <div className="flex flex-wrap gap-3">
-            {priorityOptions.map(({ value, label, Icon }) => (
-              <button
-                key={value}
-                onClick={() => !isDisabled && setPriority(value)}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all duration-200',
-                  priority === value
-                    ? 'bg-meld-sage text-white shadow-sm'
-                    : 'bg-meld-graysmoke/40 text-meld-ink/70 hover:bg-meld-graysmoke/60',
-                  isDisabled && 'cursor-not-allowed opacity-50'
-                )}
+              {/* Gentle affirmation after user starts typing */}
+              {note.length > 20 && (
+                <div className="text-center fade-in">
+                  <p className="text-sm text-meld-sage/80 italic">
+                    You're doing great.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Navigation */}
+            <div className="border-t border-meld-ink/10 p-6 lg:p-8 flex items-center justify-between bg-meld-graysmoke/20">
+              <button 
+                onClick={handleBackToSliders}
+                className="text-meld-ink/60 hover:text-meld-ink text-sm font-medium transition-colors"
                 disabled={isDisabled}
               >
-                <Icon className="w-4 h-4" strokeWidth={1.5} />
-                {label}
+                ← Back
               </button>
-            ))}
+              
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={handleComplete}
+                  className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
+                  disabled={isDisabled}
+                >
+                  {createInteractionMutation.isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save & Close'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          // Phase 1: Mood and Energy Sliders
+          <div className="p-6 lg:p-8 space-y-8 meld-animate-in">
+            {/* Mood and Energy Sliders - Side by side on larger screens */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12">
+              {/* Mood Slider */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-meld-ink">How are you feeling?</label>
+                  <span className="text-sm text-meld-ink/60 font-medium">
+                    {getMoodLabel(mood[0])}
+                  </span>
+                </div>
+                
+                {/* Icon anchors */}
+                <div className="flex justify-between px-1 mb-3">
+                  {moodIcons.map((moodIcon, index) => {
+                    const IconComponent = moodIcon.icon;
+                    return (
+                      <IconComponent key={index} className={cn("w-6 h-6", moodIcon.color)} strokeWidth={2} />
+                    );
+                  })}
+                </div>
+                
+                <Slider
+                  value={mood}
+                  onValueChange={setMood}
+                  max={100}
+                  step={5}
+                  className="w-full daily-compass-slider"
+                  aria-valuetext={`Feeling ${mood[0]}/100: ${getMoodLabel(mood[0])}`}
+                  role="slider"
+                  disabled={isDisabled}
+                />
+              </div>
 
-        {/* Priority Note - Full width */}
-        <div className="space-y-4">
-          <label className="text-sm font-medium text-meld-ink block">Priority Note</label>
-          <textarea
-            value={priorityNote}
-            onChange={(e) => setPriorityNote(e.target.value)}
-            placeholder={
-              priority
-                ? placeholderByPriority[priority]
-                : 'Pick a priority above to see a tailored prompt…'
-            }
-            className="w-full p-4 border border-meld-graysmoke rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-meld-sage/50 focus:border-meld-sage bg-white text-meld-ink placeholder-meld-ink/40 text-sm leading-relaxed min-h-[100px]"
-            rows={3}
-            disabled={isDisabled}
-          />
-        </div>
+              {/* Energy Slider - Enhanced */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-meld-ink">
+                    Which best describes your energy?
+                  </label>
+                  <span className="text-sm text-meld-ink/60 font-medium">
+                    {getEnergyLabel(energy[0])}
+                  </span>
+                </div>
+                
+                {/* Energy icon anchors */}
+                <div className="flex justify-between px-1 mb-3">
+                  {energyScale.map((item, index) => {
+                    const IconComponent = item.icon;
+                    return (
+                      <IconComponent key={index} className={cn("w-6 h-6", item.color)} strokeWidth={2} />
+                    );
+                  })}
+                </div>
+                
+                <Slider
+                  value={energy}
+                  onValueChange={setEnergy}
+                  max={100}
+                  step={5}
+                  className="w-full daily-compass-slider"
+                  aria-valuetext={`Energy: ${getEnergyLabel(energy[0])}`}
+                  role="slider"
+                  disabled={isDisabled}
+                />
+              </div>
+            </div>
+
+            {/* Continue Button */}
+            <div className="flex justify-center pt-4">
+              <button 
+                onClick={handleContinueToJournaling}
+                className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
+                disabled={isDisabled}
+              >
+                Save & Begin Entry
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Bottom Section - Only show for today if not completed */}
-      {(isToday && !isCompassComplete && !isCompleted) && (
-        <div className="meld-bottom-section px-6 lg:px-8 pb-6 lg:pb-8">
-          <button className="meld-not-ready-link" onClick={handleSkip}>
-            Skip for now
-          </button>
-          <button 
-            onClick={handleComplete}
-            className="meld-complete-button"
-            disabled={isDisabled}
-          >
-            {createInteractionMutation.isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Saving...
-              </>
-            ) : (
-              'Complete Check-in'
-            )}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

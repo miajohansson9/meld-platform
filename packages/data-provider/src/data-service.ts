@@ -850,9 +850,12 @@ export function createInteraction(data: any): Promise<any> {
   return request.post(endpoints.interactions(), data);
 }
 
-/* Reflection */
-export function generateReflectionQuestion(data: { date: string; intention: string; topics: string[] }): Promise<{ question: string; prompt: string }> {
-  return request.post(endpoints.generateReflectionQuestion(), data);
+export function getInteraction(id: string): Promise<any> {
+  return request.get(endpoints.interaction(id));
+}
+
+export function updateInteraction(id: string, data: any): Promise<any> {
+  return request.put(endpoints.interaction(id), data);
 }
 
 export function getInteractions(params?: {
@@ -865,6 +868,12 @@ export function getInteractions(params?: {
   return request.get(endpoints.interactions(), { params });
 }
 
-export function getInteraction(id: string): Promise<any> {
-  return request.get(endpoints.interaction(id));
+/* Reflection */
+export function generateReflectionQuestion(data: { 
+  date: string; 
+}): Promise<{ 
+  summary: string;
+  question: string; 
+}> {
+  return request.post(endpoints.generateReflectionQuestion(), data);
 }

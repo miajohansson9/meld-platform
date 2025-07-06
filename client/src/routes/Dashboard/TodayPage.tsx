@@ -67,20 +67,7 @@ export default function TodayPage() {
         <div className="flex-1 min-w-0 max-w-5xl">
           <TodayModule date={selectedDate} />
         </div>
-        
-        {/* Right Sidebar - Sticky Coach Feed */}
-        <div className="w-80 xl:w-96 bg-meld-canvas shrink-0">
-          <CoachFeedModule variant="preview" maxItems={2} />
-        </div>
       </div>
-
-      {/* Guided Overlay for Onboarding */}
-      {showOverlay && (
-        <GuidedOverlay 
-          step={overlayStep} 
-          onComplete={handleOverlayComplete}
-        />
-      )}
     </div>
   );
 } 

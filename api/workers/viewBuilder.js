@@ -37,6 +37,11 @@ async function upsertCompassView(doc) {
     update.alignment = doc.numericAnswer;
   }
   
+  // Handle note
+  if (metaType === 'note' && doc.responseText) {
+    update.note = doc.responseText;
+  }
+  
   // Handle priority selection
   if (metaType === 'priority' && doc.responseText) {
     update.priority = doc.responseText;

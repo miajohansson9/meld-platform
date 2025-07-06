@@ -95,7 +95,7 @@ export default function RegistrationWizard() {
   const [showAccessForm, setShowAccessForm] = useState<boolean>(false);
 
   const stepLabels = [
-    'Your name',
+    'Welcome to MELD!',
     'Personal details',
     'Secure account',
     'What brought you here',

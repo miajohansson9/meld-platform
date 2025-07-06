@@ -7,40 +7,29 @@ import { dataService } from 'librechat-data-provider';
 import {
   Sunset,
   CheckCircle,
-  Target,
-  Users,
-  BookOpen,
-  ListChecks,
-  HeartPulse,
-  Handshake,
-  PenTool,
-  Bed,
-  Brain,
   Flame,
   Coffee,
   Loader2,
-  ChevronDown,
 } from 'lucide-react';
 import { CompassView } from '../../data-provider/Views';
-import { EMOTIONAL_STATES_ARRAY, EmotionalState } from '../../common';
 
 // Utility to calculate streak count
 const getStreakCount = (compassData: CompassView[]): number => {
   if (!compassData || compassData.length === 0) return 0;
-
+  
   // Sort by date descending
   const sortedData = [...compassData]
     .filter(c => c.completion !== undefined || (c.mood !== undefined && c.energy !== undefined))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
+  
   let streak = 0;
   const today = new Date();
-
+  
   for (let i = 0; i < sortedData.length; i++) {
     const dataDate = new Date(sortedData[i].date);
     const expectedDate = new Date(today);
     expectedDate.setDate(today.getDate() - i);
-
+    
     // Check if this date matches the expected consecutive date
     if (dataDate.toDateString() === expectedDate.toDateString()) {
       streak++;
@@ -48,24 +37,9 @@ const getStreakCount = (compassData: CompassView[]): number => {
       break;
     }
   }
-
+  
   return streak;
 };
-
-// Priority options from MorningSegment with Lucide icons
-const priorityOptions = [
-  { value: 'deepWork', label: 'Deep Work', Icon: Target },
-  { value: 'collaboration', label: 'Collaboration', Icon: Users },
-  { value: 'learning', label: 'Learning', Icon: BookOpen },
-  { value: 'admin', label: 'Admin', Icon: ListChecks },
-  { value: 'wellbeing', label: 'Well-being', Icon: HeartPulse },
-  { value: 'relationships', label: 'Relationships', Icon: Handshake },
-  { value: 'creative', label: 'Creative Play', Icon: PenTool },
-  { value: 'rest', label: 'Rest / Reset', Icon: Bed },
-  { value: 'mindset', label: 'Mindset Shift', Icon: Brain },
-];
-
-// Emotional states are now imported from shared constants
 
 interface ReflectionSegmentProps {
   date: string;
@@ -101,16 +75,12 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
 }) => {
   const navigate = useNavigate();
   const { mutate: createInteraction } = useCreateInteraction();
-
-  // State - Updated for single emotional state selection with auto-generation
-  const [selectedState, setSelectedState] = useState<EmotionalState | null>(null);
-  const [customEmotion, setCustomEmotion] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
+  
+  // State - Simplified for new flow
   const [genQuestion, setGenQuestion] = useState<string>('');
-  const [genPrompt, setGenPrompt] = useState<string>('');
-  const [improvementNote, setImprovementNote] = useState('');
-  const [deeperNote, setDeeperNote] = useState('');
-  const [showDeeperPrompt, setShowDeeperPrompt] = useState(false);
+  const [genSummary, setGenSummary] = useState<string>('');
+  const [reflection, setReflection] = useState('');
+  const [showReflectionScreen, setShowReflectionScreen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -134,141 +104,65 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
   // Hydrate from existing data
   useEffect(() => {
     if (currentCompass) {
-      setImprovementNote(currentCompass.improvementNote || '');
+      setReflection(currentCompass.improvementNote || '');
     }
   }, [currentCompass]);
-  // Check if morning goal text should be truncated
-  const shouldTruncateGoal = (text: string) => {
-    return text && text.length > 80;
-  };
 
-  // Handle "Other" selection
-  const handleOtherSelect = () => {
-    if (isDisabled || generating) return;
+  const handleBeginReflection = async () => {
+    // Generate question first if not already generated
+    if (!genQuestion && !generating) {
+      setGenerating(true);
+      try {
+        const response = await dataService.generateReflectionQuestion({
+          date
+        });
 
-    setSelectedState(null);
-    setShowCustomInput(true);
-    setGenQuestion('');
-    setGenPrompt('');
-    setImprovementNote('');
-    setDeeperNote('');
-    setShowDeeperPrompt(false);
-  };
-
-  // Handle emotional state selection with auto-generation
-  const handleStateSelect = async (state: EmotionalState) => {
-    if (isDisabled || generating) return;
-
-    setSelectedState(state);
-    setShowCustomInput(false);
-    setCustomEmotion('');
-    setGenQuestion('');
-    setGenPrompt('');
-    setImprovementNote('');
-    setDeeperNote('');
-    setShowDeeperPrompt(false);
-
-    // Auto-generate question
-    setGenerating(true);
-    try {
-      const response = await dataService.generateReflectionQuestion({
-        date,
-        intention: currentCompass?.priorityNote || '',
-        topics: [state] // We'll update the backend to handle emotional states
-      });
-
-      setGenQuestion(response.question || '');
-      setGenPrompt(response.prompt || '');
-
-      // Focus on textarea after a brief delay to let the question render
-      setTimeout(() => {
-        const textarea = document.querySelector('[data-reflection-textarea]') as HTMLTextAreaElement;
-        textarea?.focus();
-      }, 100);
-
-    } catch (error: any) {
-      console.error('Failed to generate question:', error);
-      if (error.response?.status === 429) {
-        toast.error('Too many requests. Try again in a minute.');
-      } else {
-        toast.error('Couldn\'t generate a question, try again in a minute.');
+        setGenSummary(response.summary || '');
+        setGenQuestion(response.question || '');
+      } catch (error: any) {
+        console.error('Failed to generate question:', error);
+        if (error.response?.status === 429) {
+          toast.error('Too many requests. Try again in a minute.');
+        } else {
+          toast.error('Couldn\'t generate a question, try again in a minute.');
+        }
+        setGenerating(false);
+        return; // Don't proceed to reflection screen if question generation failed
+      } finally {
+        setGenerating(false);
       }
-      // Reset selection on error
-      setSelectedState(null);
-    } finally {
-      setGenerating(false);
     }
+
+    setShowReflectionScreen(true);
+    // Focus on textarea after a brief delay
+    setTimeout(() => {
+      const textarea = document.querySelector('[data-reflection-textarea]') as HTMLTextAreaElement;
+      textarea?.focus();
+    }, 100);
   };
 
-  // Handle custom emotion submission
-  const handleCustomEmotionSubmit = async () => {
-    if (!customEmotion.trim() || isDisabled || generating) return;
-
-    setGenerating(true);
-    try {
-      const response = await dataService.generateReflectionQuestion({
-        date,
-        intention: currentCompass?.priorityNote || '',
-        topics: [customEmotion.trim()]
-      });
-
-      setGenQuestion(response.question || '');
-      setGenPrompt(response.prompt || '');
-
-      // Focus on textarea after a brief delay
-      setTimeout(() => {
-        const textarea = document.querySelector('[data-reflection-textarea]') as HTMLTextAreaElement;
-        textarea?.focus();
-      }, 100);
-
-    } catch (error: any) {
-      console.error('Failed to generate question:', error);
-      if (error.response?.status === 429) {
-        toast.error('Too many requests. Try again in a minute.');
-      } else {
-        toast.error('Couldn\'t generate a question, try again in a minute.');
-      }
-    } finally {
-      setGenerating(false);
-    }
+  const handleBackToOverview = () => {
+    setShowReflectionScreen(false);
   };
 
-  // Get truncated goal text
-  const getTruncatedGoal = (text: string) => {
-    if (!text) return '';
-    return text.length > 80 ? text.substring(0, 80) + '...' : text;
-  };
-
-  // Validation and save - Updated to match MorningSegment pattern
+  // Validation and save - Updated for new flow
   const handleComplete = async () => {
-    if (!selectedState && !customEmotion.trim()) {
-      toast.error('Select how your day felt to continue.');
-      return;
-    }
-
-    if (!improvementNote.trim()) {
+    if (!reflection.trim()) {
       toast.error('Add your reflection to continue.');
       return;
     }
 
     setSaving(true);
     try {
-      // Combine main reflection and deeper reflection if provided
-      const fullReflection = deeperNote.trim()
-        ? `${improvementNote}\n\n--- Deeper Reflection ---\n${deeperNote}`
-        : improvementNote;
-
       await new Promise((resolve, reject) => {
         createInteraction({
           kind: 'reflection' as const,
           promptText: genQuestion || 'Evening reflection',
-          responseText: fullReflection,
-          interactionMeta: {
+          responseText: reflection,
+          interactionMeta: { 
             type: 'evening-reflection',
-            emotionalState: selectedState || customEmotion.trim(),
             generatedQuestion: genQuestion || null,
-            generatedPrompt: genPrompt || null,
-            hasDeeperReflection: !!deeperNote.trim()
+            generatedSummary: genSummary || null,
           }
         }, {
           onSuccess: resolve,
@@ -311,7 +205,7 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
         <div className="p-6 lg:p-8 border-b border-meld-ink/20">
           <div className="flex items-center gap-3 mb-2">
             <Sunset className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
-            <h2 className="font-serif text-xl text-meld-ink">Evening Reflection</h2>
+            <h2 className="font-serif text-xl text-meld-ink">Evening Check-In</h2>
           </div>
           <div className="flex items-center gap-3 text-meld-ink/60">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -329,7 +223,7 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
         <div className="p-6 lg:p-8 border-b border-meld-ink/20">
           <div className="flex items-center gap-3 mb-2">
             <Sunset className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
-            <h2 className="font-serif text-xl text-meld-ink">Evening Reflection</h2>
+            <h2 className="font-serif text-xl text-meld-ink">Evening Check-In</h2>
           </div>
           <p className="text-sm text-meld-ink/50">
             No reflection data available for {new Date(date).toLocaleDateString('en-US', {
@@ -359,7 +253,7 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 mb-2">
             <Sunset className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
-            <h2 className="font-serif text-xl text-meld-ink" tabIndex={0}>Evening Reflection</h2>
+            <h2 className="font-serif text-xl text-meld-ink" tabIndex={0}>Evening Check-In</h2>
             {/* Streak badge */}
             {streakCount >= 3 && (
               <div className="bg-meld-sage text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
@@ -382,174 +276,106 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
           </div>
         ) : (
           <p className="text-sm text-meld-ink/70 leading-relaxed">
-            How did today feel? Select what resonates most.
+            One quick question to close your day with intention.
           </p>
         )}
       </div>
 
-      <div className="p-6 lg:p-8 space-y-8">
-        {/* Emotional State Selection */}
-        {!isCompleted && (
-          <div className="space-y-4">
-            <label className="text-sm font-medium text-meld-ink block">
-              How did today feel?
-            </label>
-            <div className="flex flex-wrap gap-3">
-              {EMOTIONAL_STATES_ARRAY.filter(state => state.value !== 'other').map((state) => (
-                <button
-                  key={state.value}
-                  onClick={() => handleStateSelect(state.value)}
-                  disabled={isDisabled || generating}
-                  className={cn(
-                    'flex flex-col items-start gap-1 px-4 py-3 rounded-lg text-sm transition-all duration-200 text-left',
-                    selectedState === state.value
-                      ? 'bg-meld-sage text-white shadow-sm'
-                      : 'bg-meld-sage/5 text-meld-ink/70 hover:bg-meld-sage/10 border border-meld-graysmoke/30',
-                    isDisabled || generating ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                  )}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <span className="font-medium">{state.label}</span>
-                    {generating && selectedState === state.value && (
-                      <Loader2 className="w-3 h-3 animate-spin ml-auto" />
-                    )}
-                  </div>
-                  <span className={cn(
-                    "text-xs leading-relaxed",
-                    selectedState === state.value ? "text-white/90" : "text-meld-ink/50"
-                  )}>
-                    {state.description}
-                  </span>
-                </button>
-              ))}
-              {/* Other option */}
-              <button
-                onClick={handleOtherSelect}
-                disabled={isDisabled || generating}
-                className={cn(
-                  'flex flex-col items-start gap-1 px-4 py-3 rounded-lg text-sm transition-all duration-200 text-left',
-                  selectedState === 'other'
-                    ? 'bg-meld-sage text-white shadow-sm'
-                    : 'bg-meld-sage/5 text-meld-ink/70 hover:bg-meld-sage/10 border border-meld-graysmoke/30',
-                  isDisabled || generating ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      {/* Interactive Content */}
+      <div className="transition-all duration-300 ease-in-out">
+        {showReflectionScreen ? (
+          // Phase 2: Main Reflection Full-Screen
+          <div className="min-h-[60vh] flex flex-col animate-fade-in">
+            <div className="flex-1 p-8 lg:p-12 space-y-8">
+              <div className="max-w-2xl mx-auto text-center space-y-6">
+                {genSummary && (
+                  <p className="text-lg text-meld-ink/70 italic leading-relaxed">
+                    {genSummary}
+                  </p>
                 )}
-              >
-                <span className="font-medium">Other</span>
-                <span className={cn(
-                  "text-xs leading-relaxed",
-                  selectedState === "other" ? "text-white/90" : "text-meld-ink/50"
-                )}>
-                  Something else entirely
-                </span>
-              </button>
-            </div>
-
-            {/* Custom Input Section */}
-            {showCustomInput && (
-              <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
-                <label className="text-sm font-medium text-meld-ink block">
-                  Describe how your day felt:
-                </label>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={customEmotion}
-                    onChange={(e) => setCustomEmotion(e.target.value)}
-                    placeholder="e.g., nostalgic, determined, curious..."
-                    className="flex-1 p-3 border border-meld-graysmoke rounded-lg focus:outline-none focus:ring-2 focus:ring-meld-sage/50 focus:border-meld-sage bg-white text-meld-ink placeholder-meld-ink/40 text-sm"
-                    disabled={isDisabled || generating}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleCustomEmotionSubmit();
-                      }
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleCustomEmotionSubmit}
-                    disabled={!customEmotion.trim() || isDisabled || generating}
-                    className="px-4 py-3 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                  >
-                    {generating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      'Continue'
-                    )}
-                  </button>
+                <h3 className="text-2xl font-serif text-meld-ink leading-relaxed">
+                  {genQuestion}
+                </h3>
+                
+                <div className="flex justify-center pt-2">
+                  <div className="w-2 h-2 bg-meld-sage/30 rounded-full animate-pulse"></div>
                 </div>
               </div>
-            )}
 
-            {generating && !showCustomInput && (
-              <div className="flex items-center justify-center gap-2 text-meld-sage text-sm">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Generating personalized reflection question...</span>
+              <div className="max-w-3xl mx-auto">
+                <textarea
+                  data-reflection-textarea
+                  value={reflection}
+                  onChange={(e) => setReflection(e.target.value)}
+                  placeholder="Jot down your day here..."
+                  className="w-full p-6 border-0 bg-transparent resize-none focus:outline-none text-meld-ink placeholder-meld-ink/40 text-base leading-relaxed min-h-[300px] font-serif"
+                  disabled={saving}
+                  autoFocus
+                />
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Generated Question & Reflection */}
-        {(genQuestion || isCompleted) && (
-          <div className="space-y-4">
-            {genQuestion && <p>{genQuestion}</p>}
-            <div className="space-y-4">
-              <textarea
-                data-reflection-textarea
-                value={improvementNote}
-                onChange={(e) => !isDisabled && setImprovementNote(e.target.value)}
-                disabled={isDisabled}
-                placeholder={"Reflect on your day here..."}
-                className="w-full p-4 border border-meld-graysmoke rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-meld-sage/50 focus:border-meld-sage bg-white text-meld-ink placeholder-meld-ink/40 text-sm leading-relaxed min-h-[120px]"
-                rows={4}
-              />
+              {reflection.length > 20 && (
+                <div className="text-center fade-in">
+                  <p className="text-sm text-meld-sage/80 italic">
+                    You're doing great.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Deeper Reflection Section - Optional */}
-            {genPrompt && !isCompleted && (
-              <div className="space-y-4">
-                <button
-                  onClick={() => setShowDeeperPrompt(!showDeeperPrompt)}
-                  className="flex items-center gap-2 text-meld-sage hover:text-meld-sage/80 text-sm font-medium transition-colors"
+            <div className="border-t border-meld-ink/10 p-6 lg:p-8 flex items-center justify-between bg-meld-graysmoke/20">
+              <button 
+                onClick={handleBackToOverview}
+                className="text-meld-ink/60 hover:text-meld-ink text-sm font-medium transition-colors"
+                disabled={saving}
+              >
+                ← Back
+              </button>
+              
+              <div className="flex items-center gap-4">
+                <button 
+                  className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
+                  onClick={handleComplete}
+                  disabled={saving || !reflection.trim()}
                 >
-                  <ChevronDown className={cn(
-                    "w-4 h-4 transition-transform duration-200",
-                    showDeeperPrompt && "rotate-180"
-                  )} />
-                  Show deeper journaling question
+                  Save & finish
                 </button>
-
-                {showDeeperPrompt && (
-                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
-                    <div className="bg-meld-sage/5 rounded-lg p-4 border border-meld-sage/20">
-                      <h4 className="font-medium text-meld-ink text-sm leading-relaxed">
-                        {genPrompt}
-                      </h4>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-meld-ink/70 block">
-                        Deeper Reflection (Optional)
-                      </label>
-                      <textarea
-                        value={deeperNote}
-                        onChange={(e) => !isDisabled && setDeeperNote(e.target.value)}
-                        disabled={isDisabled}
-                        placeholder="Take a moment to explore this further..."
-                        className="w-full p-4 border border-meld-graysmoke rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-meld-sage/50 focus:border-meld-sage bg-white text-meld-ink placeholder-meld-ink/40 text-sm leading-relaxed min-h-[100px]"
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
-            )}
+            </div>
+          </div>
+        ) : (
+          // Phase 1: Overview with Begin Reflection button
+          <div className="p-6 lg:p-8 space-y-8">
+            <div className="text-center space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-serif text-meld-ink">
+                  Ready to wrap up today?
+                </h3>
+                <p className="text-sm text-meld-ink/70 leading-relaxed max-w-md mx-auto">
+                  Let's see how your intentions played out—take 30 seconds to jot it down.
+                </p>
+              </div>
+              
+              <button 
+                onClick={handleBeginReflection}
+                className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
+                disabled={isDisabled || generating}
+              >
+                {generating ? (
+                  <div className="flex flex-row">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Preparing question...
+                  </div>
+                ) : (
+                  'Start'
+                )}
+              </button>
+            </div>
           </div>
         )}
 
         {/* Low energy nudge */}
-        {currentCompass?.energy && currentCompass.energy < 40 && (
+        {currentCompass?.energy && currentCompass.energy < 40 && !showReflectionScreen && (
           <InlineNudge
             icon={Coffee}
             text="Low-energy day? Even brief reflections help you learn and grow."
@@ -557,35 +383,6 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
           />
         )}
       </div>
-
-      {/* Bottom Section - Only show if not completed */}
-      {!isCompleted && (
-        <div className="meld-bottom-section px-6 lg:px-8 pb-6 lg:pb-8">
-          <button
-            className="meld-not-ready-link"
-            onClick={handleSkip}
-            disabled={saving}
-            tabIndex={-1}
-            title="You can add a reflection any time tonight."
-          >
-            Skip for now
-          </button>
-          <button
-            onClick={handleComplete}
-            className="meld-complete-button"
-            disabled={isDisabled || !improvementNote.trim() || (!selectedState && !customEmotion.trim())}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Saving...
-              </>
-            ) : (
-              'Save Reflection'
-            )}
-          </button>
-        </div>
-      )}
 
       {/* Insight teaser - fade in after save */}
       {isCompleted && (

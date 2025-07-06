@@ -13,19 +13,20 @@ export const BLOCKER_OPTIONS = [
 ] as const;
 
 export interface CompassView {
-  _id: string;
-  user: string;
+  _id?: string;
+  user?: string;
   date: string;
   mood?: number;
   energy?: number;
-  alignment?: number;
-  priority?: string;
-  priorityNote?: string;
+  alignment?: number; // legacy
+  note?: string;
   reflectionInteractionId?: string;
   // Evening reflection fields
-  completion?: CompletionBand;
-  blocker?: 'priorityShift' | 'emergency' | 'lowEnergy' | 'overScoped' | 'other' | null;
-  improvementNote?: string | null;
+  completion?: number;
+  blocker?: string;
+  improvementNote?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WinsView {

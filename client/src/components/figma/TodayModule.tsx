@@ -28,10 +28,12 @@ export function TodayModule({ className, date }: TodayModuleProps) {
   const todayCompass = Array.isArray(compassData) 
     ? compassData.find(compass => compass.date === date)
     : null;
-  const compassCompleted = Boolean(todayCompass && todayCompass.mood !== undefined && todayCompass.energy !== undefined && todayCompass.priority && todayCompass.priorityNote);
+  // Fixed: Only check for mood and energy completion (no priority fields)
+  const compassCompleted = Boolean(todayCompass && todayCompass.mood !== undefined && todayCompass.energy !== undefined);
   
   // Determine if evening reflection should be prioritized
-  const prioritizeEveningReflection = isToday && compassCompleted || showEveningReflection;
+  // For today: prioritize evening if compass is completed
+  const prioritizeEveningReflection = isToday && compassCompleted;
 
   // Handle error state
   if (error) {
@@ -66,24 +68,6 @@ export function TodayModule({ className, date }: TodayModuleProps) {
           <p className="text-sm text-meld-ink/60 leading-relaxed">
             Opens after 3 PM today.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-50">
-            <div className="space-y-2">
-              <div className="h-2 bg-meld-graysmoke rounded"></div>
-              <div className="h-2 bg-meld-graysmoke rounded w-3/4"></div>
-              <div className="text-xs text-meld-ink/50">High of the day</div>
-            </div>
-            <div className="space-y-2">
-              <div className="h-2 bg-meld-graysmoke rounded"></div>
-              <div className="h-2 bg-meld-graysmoke rounded w-2/3"></div>
-              <div className="text-xs text-meld-ink/50">Low of the day</div>
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-meld-graysmoke">
-            <div className="flex items-center gap-2 text-xs text-meld-ink/50">
-              <div className="w-2 h-2 bg-meld-sand/50 rounded-full"></div>
-              <span>AI insights will appear here based on your patterns</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -101,15 +85,16 @@ export function TodayModule({ className, date }: TodayModuleProps) {
   );
 
   return (
-    <div className={cn('w-full space-y-8', className)}>
+    <div className={cn('w-full space-y-8 pb-8', className)}>
       {prioritizeEveningReflection ? (
-        // When compass is completed and it's after 3 PM, show evening reflection first
+        // When compass is completed AND it's today, show evening reflection first
+        // This puts the next actionable item (evening reflection) at the top
         <>
           {eveningReflectionActive}
           {morningSegment}
         </>
       ) : (
-        // Default order: morning segment first, then evening reflection
+        // Default order: morning segment first, then evening reflection (preview or active)
         <>
           {morningSegment}
           {showEveningReflection ? eveningReflectionActive : eveningReflectionPreview}

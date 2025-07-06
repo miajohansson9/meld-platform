@@ -15,8 +15,7 @@ const compassViewSchema = new mongoose.Schema({
   mood: Number, // from numericAnswer
   energy: Number, // from numericAnswer
   alignment: Number, // from numericAnswer (legacy)
-  priority: String, // selected priority type
-  priorityNote: String, // free text note about priority
+  note: String, // daily note/intention
   reflectionInteractionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'UserInteraction',

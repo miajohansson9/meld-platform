@@ -23,21 +23,13 @@ const getEnergyDescriptor = (energy) => {
 
 const generateReflectionQuestion = async (req, res) => {
     try {
-        const { date = '', topics = [] } = req.body;
+        const { date = '' } = req.body;
         const userId = req.user.id;
 
-        // Validate topics array (now handling emotional states)
-        if (!Array.isArray(topics) || !topics.length) {
-            return res.status(400).json({ error: 'topics array required' });
+        // Validate required fields
+        if (!date) {
+            return res.status(400).json({ error: 'date required' });
         }
-
-        // Check if it's a predefined emotional state or custom emotion
-        const firstTopic = topics[0];
-        const emotionalState = EMOTIONAL_STATES[firstTopic];
-
-        // If it's not a predefined state, treat it as a custom emotion
-        const isCustomEmotion = !emotionalState;
-        const customEmotionText = isCustomEmotion ? firstTopic : null;
 
         // Fetch user profile data
         const user = await User.findById(userId).select('name email role createdAt').lean();
@@ -50,11 +42,6 @@ const generateReflectionQuestion = async (req, res) => {
             user: userId,
             date: date
         }).lean();
-
-        // Build comprehensive context for AI
-        let userContext = `User Profile:
-- Name: ${user.name || 'User'}
-- Account created: ${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Recently'}`;
 
         let morningContext = `Today is ${date}`;
         if (compassData) {
@@ -76,85 +63,69 @@ const generateReflectionQuestion = async (req, res) => {
             if (compassData.priorityNote) {
                 morningContext += `\n- Priority Details: "${compassData.priorityNote}"`;
             }
+
+            // Add morning journal entry if available
+            if (compassData.note) {
+                morningContext += `\n- Morning Journal: "${compassData.note}"`;
+            }
         } else {
             morningContext = 'Morning Check-in: No data available for this date';
-        }
-
-        // Build evening emotional context
-        let eveningContext = '';
-        if (emotionalState) {
-            // Predefined emotional state
-            eveningContext = `Evening Emotional State:
-- How they described their day: "${emotionalState.label}" - ${emotionalState.description}`;
-        } else if (customEmotionText) {
-            // Custom emotion provided by user
-            eveningContext = `Evening Emotional State:
-- How they described their day: "${customEmotionText}" (their own words)`;
         }
 
         // Initialize OpenAI
         const openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
             model: 'gpt-4o',
-            temperature: 1.5,
-            max_tokens: 150, // Increased for two questions
+            temperature: 0.7,
+            max_tokens: 150,
             stream: false,
         });
 
         // Create enhanced prompt with rich context
         const systemPrompt = `
-You're MELD's reflection buddy—an insightful, empathetic mentor in her mid-30s who's successful, grounded, knows her well, and genuinely believes in her.
+ROLE  
+You are MELD's reflection buddy—warm, concise, and zero-judgment **30-year-old woman** who speaks like a trusted peer.
 
-Return a JSON object:
+GOAL  
+From today's morning intention, create a **summary** and **question** that:
+1. Summary: Briefly summarizes every key goal/area of focus the user mentioned this morning.
+2. Question: Simply asks "How did the day unfold?"
+
+INPUT  
+• morning_intention  // raw text from the user's AM entry
+
+STEPS  
+1. Identify up to three distinct goals/intentions or focus areas in \`morning_intention\`.  
+2. Compose a short summary sentence (≤ 20 words) that strings those items together, e.g.:  
+   "This morning you wanted to finish your pitch deck, work out, and stay present."  
+3. The question is always: "How'd the day unfold?"
+4. Use friendly, everyday language—no therapy jargon, no advice.  
+
+EXAMPLES  
+Summary: "This morning you planned to finish your pitch deck and get in a workout."
+Question: "How did the day unfold?"
+
+Summary: "This morning you aimed to surf, rest your ankle, and stay off social media."
+Question: "How did the day unfold?"
+
+OUTPUT  
+Return **only** this JSON object—no markdown, no extra keys:
 
 {
-"question": "Warm acknowledgment of today's feeling, then a reflective question inviting vivid description or thoughtful exploration of its cause. Mention her morning intention only if there's a notable mismatch or insight.",
-"prompt": "Supportive follow-up question offering gentle introspection or actionable clarity for tomorrow or the week ahead."
+  "summary": "<string>",
+  "question": "<string>"
 }
 
-## For a CHALLENGING feeling
-1. Acknowledge their feeling.
-2. Invite deeper reflection using descriptive, scene-setting verbs: "Trace," "Unpack," "Replay," "Pinpoint," "Walk me through."
-3. Suggest one gentle, practical shift.
-
-## For a POSITIVE feeling
-1. Celebrate sincerely and vary expressions.
-2. Prompt vivid revisiting of highlight using varied verbs: "Replay," "Sketch," "Revisit," "Describe," "Walk me through."
-3. Encourage integration of insights moving forward.
-
-### Style & Tone Guidelines
-• 1 sentence per response (except feeling acknowledgment), ≤ 15 words each.
-• Rotate openings—no repetitive phrases.
-• Use varied, vivid, descriptive verbs.
-• Avoid superficial cheerleading ("You lit it up!") and clichés.
-• Keep voice grounded, authentic, empathetic—like a supportive older sister.
-• Reference morning intentions ONLY if naturally insightful or relevant—avoid forced mentions.
-• Prioritize MELD language: clarity, grounded, rising, story, direction.
-• Strictly avoid hustle or productivity jargon ("optimize," "hack," etc.).
-
-Output ONLY valid JSON, no markdown, no extra keys.
+Output MUST be valid JSON with both "summary" and "question" fields—nothing else.
 `;
-
         const messages = [
             {
                 role: 'system',
                 content: systemPrompt
             },
             {
-                role: 'assistant',
-                content: 'What do you want to accomplish today?'
-            },
-            {
                 role: 'user',
                 content: morningContext
-            },
-            {
-                role: 'assistant',
-                content: 'How did you feel today?'
-            },
-            {
-                role: 'user',
-                content: eveningContext
             },
         ];
 
@@ -163,7 +134,7 @@ Output ONLY valid JSON, no markdown, no extra keys.
             model: 'gpt-4o-mini',
             messages,
             temperature: 0.7,
-            max_tokens: 150, // Increased for two questions
+            max_tokens: 150,
             stream: false,
         });
 
@@ -177,24 +148,20 @@ Output ONLY valid JSON, no markdown, no extra keys.
         let parsedResponse;
         try {
             parsedResponse = JSON.parse(response);
-            if (!parsedResponse.question || !parsedResponse.prompt) {
+            if (!parsedResponse.summary || !parsedResponse.question) {
                 throw new Error('Invalid JSON structure');
             }
         } catch (parseError) {
             logger.error('[generateReflectionQuestion] Failed to parse JSON response:', parseError);
             // Fallback: treat as plain text question
             parsedResponse = {
-                question: response,
-                prompt: "What's one small thing you could do tomorrow to build on today's experience?"
+                summary: response, // Fallback to summary as plain text
+                question: 'How did your day actually unfold?' // Fallback to question as plain text
             };
         }
 
         // Log successful generation for analytics
-        const logContext = emotionalState
-            ? `emotional state: ${emotionalState.label}`
-            : `custom emotion: ${customEmotionText}`;
-
-        logger.info(`[generateReflectionQuestion] Generated for user ${userId}, ${logContext}, mood: ${compassData?.mood || 'N/A'}, energy: ${compassData?.energy || 'N/A'}`);
+        logger.info(`[generateReflectionQuestion] Generated for user ${userId}, mood: ${compassData?.mood || 'N/A'}, energy: ${compassData?.energy || 'N/A'}, priority: ${compassData?.priority || 'N/A'} `);
 
         res.json(parsedResponse);
 
