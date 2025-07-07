@@ -171,6 +171,106 @@ Output MUST be valid JSON with both "summary" and "question" fields—nothing el
     }
 };
 
+const generateDailySummary = async (req, res) => {
+    try {
+        const { date, eveningReflectionText } = req.body;
+        const userId = req.user.id;
+
+        // Validate required fields
+        if (!date || !eveningReflectionText) {
+            return res.status(400).json({ error: 'date and eveningReflectionText are required' });
+        }
+
+        // Fetch morning compass data for the specified date
+        const compassData = await CompassView.findOne({
+            user: userId,
+            date: date
+        }).lean();
+
+        if (!compassData) {
+            return res.status(404).json({ error: 'No morning compass data found for this date' });
+        }
+
+        // Build context from morning data
+        let morningContext = `Morning Check-in:`;
+        if (compassData.mood !== undefined) {
+            morningContext += `\n- Mood: ${compassData.mood}/100 (${getMoodDescriptor(compassData.mood)})`;
+        }
+        if (compassData.energy !== undefined) {
+            morningContext += `\n- Energy: ${compassData.energy}/100 (${getEnergyDescriptor(compassData.energy)})`;
+        }
+        if (compassData.note) {
+            morningContext += `\n- Morning Intention: "${compassData.note}"`;
+        }
+
+        // Initialize OpenAI
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+
+        const systemPrompt = `
+ROLE
+You are MELD's daily summary generator—warm, insightful, and concise.
+
+GOAL
+Create a brief daily summary (2-3 sentences max) that weaves together the user's morning intentions and evening reflection to show how their day unfolded.
+
+GUIDELINES
+- Highlight key themes, accomplishments, or insights from both morning and evening
+- Use warm, encouraging tone without being overly positive
+- Keep it conversational and personal
+- Focus on the journey from intention to reality
+- Maximum 50 words
+
+EXAMPLES
+"You started focused on your presentation and staying present. Sounds like the day brought some unexpected challenges, but you handled them with grace and still made good progress."
+
+"This morning you planned to tackle your project deadline and get some exercise. The day unfolded with solid progress on work, though the workout got pushed aside for family time."
+
+OUTPUT
+Return only the summary text—no JSON, no quotes, just the summary.
+`;
+
+        const userPrompt = `${morningContext}
+
+Evening Reflection: "${eveningReflectionText}"
+
+Generate a daily summary based on the above.`;
+
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 100,
+        });
+
+        const summary = completion.choices?.[0]?.message?.content?.trim();
+
+        if (!summary) {
+            throw new Error('No summary generated from OpenAI');
+        }
+
+        // Update the CompassView with the daily summary
+        await CompassView.findOneAndUpdate(
+            { user: userId, date: date },
+            { dailySummary: summary },
+            { upsert: false }
+        );
+
+        logger.info(`[generateDailySummary] Generated summary for user ${userId}, date ${date}`);
+
+        res.json({ summary });
+
+    } catch (err) {
+        logger.error('[generateDailySummary] Error:', err);
+        res.status(500).json({ error: 'Failed to generate daily summary' });
+    }
+};
+
 module.exports = {
     generateReflectionQuestion,
+    generateDailySummary,
 }; 

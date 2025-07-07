@@ -19,7 +19,7 @@ const userInteractionSchema = new mongoose.Schema({
   /* ─────────────── CORE DATA ─────────────── */
   kind: {
     type: String,
-    enum: ['onboarding', 'fragment', 'compass', 'goal', 'win'],
+    enum: ['onboarding', 'fragment', 'compass', 'reflection', 'goal', 'win'],
     required: true,
     index: true
   },

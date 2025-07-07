@@ -24,6 +24,8 @@ router.post('/', validateInteraction, async (req, res) => {
     try {
       if (interaction.kind === 'compass') {
         await upsertCompassView(interaction);
+      } else if (interaction.kind === 'reflection') {
+        await upsertCompassView(interaction);
       } else if (interaction.kind === 'win') {
         await upsertWinsView(interaction);
       }

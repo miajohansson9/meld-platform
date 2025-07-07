@@ -199,45 +199,28 @@ const registerUser = async (user, additionalData = {}) => {
       return { status: 403, message: errorMessage };
     }
 
-    //determine if this is the first registered user (not counting anonymous_user)
-    const isFirstRegisteredUser = (await countUsers()) === 0;
+    // Onboarding fields
+    const onboardingFields = [
+      'city', 'state', 'birthday', 'whyHere', 'lifeArena', 'identitySegment', 'mentorTone', 'currentBlock'
+    ];
+    const onboarding = {};
+    onboardingFields.forEach(field => {
+      if (user[field] !== undefined) onboarding[field] = user[field];
+    });
+    onboarding.onboardingComplete = true;
+    onboarding.onboardingAt = new Date();
 
-    const salt = bcrypt.genSaltSync(10);
-    const newUserData = {
-      provider: 'local',
-      email,
-      username,
-      name,
-      avatar: null,
-      role: isFirstRegisteredUser ? SystemRoles.ADMIN : SystemRoles.USER,
-      password: bcrypt.hashSync(password, salt),
-      ...additionalData,
+    const userDoc = {
+      ...user,
+      onboarding,
     };
 
-    const emailEnabled = checkEmailConfig();
-    const disableTTL = isEnabled(process.env.ALLOW_UNVERIFIED_EMAIL_LOGIN);
-    const newUser = await createUser(newUserData, disableTTL, true);
-    newUserId = newUser._id;
-    if (emailEnabled && !newUser.emailVerified) {
-      await sendVerificationEmail({
-        _id: newUserId,
-        email,
-        name,
-      });
-    } else {
-      await updateUser(newUserId, { emailVerified: true });
-    }
-
-    return { status: 200, message: genericVerificationMessage };
+    newUserId = await createUser(userDoc);
+    logger.info(`[registerUser] User created: ${email}`);
+    return { status: 201, message: 'User registered successfully' };
   } catch (err) {
-    logger.error('[registerUser] Error in registering user:', err);
-    if (newUserId) {
-      const result = await deleteUserById(newUserId);
-      logger.warn(
-        `[registerUser] [Email: ${email}] [Temporary User deleted: ${JSON.stringify(result)}]`,
-      );
-    }
-    return { status: 500, message: 'Something went wrong' };
+    logger.error('[registerUser]', err);
+    return { status: 500, message: err.message };
   }
 };
 

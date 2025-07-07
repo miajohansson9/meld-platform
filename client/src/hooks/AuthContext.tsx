@@ -81,7 +81,7 @@ const AuthContextProvider = ({
         return;
       }
       setError(undefined);
-      setUserContext({ token, isAuthenticated: true, user, redirect: '/c/new' });
+      setUserContext({ token, isAuthenticated: true, user, redirect: '/today' });
     },
     onError: (error: TResError | unknown) => {
       const resError = error as TResError;

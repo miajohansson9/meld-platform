@@ -13,3 +13,4 @@ export * from './roles';
 export * from './tags';
 export * from './Interactions';
 export * from './Views';
+export * from './Reflection';

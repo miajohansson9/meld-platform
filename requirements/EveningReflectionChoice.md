@@ -78,7 +78,7 @@
   4. **On success** set `genQuestion` then:
 
      ```jsx
-     setImprovementNote('');          // clear box
+     seteveningNote('');          // clear box
      textareaRef.current?.focus();
      ```
 

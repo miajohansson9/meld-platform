@@ -491,7 +491,7 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
           {/* Daily Note */}
           {displayData?.note && (
             <div className="space-y-2">
-              <h4 className="text-sm font-medium text-meld-ink">Today's Intention:</h4>
+              <h4 className="text-sm font-medium text-meld-ink">Setting Today's Intention:</h4>
               <div className="bg-white rounded-lg p-4 border border-meld-ink/10">
                 <p className="text-sm text-meld-ink leading-relaxed">
                   {displayData.note}
@@ -588,10 +588,10 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
                   disabled={isDisabled}
                 >
                   {createInteractionMutation.isLoading ? (
-                    <>
+                    <div className="flex flex-row">
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
                       Saving...
-                    </>
+                    </div>
                   ) : (
                     'Save & Close'
                   )}

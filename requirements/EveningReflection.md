@@ -53,7 +53,7 @@ In the evening, journaling helps you wind down, reflect, and learn from the day�
      /* existing */
      completion?: CompletionBand;        // PM self-rating
      blocker?: 'priorityShift' | 'emergency' | 'lowEnergy' | 'overScoped' | 'other' | null;
-     improvementNote?: string | null;    // textarea
+     eveningNote?: string | null;    // textarea
    }
    ```
 
@@ -89,7 +89,7 @@ interface ReflectionSegmentProps {
   ```ts
   const [completion, setCompletion] = useState<CompletionBand | null>(null);
   const [blocker, setBlocker] = useState<CompassView['blocker']>(null);
-  const [improvementNote, setImprovementNote] = useState('');
+  const [eveningNote, seteveningNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [celebrate, setCelebrate] = useState(false);   // triggers confetti
   ```
@@ -130,7 +130,7 @@ interface ReflectionSegmentProps {
 ```ts
 if (completion === null) return toast.error('Mark how far you got.');
 if (completion < 50 && !blocker) return toast.error('Pick what blocked you.');
-if (!improvementNote.trim()) return toast.error('Add a quick reflection.');
+if (!eveningNote.trim()) return toast.error('Add a quick reflection.');
 ```
 
 Call `useCreateInteraction()` four times—mirror Morning style:
@@ -142,7 +142,7 @@ await createInteraction({
   /* …meta { type:'completion' } */
 });
 await createInteraction({ kind:'reflection', responseText:blocker, /* meta */ });
-await createInteraction({ kind:'reflection', responseText:improvementNote, /* meta */ });
+await createInteraction({ kind:'reflection', responseText:eveningNote, /* meta */ });
 ```
 
 Then optimistically update local state & cache (`react-query` or SWR) so the badge flips to Completed.

@@ -2,7 +2,7 @@ const { z } = require('zod');
 
 // Zod schema for user interaction validation
 const interactionSchema = z.object({
-  kind: z.enum(['onboarding', 'fragment', 'compass', 'goal', 'win']),
+  kind: z.enum(['onboarding', 'fragment', 'reflection', 'compass', 'goal', 'win']),
   promptText: z.string().optional(),
   responseText: z.string().optional(),
   numericAnswer: z.number().optional(),

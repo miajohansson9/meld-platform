@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { cn } from '~/utils';
-import { useCreateInteraction } from '~/hooks/useInteractions';
+import { useCreateInteraction, useUpdateInteraction, useInteraction } from '~/hooks/useInteractions';
+import { useGenerateDailySummary } from '~/hooks/useDailySummary';
 import { dataService } from 'librechat-data-provider';
 import {
   Sunset,
@@ -16,20 +17,20 @@ import { CompassView } from '../../data-provider/Views';
 // Utility to calculate streak count
 const getStreakCount = (compassData: CompassView[]): number => {
   if (!compassData || compassData.length === 0) return 0;
-  
+
   // Sort by date descending
   const sortedData = [...compassData]
     .filter(c => c.completion !== undefined || (c.mood !== undefined && c.energy !== undefined))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  
+
   let streak = 0;
   const today = new Date();
-  
+
   for (let i = 0; i < sortedData.length; i++) {
     const dataDate = new Date(sortedData[i].date);
     const expectedDate = new Date(today);
     expectedDate.setDate(today.getDate() - i);
-    
+
     // Check if this date matches the expected consecutive date
     if (dataDate.toDateString() === expectedDate.toDateString()) {
       streak++;
@@ -37,7 +38,7 @@ const getStreakCount = (compassData: CompassView[]): number => {
       break;
     }
   }
-  
+
   return streak;
 };
 
@@ -74,8 +75,10 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
   className,
 }) => {
   const navigate = useNavigate();
-  const { mutate: createInteraction } = useCreateInteraction();
-  
+  const createInteractionMutation = useCreateInteraction();
+  const updateInteractionMutation = useUpdateInteraction();
+  const { mutate: generateDailySummary } = useGenerateDailySummary();
+
   // State - Simplified for new flow
   const [genQuestion, setGenQuestion] = useState<string>('');
   const [genSummary, setGenSummary] = useState<string>('');
@@ -84,9 +87,17 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [existingInteractionId, setExistingInteractionId] = useState<string | null>(null);
 
   // Get current compass data
   const currentCompass = compassData?.find(c => c.date === date);
+
+  // Fetch existing interaction data when editing
+  console.log(existingInteractionId, isEditing);
+  const { data: existingInteraction } = useInteraction(
+    (existingInteractionId && isEditing) ? existingInteractionId : ''
+  );
 
   // Check if today
   const today = new Date();
@@ -104,9 +115,41 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
   // Hydrate from existing data
   useEffect(() => {
     if (currentCompass) {
-      setReflection(currentCompass.improvementNote || '');
+      setReflection(currentCompass.eveningNote || '');
+      if (currentCompass.reflectionInteractionId) {
+        setExistingInteractionId(currentCompass.reflectionInteractionId);
+      }
     }
   }, [currentCompass]);
+
+  // Populate question and summary from existing interaction when editing
+  useEffect(() => {
+    if (existingInteraction && isEditing) {
+      const meta = existingInteraction.interactionMeta;
+      if (meta?.generatedQuestion) {
+        setGenQuestion(meta.generatedQuestion);
+      }
+      if (meta?.generatedSummary) {
+        setGenSummary(meta.generatedSummary);
+      }
+    }
+  }, [existingInteraction, isEditing]);
+
+  const handleEditReflection = () => {
+    // Enter edit mode and populate with existing data
+    setIsEditing(true);
+    setIsCompleted(false);
+
+    if (currentCompass) {
+      setReflection(currentCompass.eveningNote || '');
+      // If there's existing reflection, start on reflection screen
+      if (currentCompass.eveningNote) {
+        setShowReflectionScreen(true);
+      } else {
+        setShowReflectionScreen(false);
+      }
+    }
+  };
 
   const handleBeginReflection = async () => {
     // Generate question first if not already generated
@@ -143,6 +186,7 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
 
   const handleBackToOverview = () => {
     setShowReflectionScreen(false);
+    setIsEditing(false);
   };
 
   // Validation and save - Updated for new flow
@@ -154,28 +198,48 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
 
     setSaving(true);
     try {
-      await new Promise((resolve, reject) => {
-        createInteraction({
+      if (existingInteractionId && isEditing) {
+        // Update existing interaction
+        await updateInteractionMutation.mutateAsync({
+          id: existingInteractionId,
+          data: {
+            kind: 'reflection' as const,
+            promptText: genQuestion || 'Evening reflection',
+            responseText: reflection,
+            interactionMeta: {
+              type: 'reflection',
+              generatedQuestion: genQuestion || null,
+              generatedSummary: genSummary || null,
+            }
+          }
+        });
+      } else {
+        // Create new interaction
+        await createInteractionMutation.mutateAsync({
           kind: 'reflection' as const,
           promptText: genQuestion || 'Evening reflection',
           responseText: reflection,
-          interactionMeta: { 
-            type: 'evening-reflection',
+          interactionMeta: {
+            type: 'reflection',
             generatedQuestion: genQuestion || null,
             generatedSummary: genSummary || null,
           }
-        }, {
-          onSuccess: resolve,
-          onError: reject
         });
-      });
+      }
 
       // Mark as completed
       setIsCompleted(true);
+      setIsEditing(false);
 
       toast.success('Evening reflection saved — insights will help shape your growth.', {
         duration: 3000,
         position: 'bottom-center'
+      });
+
+      // Generate daily summary after saving reflection
+      generateDailySummary({
+        date,
+        eveningReflectionText: reflection
       });
 
     } catch (error) {
@@ -184,13 +248,6 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSkip = () => {
-    toast.success('Reflection skipped for today.', {
-      duration: 2000,
-      position: 'bottom-center'
-    });
   };
 
   // Handle error state
@@ -239,8 +296,72 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
 
   // Determine if form should be disabled (submitted state)
   const isSubmitted = currentCompass && !isToday;
-  const isReflectionComplete = currentCompass && currentCompass.improvementNote;
-  const isDisabled = Boolean(isSubmitted) || saving || isCompleted || Boolean(isReflectionComplete);
+  const isReflectionComplete = currentCompass && currentCompass.eveningNote;
+  const isDisabled = Boolean(isSubmitted) || saving || isCompleted || (Boolean(isReflectionComplete) && !isEditing);
+
+  // Show summary view when reflection is completed
+  const shouldShowSummary = (isCompleted || isReflectionComplete) && !isEditing && !showReflectionScreen;
+
+  if (shouldShowSummary) {
+    // Use current state data if we just completed, otherwise use database data
+    const displayReflection = isCompleted ? reflection : (currentCompass?.eveningNote || '');
+
+    return (
+      <div className={cn("bg-white rounded-xl border border-meld-ink/20 overflow-hidden", className)}>
+        {/* Header */}
+        <div className="p-6 lg:p-8 border-b border-meld-ink/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 mb-2">
+              <Sunset className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+              <h2 className="font-serif text-xl text-meld-ink">Evening Check-In</h2>
+              {/* Streak badge */}
+              {streakCount >= 3 && (
+                <div className="bg-meld-sage text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                  <Flame className="w-3 h-3" />
+                  <span>{streakCount}-day streak</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-meld-sage text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2">
+                <CheckCircle className="w-3 h-3" strokeWidth={2} />
+                Completed
+              </div>
+              {isToday && (
+                <button
+                  onClick={handleEditReflection}
+                  className="text-meld-ink/60 hover:text-meld-ink text-sm font-medium transition-colors"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-meld-sage font-medium">
+            <CheckCircle className="w-4 h-4" strokeWidth={2} />
+            <span>
+              {isToday ? "Great job! Your evening reflection is complete." : "Evening reflection completed for this day."}
+            </span>
+          </div>
+        </div>
+
+        {/* Summary Data */}
+        <div className="p-6 lg:p-8 space-y-6 bg-meld-graysmoke/10">
+          {/* Evening Reflection */}
+          {displayReflection && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-meld-ink">Evening Reflection:</h4>
+              <div className="bg-white rounded-lg p-4 border border-meld-ink/10">
+                <p className="text-sm text-meld-ink leading-relaxed">
+                  {displayReflection}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
@@ -262,23 +383,10 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
               </div>
             )}
           </div>
-          {isCompleted && (
-            <div className="bg-meld-sage text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2">
-              <CheckCircle className="w-3 h-3" strokeWidth={2} />
-              Completed
-            </div>
-          )}
         </div>
-        {isCompleted ? (
-          <div className="flex items-center gap-2 text-sm text-meld-sage font-medium">
-            <CheckCircle className="w-4 h-4" strokeWidth={2} />
-            <span>Great job! Your reflection is complete.</span>
-          </div>
-        ) : (
-          <p className="text-sm text-meld-ink/70 leading-relaxed">
-            One quick question to close your day with intention.
-          </p>
-        )}
+        <p className="text-sm text-meld-ink/70 leading-relaxed">
+          One quick question to close your day with intention.
+        </p>
       </div>
 
       {/* Interactive Content */}
@@ -293,13 +401,18 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
                     {genSummary}
                   </p>
                 )}
-                <h3 className="text-2xl font-serif text-meld-ink leading-relaxed">
-                  {genQuestion}
-                </h3>
-                
-                <div className="flex justify-center pt-2">
-                  <div className="w-2 h-2 bg-meld-sage/30 rounded-full animate-pulse"></div>
-                </div>
+
+                {
+                  genQuestion ? (
+                    <h3 className="text-2xl font-serif text-meld-ink leading-relaxed">
+                      {genQuestion}
+                    </h3>
+                  ) : (
+                    <h3 className="text-2xl font-serif text-meld-ink leading-relaxed">
+                      How did the day unfold?
+                    </h3>
+                  )
+                }
               </div>
 
               <div className="max-w-3xl mx-auto">
@@ -324,16 +437,16 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
             </div>
 
             <div className="border-t border-meld-ink/10 p-6 lg:p-8 flex items-center justify-between bg-meld-graysmoke/20">
-              <button 
+              <button
                 onClick={handleBackToOverview}
                 className="text-meld-ink/60 hover:text-meld-ink text-sm font-medium transition-colors"
                 disabled={saving}
               >
                 ← Back
               </button>
-              
+
               <div className="flex items-center gap-4">
-                <button 
+                <button
                   className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
                   onClick={handleComplete}
                   disabled={saving || !reflection.trim()}
@@ -355,8 +468,8 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
                   Let's see how your intentions played out—take 30 seconds to jot it down.
                 </p>
               </div>
-              
-              <button 
+
+              <button
                 onClick={handleBeginReflection}
                 className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
                 disabled={isDisabled || generating}
@@ -383,20 +496,6 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
           />
         )}
       </div>
-
-      {/* Insight teaser - fade in after save */}
-      {isCompleted && (
-        <div className="px-6 lg:px-8 pb-6 lg:pb-8 animate-in fade-in duration-500">
-          <div className="bg-meld-sage/10 rounded-lg p-4 border border-meld-sage/20">
-            <button
-              onClick={() => navigate('/mentor-feed')}
-              className="text-meld-sage hover:text-meld-sage/80 font-medium text-sm transition-colors"
-            >
-              See how today moves your North-Star →
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

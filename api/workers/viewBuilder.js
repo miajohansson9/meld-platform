@@ -23,7 +23,7 @@ async function upsertCompassView(doc) {
   const metaType = doc.interactionMeta?.type;
   
   // Handle mood
-  if (promptText.includes('mood') || promptText.includes('feeling') || metaType === 'mood') {
+  if (promptText.includes('mood') || metaType === 'mood') {
     update.mood = doc.numericAnswer;
   }
   
@@ -31,44 +31,15 @@ async function upsertCompassView(doc) {
   if (promptText.includes('energy') || metaType === 'energy') {
     update.energy = doc.numericAnswer;
   }
-  
-  // Handle alignment (legacy)
-  if (promptText.includes('alignment') || metaType === 'alignment') {
-    update.alignment = doc.numericAnswer;
-  }
-  
+
   // Handle note
   if (metaType === 'note' && doc.responseText) {
     update.note = doc.responseText;
   }
   
-  // Handle priority selection
-  if (metaType === 'priority' && doc.responseText) {
-    update.priority = doc.responseText;
-  }
-  
-  // Handle priority note
-  if (metaType === 'priority-note' && doc.responseText) {
-    update.priorityNote = doc.responseText;
-    // Also set this as reflection for legacy compatibility
-    update.reflectionInteractionId = doc._id;
-  }
-  
-  // Handle evening reflection fields
-  if (metaType === 'completion' && doc.numericAnswer !== undefined) {
-    update.completion = doc.numericAnswer;
-  }
-  
-  if (metaType === 'blocker' && doc.responseText) {
-    update.blocker = doc.responseText;
-  }
-  
-  if (metaType === 'improvement-note' && doc.responseText) {
-    update.improvementNote = doc.responseText;
-  }
-  
-  // Handle general text responses for reflection (fallback)
-  if (doc.responseText && !metaType && promptText.includes('reflection')) {
+  // Handle evening reflection
+  if (metaType === 'reflection' && doc.responseText) {
+    update.eveningNote = doc.responseText;
     update.reflectionInteractionId = doc._id;
   }
   
@@ -107,14 +78,13 @@ async function upsertWinsView(doc) {
 async function startWorker() {
   await mongoose.connect(process.env.MONGO_URI);
   const changeStream = UserInteraction.watch([], { fullDocument: 'updateLookup' });
-  console.log('ViewBuilder worker started, listening for UserInteraction inserts...');
   
   changeStream.on('change', async (change) => {
-    if (change.operationType === 'insert') {
-      const doc = change.fullDocument;
-      console.log('Change detected:', { operationType: change.operationType, kind: doc.kind });
-      
+    if (change.operationType === 'insert' || change.operationType === 'update') {
+      const doc = change.fullDocument;      
       if (doc.kind === 'compass') {
+        await upsertCompassView(doc);
+      } else if (doc.kind === 'reflection') {
         await upsertCompassView(doc);
       } else if (doc.kind === 'win') {
         await upsertWinsView(doc);

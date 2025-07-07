@@ -273,3 +273,60 @@ Funnel dashboard slices by **Morning vs Evening** entry to test copy.
 ---
 
 > **Fidji final word:** The flow now **tells** her why MELD matters, then **lets her feel it** by doing a check-in, and finally **pulls her upward** with a mentor nudge. That’s the story, the habit loop, and the aspiration—all in the first session. Build tight, ship fast, measure relentlessly.
+
+
+Backend Implementation Plan for MELD Onboarding
+1. User Model Changes
+Add an onboarding subdocument to the User schema:
+onboardingComplete: boolean
+onboardingAt: Date
+name: string
+email: string
+dob: Date
+goalType: string (enum: goal, transition, idea, fresh_start, unsure)
+focus: string
+tone: string[] (array of allowed values)
+pulseWhen: string (optional)
+pulseFuture: string (optional)
+Index: Ensure email is unique.
+2. Registration Endpoint
+POST /api/auth/register
+Accepts all onboarding fields in the request body.
+Validates required fields and allowed values.
+Hashes password (if used).
+Creates user, sets onboarding.onboardingComplete = true, onboarding.onboardingAt = now.
+Returns JWT/session.
+3. Onboarding Update Endpoint (optional, for partial saves)
+PUT /api/users/me/onboarding
+Auth required.
+Updates onboarding fields for the logged-in user.
+Can be used for “save progress” or editing onboarding later.
+4. Validation & Security
+Email: unique, valid format.
+DOB: must be a valid date, optional age check (13+).
+GoalType: must be one of allowed values.
+Tone: array, only allowed values.
+Pulse fields: optional, max length enforced.
+Password: if used, min length, hash with bcrypt.
+5. Analytics/Events
+Fire events for:
+user_onboarded (on completion)
+onboarding_step_completed (optional, for funnel analytics)
+6. Admin/Export
+Ensure onboarding fields are included in user export/admin views.
+Onboarding.md — Backend Implementation Section
+Add this to the end of your Onboarding.md:
+Backend Implementation
+User Model: Add onboarding subdocument with all onboarding answers, plus onboardingComplete and onboardingAt timestamps.
+Registration API: Accepts all onboarding fields and stores them on user creation.
+Onboarding Update API: Allows updating onboarding answers post-registration.
+Validation: Enforce required fields, allowed values, and security best practices.
+Analytics: Fire user_onboarded event on completion.
+Admin: Onboarding fields are visible in admin/user export.
+Next Steps
+[ ] Update User.js Mongoose schema.
+[ ] Implement/extend /api/auth/register to accept onboarding fields.
+[ ] (Optional) Add /api/users/me/onboarding for editing.
+[ ] Add validation logic.
+[ ] Update onboarding analytics.
+[ ] Update admin/export logic.

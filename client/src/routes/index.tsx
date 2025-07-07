@@ -175,15 +175,7 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Navigate to="/c/new" replace={true} />,
-          },
-          {
-            path: 'c/:conversationId?',
-            element: <ChatRoute />,
-          },
-          {
-            path: 'search',
-            element: <Search />,
+            element: <Navigate to="/today" replace={true} />,
           },
         ],
       },

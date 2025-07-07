@@ -877,3 +877,12 @@ export function generateReflectionQuestion(data: {
 }> {
   return request.post(endpoints.generateReflectionQuestion(), data);
 }
+
+export function generateDailySummary(data: {
+  date: string;
+  eveningReflectionText: string;
+}): Promise<{
+  summary: string;
+}> {
+  return request.post('/api/reflection/generate-summary', data);
+}

@@ -1,8 +1,7 @@
 import React from 'react';
-import { Sunset, Loader2 } from 'lucide-react';
+import { Sunset, Info, Loader2 } from 'lucide-react';
 import { MorningSegment } from './MorningSegment';
 import ReflectionSegment from './ReflectionSegment';
-import DailyCompassModule from './DailyCompassModule';
 import { useCompassView } from '../../hooks/useCompassView';
 import { cn } from '~/utils';
 
@@ -29,11 +28,11 @@ export function TodayModule({ className, date }: TodayModuleProps) {
     ? compassData.find(compass => compass.date === date)
     : null;
   // Fixed: Only check for mood and energy completion (no priority fields)
-  const compassCompleted = Boolean(todayCompass && todayCompass.mood !== undefined && todayCompass.energy !== undefined);
+  const compassCompleted = Boolean(todayCompass && todayCompass.note !== null && todayCompass.eveningNote !== null && todayCompass.mood !== null && todayCompass.energy !== null);
   
   // Determine if evening reflection should be prioritized
   // For today: prioritize evening if compass is completed
-  const prioritizeEveningReflection = isToday && compassCompleted;
+  const prioritizeEveningReflection = isToday && Boolean(todayCompass && todayCompass.note !== null && todayCompass.mood !== null && todayCompass.energy !== null);;
 
   // Handle error state
   if (error) {
@@ -86,11 +85,45 @@ export function TodayModule({ className, date }: TodayModuleProps) {
 
   return (
     <div className={cn('w-full space-y-8 pb-8', className)}>
+      {/* Info Box */}
+      {isToday && !todayCompass?.dailySummary && <div className="bg-meld-frost border border-meld-frost rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-meld-ink/20 mt-0.5 flex-shrink-0" strokeWidth={2} />
+          <p className="text-sm text-meld-ink leading-relaxed">
+            Every check-in gives MELD more context to make your weekly insights more personal and useful.
+          </p>
+        </div>
+      </div>}
+
+      {/* Daily Summary */}
+      {isToday && todayCompass?.dailySummary && (
+        <div className="bg-meld-sage/10 border border-meld-sage rounded-lg p-4">
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-meld-sage">Your Day</h3>
+            <p className="text-sm text-meld-ink leading-relaxed">
+              {todayCompass.dailySummary}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Summary Loading State */}
+      {isToday && compassCompleted && !todayCompass?.dailySummary && (
+        <div className="bg-meld-sage/10 border border-meld-sage/20 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-4 h-4 animate-spin text-meld-sage" />
+            <p className="text-sm text-meld-sage">
+              Generating daily summary...
+            </p>
+          </div>
+        </div>
+      )}
+
       {prioritizeEveningReflection ? (
         // When compass is completed AND it's today, show evening reflection first
         // This puts the next actionable item (evening reflection) at the top
         <>
-          {eveningReflectionActive}
+          {showEveningReflection ? eveningReflectionActive : eveningReflectionPreview}
           {morningSegment}
         </>
       ) : (

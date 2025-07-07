@@ -14,25 +14,9 @@ const compassViewSchema = new mongoose.Schema({
   },
   mood: Number, // from numericAnswer
   energy: Number, // from numericAnswer
-  alignment: Number, // from numericAnswer (legacy)
   note: String, // daily note/intention
-  reflectionInteractionId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'UserInteraction',
-    default: null
-  },
-  // Evening reflection fields
-  completion: {
-    type: Number,
-    enum: [0, 20, 40, 60, 80, 100],
-    default: null
-  },
-  blocker: {
-    type: String,
-    enum: ['priorityShift', 'emergency', 'lowEnergy', 'overScoped', 'other'],
-    default: null
-  },
-  improvementNote: {
+  dailySummary: String, // AI-generated summary of the day combining morning and evening
+  eveningNote: {
     type: String,
     default: null
   }

@@ -51,7 +51,7 @@ User Opens App → Session Check → Time-Aware Prompt → Conversation → Nigh
     sessionId: String,
     startTime: Date,
     sessionType: String, // 'morning', 'afternoon', 'evening'
-    promptType: String, // 'daily-planning', 'open-space', 'evening-reflection' 
+    promptType: String, // 'daily-planning', 'open-space', 'reflection' 
     initialPrompt: String,
     followUpPrompt: String, // Only for morning sessions
     userEngaged: Boolean
@@ -380,7 +380,7 @@ theme: {
     startTime: Date,
     endTime: Date,
     sessionType: String, // 'morning', 'afternoon', 'evening'
-    promptType: String, // 'daily-planning', 'open-space', 'evening-reflection'
+    promptType: String, // 'daily-planning', 'open-space', 'reflection'
     initialPrompt: String,
     followUpPrompt: String,
     userEngaged: Boolean,
@@ -451,7 +451,7 @@ theme: {
   // MELD additions
   sessionId: String, // Links to conversation session
   sessionType: String, // 'morning', 'afternoon', 'evening'
-  promptType: String, // 'daily-planning', 'open-space', 'evening-reflection'
+  promptType: String, // 'daily-planning', 'open-space', 'reflection'
   
   // AI Processing Results (added during nightly processing)
   extractedEvents: [String], // Event IDs found in this message
@@ -1007,7 +1007,7 @@ const sessionSchema = new mongoose.Schema({
   },
   promptType: { 
     type: String, 
-    enum: ['daily-planning', 'open-space', 'evening-reflection'],
+    enum: ['daily-planning', 'open-space', 'reflection'],
     required: true 
   },
   initialPrompt: String,
@@ -1318,7 +1318,7 @@ class UnifiedPromptService {
     
     if (eventFollowUp) {
       return {
-        promptType: 'evening-reflection',
+        promptType: 'reflection',
         initialPrompt: eventFollowUp.text,
         eventContext: eventFollowUp.eventId
       };
@@ -1330,7 +1330,7 @@ class UnifiedPromptService {
       : "How did today go for you?";
     
     return {
-      promptType: 'evening-reflection',
+      promptType: 'reflection',
       initialPrompt: reflectionPrompt
     };
   }
@@ -1796,7 +1796,7 @@ MELD transforms LibreChat into a narrative-focused mentorship platform using a *
     startTime: Date,
     endTime: Date,
     sessionType: String, // 'morning', 'afternoon', 'evening'
-    promptType: String, // 'daily-planning', 'open-space', 'evening-reflection'
+    promptType: String, // 'daily-planning', 'open-space', 'reflection'
     initialPrompt: String,
     followUpPrompt: String,
     userEngaged: Boolean,
@@ -1870,7 +1870,7 @@ MELD transforms LibreChat into a narrative-focused mentorship platform using a *
   // MELD additions
   sessionId: String, // Links to conversation session
   sessionType: String, // 'morning', 'afternoon', 'evening'
-  promptType: String, // 'daily-planning', 'open-space', 'evening-reflection'
+  promptType: String, // 'daily-planning', 'open-space', 'reflection'
   
   // AI Processing Results (added during nightly processing)
   extractedEvents: [String], // Event IDs found in this message
@@ -1935,7 +1935,7 @@ class IntelligentPromptService {
     if (eventFollowUp) {
       return {
         initialPrompt: eventFollowUp.text,
-        promptType: 'evening-reflection',
+        promptType: 'reflection',
         eventContext: eventFollowUp.eventId
       };
     }
@@ -1945,7 +1945,7 @@ class IntelligentPromptService {
       initialPrompt: context.hadConversationToday 
         ? "How are you feeling about your day?"
         : "How did today go for you?",
-      promptType: 'evening-reflection'
+      promptType: 'reflection'
     };
   }
 
@@ -2624,7 +2624,7 @@ Keep it warm, brief, and personal. Don't be chatty.`;
     }
 
     return {
-      promptType: 'evening-reflection',
+      promptType: 'reflection',
       initial: "How did today go for you?"
     };
   }
@@ -2719,7 +2719,7 @@ Keep it warm, brief, and personal. Don't be chatty.`;
         initial: "What's on your mind?"
       },
       evening: {
-        promptType: 'evening-reflection',
+        promptType: 'reflection',
         initial: "How did today go for you?"
       }
     };

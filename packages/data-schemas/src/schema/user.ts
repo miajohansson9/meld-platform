@@ -32,6 +32,18 @@ export interface IUser extends Document {
   termsAccepted?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
+  onboarding?: {
+    onboardingComplete?: boolean;
+    onboardingAt?: Date;
+    city?: string;
+    state?: string;
+    birthday?: Date;
+    whyHere?: string;
+    lifeArena?: string;
+    identitySegment?: string;
+    mentorTone?: string[];
+    currentBlock?: string;
+  };
 }
 
 // Session sub-schema
@@ -53,6 +65,23 @@ const BackupCodeSchema = new Schema(
     usedAt: { type: Date, default: null },
   },
   { _id: false },
+);
+
+// Onboarding sub-schema
+const OnboardingSchema = new Schema(
+  {
+    onboardingComplete: { type: Boolean, default: false },
+    onboardingAt: { type: Date },
+    city: { type: String },
+    state: { type: String },
+    birthday: { type: String },
+    whyHere: { type: String },
+    lifeArena: { type: String },
+    identitySegment: { type: String },
+    mentorTone: [{ type: String }],
+    currentBlock: { type: String },
+  },
+  { _id: false }
 );
 
 const User = new Schema<IUser>(
@@ -156,6 +185,7 @@ const User = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    onboarding: { type: OnboardingSchema, default: {} },
   },
   { timestamps: true },
 );
