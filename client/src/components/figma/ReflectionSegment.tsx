@@ -160,7 +160,8 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
           date
         });
 
-        setGenSummary(response.summary || '');
+        // Set empty summary instead of using the response summary
+        setGenSummary('');
         setGenQuestion(response.question || '');
       } catch (error: any) {
         console.error('Failed to generate question:', error);
@@ -207,7 +208,7 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
             promptText: genQuestion || 'Evening reflection',
             responseText: reflection,
             interactionMeta: {
-              type: 'reflection',
+              type: 'evening-reflection',
               generatedQuestion: genQuestion || null,
               generatedSummary: genSummary || null,
             }
@@ -220,23 +221,24 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
           promptText: genQuestion || 'Evening reflection',
           responseText: reflection,
           interactionMeta: {
-            type: 'reflection',
+            type: 'evening-reflection',
             generatedQuestion: genQuestion || null,
             generatedSummary: genSummary || null,
           }
         });
       }
 
-      // Mark as completed
+      // Mark as completed and hide reflection screen immediately
       setIsCompleted(true);
       setIsEditing(false);
+      setShowReflectionScreen(false);
 
       toast.success('Evening reflection saved — insights will help shape your growth.', {
         duration: 3000,
         position: 'bottom-center'
       });
 
-      // Generate daily summary after saving reflection
+      // Generate daily summary after saving reflection (async, don't await)
       generateDailySummary({
         date,
         eveningReflectionText: reflection
@@ -297,7 +299,7 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
   // Determine if form should be disabled (submitted state)
   const isSubmitted = currentCompass && !isToday;
   const isReflectionComplete = currentCompass && currentCompass.eveningNote;
-  const isDisabled = Boolean(isSubmitted) || saving || isCompleted || (Boolean(isReflectionComplete) && !isEditing);
+  const isDisabled = Boolean(isSubmitted) || (Boolean(isReflectionComplete) && !isEditing);
 
   // Show summary view when reflection is completed
   const shouldShowSummary = (isCompleted || isReflectionComplete) && !isEditing && !showReflectionScreen;
@@ -447,11 +449,18 @@ const ReflectionSegment: React.FC<ReflectionSegmentProps> = ({
 
               <div className="flex items-center gap-4">
                 <button
-                  className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
+                  className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleComplete}
                   disabled={saving || !reflection.trim()}
                 >
-                  Save & finish
+                  {saving ? (
+                    <div className="flex flex-row">
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Saving...
+                    </div>
+                  ) : (
+                    'Save & finish'
+                  )}
                 </button>
               </div>
             </div>

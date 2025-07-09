@@ -12,8 +12,28 @@ const { logger } = require('~/config');
 const registrationController = async (req, res) => {
   try {
     const response = await registerUser(req.body);
-    const { status, message } = response;
-    res.status(status).send({ message });
+    const { status, message, userId } = response;
+    
+    // If registration failed, return error
+    if (status !== 201) {
+      return res.status(status).send({ message });
+    }
+    
+    // If registration succeeded, automatically log in the user
+    const user = await getUserById(userId);
+    if (!user) {
+      logger.error('[registrationController] User not found after creation');
+      return res.status(500).json({ message: 'Registration completed but login failed' });
+    }
+
+    // Remove sensitive fields from user object
+    const { password: _p, totpSecret: _t, __v, ...userResponse } = user;
+    userResponse.id = userResponse._id.toString();
+
+    // Set auth tokens (JWT + refresh token cookie)
+    const token = await setAuthTokens(user._id, res);
+
+    return res.status(201).json({ token, user: userResponse });
   } catch (err) {
     logger.error('[registrationController]', err);
     return res.status(500).json({ message: err.message });

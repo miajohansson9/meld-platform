@@ -5,6 +5,7 @@ import { useRegisterUserMutation } from 'librechat-data-provider/react-query';
 import type { TRegisterUser, TError } from 'librechat-data-provider';
 import { Button } from '../ui/Button';
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 // Utility function to get cookie value
 const getCookie = (name: string): string | null => {
@@ -118,6 +119,8 @@ export default function RegistrationWizard() {
 
   const watchedFields = watch();
 
+  const { setError } = useAuthContext();
+
   // Check for access code on mount
   useEffect(() => {
     const storedCode = getCookie('meld_signup_code');
@@ -141,21 +144,37 @@ export default function RegistrationWizard() {
     onMutate: () => {
       setIsSubmitting(true);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setIsSubmitting(false);
-      setShowSuccess(true);
-      setCountdown(3);
-      const timer = setInterval(() => {
-        setCountdown((prevCountdown) => {
-          if (prevCountdown <= 1) {
-            clearInterval(timer);
-            navigate('/today?tour=checkin', { replace: true });
-            return 0;
-          } else {
-            return prevCountdown - 1;
-          }
-        });
-      }, 1000);
+      
+      // Check if we got token and user data (successful registration with auto-login)
+      if (data.token && data.user) {
+        // Registration successful with auto-login
+        // The backend has already set the refresh token cookie
+        // We can either manually set the token or let the auth context handle it
+        
+        // Option 1: Set the token manually and dispatch the event
+        localStorage.setItem('token', data.token);
+        window.dispatchEvent(new CustomEvent('tokenUpdated', { detail: data.token }));
+        
+        // Navigate immediately
+        navigate('/today?tour=checkin', { replace: true });
+      } else {
+        // This shouldn't happen with our new backend, but keeping as fallback
+        setShowSuccess(true);
+        setCountdown(3);
+        const timer = setInterval(() => {
+          setCountdown((prevCountdown) => {
+            if (prevCountdown <= 1) {
+              clearInterval(timer);
+              navigate('/today?tour=checkin', { replace: true });
+              return 0;
+            } else {
+              return prevCountdown - 1;
+            }
+          });
+        }, 1000);
+      }
     },
     onError: (error: unknown) => {
       setIsSubmitting(false);
@@ -267,6 +286,11 @@ export default function RegistrationWizard() {
   };
 
   const onSubmit = (data: RegistrationData) => {
+    // Only allow form submission on the final step (step 6)
+    if (currentStep !== 6) {
+      return;
+    }
+    
     const submitData = {
       ...data,
       whyHere: selectedWhyHere.join(','),
@@ -275,6 +299,34 @@ export default function RegistrationWizard() {
       currentBlock: selectedBlock.join(','),
     };
     registerUser.mutate(submitData);
+  };
+
+  // Handle form submission - prevent submission during onboarding, advance to next step instead
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // If we're not on the final step, advance to next step instead of submitting
+    if (currentStep < 6) {
+      if (getStepValidation()) {
+        handleNext();
+      }
+      return;
+    }
+    
+    // On final step, trigger the actual form submission
+    handleSubmit(onSubmit)(e);
+  };
+
+  // Handle Enter key press in input fields
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentStep < 6 && getStepValidation()) {
+        handleNext();
+      } else if (currentStep === 6 && getStepValidation()) {
+        handleSubmit(onSubmit)();
+      }
+    }
   };
 
   const getStepValidation = () => {
@@ -428,7 +480,7 @@ export default function RegistrationWizard() {
 
       {/* Form Steps */}
       <div className="bg-white rounded-2xl p-8 shadow-xl">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleFormSubmit} className="space-y-6">
           
           {/* Step 0: Your name */}
           {currentStep === 0 && (
@@ -449,6 +501,7 @@ export default function RegistrationWizard() {
                   placeholder="Your full name"
                   className="w-full px-0 py-4 text-xl text-center bg-transparent border-0 border-b-2 border-meld-sage/30 focus:border-meld-sage focus:outline-none text-meld-ink placeholder-meld-ink/50 transition-colors wizard-input-focus"
                   autoFocus
+                  onKeyDown={handleKeyDown}
                 />
               </div>
             </div>
@@ -472,6 +525,7 @@ export default function RegistrationWizard() {
                   type="text"
                   placeholder="Your city"
                   className="w-full px-0 py-4 text-lg text-center bg-transparent border-0 border-b-2 border-meld-sage/30 focus:border-meld-sage focus:outline-none text-meld-ink placeholder-meld-ink/50 transition-colors wizard-input-focus"
+                  onKeyDown={handleKeyDown}
                 />
 
                 <div className="relative">
@@ -487,6 +541,7 @@ export default function RegistrationWizard() {
                     onFocus={() => setShowStateDropdown(true)}
                     onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
                     className="w-full px-0 py-4 text-lg text-center bg-transparent border-0 border-b-2 border-meld-sage/30 focus:border-meld-sage focus:outline-none text-meld-ink placeholder-meld-ink/50 transition-colors wizard-input-focus"
+                    onKeyDown={handleKeyDown}
                   />
                   
                   {showStateDropdown && filteredStates.length > 0 && stateFilter && (
@@ -513,6 +568,7 @@ export default function RegistrationWizard() {
                   {...register('birthday')}
                   type="date"
                   className="w-full px-0 py-4 text-lg text-center bg-transparent border-0 border-b-2 border-meld-sage/30 focus:border-meld-sage focus:outline-none text-meld-ink transition-colors wizard-input-focus"
+                  onKeyDown={handleKeyDown}
                 />
                 
                 <p className="text-xs text-meld-ink/50 text-center max-w-xs mx-auto">
@@ -547,6 +603,7 @@ export default function RegistrationWizard() {
                     type="email"
                     placeholder="Email address"
                     className="w-full px-0 py-4 text-lg text-center bg-transparent border-0 border-b-2 border-meld-sage/30 focus:border-meld-sage focus:outline-none text-meld-ink placeholder-meld-ink/50 transition-colors wizard-input-focus"
+                    onKeyDown={handleKeyDown}
                   />
                 </div>
 
@@ -562,6 +619,7 @@ export default function RegistrationWizard() {
                     type="password"
                     placeholder="Create a password"
                     className="w-full px-0 py-4 text-lg text-center bg-transparent border-0 border-b-2 border-meld-sage/30 focus:border-meld-sage focus:outline-none text-meld-ink placeholder-meld-ink/50 transition-colors wizard-input-focus"
+                    onKeyDown={handleKeyDown}
                   />
                 </div>
 
@@ -574,6 +632,7 @@ export default function RegistrationWizard() {
                     type="password"
                     placeholder="Confirm password"
                     className="w-full px-0 py-4 text-lg text-center bg-transparent border-0 border-b-2 border-meld-sage/30 focus:border-meld-sage focus:outline-none text-meld-ink placeholder-meld-ink/50 transition-colors wizard-input-focus"
+                    onKeyDown={handleKeyDown}
                   />
                 </div>
 

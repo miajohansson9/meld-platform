@@ -38,7 +38,7 @@ async function upsertCompassView(doc) {
   }
   
   // Handle evening reflection
-  if (metaType === 'reflection' && doc.responseText) {
+  if (metaType === 'evening-reflection' && doc.responseText) {
     update.eveningNote = doc.responseText;
     update.reflectionInteractionId = doc._id;
   }

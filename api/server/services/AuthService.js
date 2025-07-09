@@ -210,14 +210,18 @@ const registerUser = async (user, additionalData = {}) => {
     onboarding.onboardingComplete = true;
     onboarding.onboardingAt = new Date();
 
+    // Hash the password before storing
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
     const userDoc = {
       ...user,
+      password: hashedPassword,
       onboarding,
     };
 
     newUserId = await createUser(userDoc);
     logger.info(`[registerUser] User created: ${email}`);
-    return { status: 201, message: 'User registered successfully' };
+    return { status: 201, message: 'User registered successfully', userId: newUserId };
   } catch (err) {
     logger.error('[registerUser]', err);
     return { status: 500, message: err.message };

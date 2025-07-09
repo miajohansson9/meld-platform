@@ -27,12 +27,19 @@ export function TodayModule({ className, date }: TodayModuleProps) {
   const todayCompass = Array.isArray(compassData) 
     ? compassData.find(compass => compass.date === date)
     : null;
-  // Fixed: Only check for mood and energy completion (no priority fields)
-  const compassCompleted = Boolean(todayCompass && todayCompass.note !== null && todayCompass.eveningNote !== null && todayCompass.mood !== null && todayCompass.energy !== null);
+  
+  // Check if morning compass is complete (mood, energy, note)
+  const morningComplete = Boolean(todayCompass && todayCompass.mood !== undefined && todayCompass.energy !== undefined && todayCompass.note);
+  
+  // Check if evening reflection is complete
+  const eveningComplete = Boolean(todayCompass && todayCompass.eveningNote);
+  
+  // Show daily summary loading when evening is complete but summary not yet generated
+  const shouldShowSummaryLoading = eveningComplete && !todayCompass?.dailySummary;
   
   // Determine if evening reflection should be prioritized
-  // For today: prioritize evening if compass is completed
-  const prioritizeEveningReflection = isToday && Boolean(todayCompass && todayCompass.note !== null && todayCompass.mood !== null && todayCompass.energy !== null);;
+  // For today: prioritize evening if morning compass is completed OR it's after 3pm
+  const prioritizeEveningReflection = isToday && (morningComplete || currentHour >= 15);
 
   // Handle error state
   if (error) {
@@ -108,7 +115,7 @@ export function TodayModule({ className, date }: TodayModuleProps) {
       )}
 
       {/* Daily Summary Loading State */}
-      {isToday && compassCompleted && !todayCompass?.dailySummary && (
+      {isToday && shouldShowSummaryLoading && (
         <div className="bg-meld-sage/10 border border-meld-sage/20 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <Loader2 className="w-4 h-4 animate-spin text-meld-sage" />

@@ -47,6 +47,9 @@ const AuthContextProvider = ({
 
   const navigate = useNavigate();
 
+  // Check if this is a public route (no automatic redirects)
+  const isPublicRoute = authConfig?.publicRoute === true;
+
   const setUserContext = useCallback(
     (userContext: TUserContext) => {
       const { token, isAuthenticated, user, redirect } = userContext;
@@ -141,7 +144,10 @@ const AuthContextProvider = ({
           if (authConfig?.test === true) {
             return;
           }
-          navigate('/login');
+          // Don't redirect to login if this is a public route
+          if (!isPublicRoute) {
+            navigate('/login');
+          }
         }
       },
       onError: (error) => {
@@ -149,17 +155,23 @@ const AuthContextProvider = ({
         if (authConfig?.test === true) {
           return;
         }
-        navigate('/login');
+        // Don't redirect to login if this is a public route
+        if (!isPublicRoute) {
+          navigate('/login');
+        }
       },
     });
-  }, []);
+  }, [isPublicRoute, navigate, authConfig?.test]);
 
   useEffect(() => {
     if (userQuery.data) {
       setUser(userQuery.data);
     } else if (userQuery.isError) {
       doSetError((userQuery.error as Error).message);
-      navigate('/login', { replace: true });
+      // Don't redirect to login if this is a public route
+      if (!isPublicRoute) {
+        navigate('/login', { replace: true });
+      }
     }
     if (error != null && error && isAuthenticated) {
       doSetError(undefined);
@@ -178,6 +190,7 @@ const AuthContextProvider = ({
     navigate,
     silentRefresh,
     setUserContext,
+    isPublicRoute,
   ]);
 
   useEffect(() => {

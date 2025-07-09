@@ -287,7 +287,9 @@ export type TSearchMessage = object;
 export type TSearchMessageTreeNode = object;
 
 export type TRegisterUserResponse = {
-  message: string;
+  token?: string;
+  user?: TUser;
+  message?: string;
 };
 
 export type TRegisterUser = {

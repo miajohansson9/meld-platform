@@ -28,6 +28,9 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
   // Check if the selected date is today
   const isToday = currentDate === todayString;
   
+  // Check if it's past 3pm today
+  const isPast3PM = isToday && today.getHours() >= 15;
+  
   // Get the compass data for the selected date
   const currentCompass = Array.isArray(compassData)
     ? compassData.find(compass => compass.date === currentDate)
@@ -35,6 +38,23 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
 
   // Determine if compass is complete
   const isCompassComplete = currentCompass && currentCompass.mood !== undefined && currentCompass.energy !== undefined;
+
+  // If it's today, past 3pm, and no morning entry, show no data message
+  if (isToday && isPast3PM && !isCompassComplete) {
+    return (
+      <div className={cn("bg-white rounded-xl border border-meld-ink/20 overflow-hidden", className)}>
+        <div className="p-6 lg:p-8 border-b border-meld-ink/20">
+          <div className="flex items-center gap-3 mb-2">
+            <Target className="w-5 h-5 text-meld-sand" strokeWidth={1.5} />
+            <h2 className="font-serif text-xl text-meld-ink">Daily Compass</h2>
+          </div>
+          <p className="text-sm text-meld-ink/50">
+            No morning compass data available for today.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // State for interactive form
   const [mood, setMood] = useState([currentCompass?.mood || 70]);
@@ -118,11 +138,6 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
         const type = interaction.interactionMeta?.type;
         if (type && interaction._id) {
           ids[type as keyof typeof ids] = interaction._id;
-          
-          // Set the saved note interaction ID if it exists
-          if (type !== 'mood' && type !== 'energy') {
-            // setSavedNoteInteractionId(interaction._id); // This line is removed
-          }
         }
       });
       
@@ -174,91 +189,6 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
       }
     }
   };
-
-  // const handleExtractCommitment = async () => { // This function is removed
-  //   console.log('🚀 handleExtractCommitment called with savedNoteInteractionId:', savedNoteInteractionId);
-  //   if (!savedNoteInteractionId) return;
-    
-  //   setIsExtracting(true);
-  //   extractMutation.mutate(savedNoteInteractionId, {
-  //     onSuccess: (data) => {
-  //       console.log('✅ Commitment extraction success:', data);
-  //       if (data.hasCommitment && data.commitment) {
-  //         setExtractedCommitment(data.commitment);
-  //         setEditedCommitment(data.commitment);
-  //         setShowCommitmentScreen(true);
-  //       } else {
-  //         // No commitment found, skip to completion
-  //         console.log('ℹ️ No commitment found in journaling');
-  //         toast.info("No specific commitment found in your journaling.");
-  //       }
-  //       setIsExtracting(false);
-  //     },
-  //     onError: (error) => {
-  //       console.error('❌ Commitment extraction error:', error);
-  //       setIsExtracting(false);
-  //       toast.error("Failed to analyze your journaling.");
-  //     }
-  //   });
-  // };
-
-  // const handlePostCommitment = () => { // This function is removed
-  //   if (!editedCommitment.trim() || !savedNoteInteractionId) return;
-    
-  //   postMutation.mutate({
-  //     commitmentText: editedCommitment,
-  //     interactionId: savedNoteInteractionId,
-  //     city: 'San Francisco' // TODO: Get from user profile
-  //   }, {
-  //     onSuccess: () => {
-  //       setShowCommunityScreen(true);
-  //     }
-  //   });
-  // };
-
-  // const handleSkipCommitment = () => { // This function is removed
-  //   toast.success("Your reflection is complete.", {
-  //     duration: 2000,
-  //     position: 'bottom-center'
-  //   });
-  // };
-
-  // const handleBackFromCommitment = () => { // This function is removed
-  //   setShowCommitmentScreen(false);
-  //   setShowJournalingScreen(true);
-  // };
-
-  // const handleBackFromCommunity = () => { // This function is removed
-  //   setShowCommunityScreen(false);
-  //   setShowCommitmentScreen(true);
-  // };
-
-  // const handleEditCompass = () => { // This function is removed
-  //   // Enter edit mode and populate with existing data
-  //   setIsEditing(true);
-  //   setIsCompleted(false);
-  //   // Reset all screen states
-  //   setShowCommitmentScreen(false);
-  //   setShowCommunityScreen(false);
-  //   // Clear commitment data
-  //   setExtractedCommitment('');
-  //   setEditedCommitment('');
-  //   setSavedNoteInteractionId(null);
-  //   // Reset existing interaction IDs - they'll be populated by the useEffect
-  //   setExistingInteractionIds({});
-    
-  //   if (currentCompass) {
-  //     setMood([currentCompass.mood || 70]);
-  //     setEnergy([currentCompass.energy || 60]);
-  //     setNote(currentCompass.note || '');
-  //     // If there's a note, start on journaling screen
-  //     if (currentCompass.note) {
-  //       setShowJournalingScreen(true);
-  //     } else {
-  //       setShowJournalingScreen(false);
-  //     }
-  //   }
-  // };
 
   const handleComplete = async () => {
     try {
@@ -332,7 +262,6 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
         const noteIndex = interactionData.findIndex(item => item.type === 'note');
         if (noteIndex !== -1 && results[noteIndex]?._id) {
           noteInteractionId = results[noteIndex]._id;
-          // setSavedNoteInteractionId(noteInteractionId); // This line is removed
           console.log('📝 Note interaction saved with ID:', noteInteractionId);
         } else {
           console.error('❌ Failed to get note interaction ID:', {
@@ -427,7 +356,6 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
     isCompassComplete,
     showJournalingScreen,
     shouldShowSummary,
-    // extractedCommitment: extractedCommitment.substring(0, 50) + '...' // This line is removed
   });
   
   if (shouldShowSummary) {
@@ -584,8 +512,8 @@ export function MorningSegment({ className, date, compassData, isLoading, error 
               <div className="flex items-center gap-4">
                 <button 
                   onClick={handleComplete}
-                  className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm"
-                  disabled={isDisabled}
+                  className="px-6 py-2 bg-meld-sage text-white rounded-lg hover:bg-meld-sage/90 font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isDisabled || !note.trim()}
                 >
                   {createInteractionMutation.isLoading ? (
                     <div className="flex flex-row">

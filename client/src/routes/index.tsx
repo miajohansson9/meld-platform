@@ -12,7 +12,6 @@ import RegistrationWizard from '~/components/Auth/RegistrationWizard';
 import { AuthContextProvider } from '~/hooks/AuthContext';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
-import WizardLayout from './Layouts/WizardLayout';
 import LoginLayout from './Layouts/Login';
 import DashboardLayout from './Dashboard/DashboardLayout';
 import TodayPage from './Dashboard/TodayPage';
@@ -34,8 +33,37 @@ import MentorInterviewStart from '~/components/MentorInterview/MentorInterviewSt
 import MentorInterviewQuestion from '~/components/MentorInterview/MentorInterviewQuestion';
 import MentorInterviewComplete from '~/components/MentorInterview/MentorInterviewComplete';
 
+// Simple WizardLayout for public routes
+const SimpleWizardLayout = () => (
+  <div className="min-h-screen bg-meld-canvas">
+    {/* Header */}
+    <header className="fixed top-0 left-0 right-0 z-50">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <img src="/assets/logo-b.svg" alt="MELD" className="h-8 w-auto" />
+        </div>
+      </div>
+    </header>
 
-const AuthLayout = () => (
+    {/* Main Content */}
+    <div className="pt-20 min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-6xl">
+        <Outlet />
+      </div>
+    </div>
+  </div>
+);
+
+// Public Auth Layout - provides context but no automatic redirects
+const PublicAuthLayout = () => (
+  <AuthContextProvider authConfig={{ publicRoute: true }}>
+    <Outlet />
+    <ApiErrorWatcher />
+  </AuthContextProvider>
+);
+
+// Private Auth Layout - provides context with authentication enforcement
+const PrivateAuthLayout = () => (
   <AuthContextProvider>
     <Outlet />
     <ApiErrorWatcher />
@@ -67,26 +95,30 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  // Public routes with auth context but no redirects
   {
-    path: 'register',
-    element: <WizardLayout />,
+    element: <PublicAuthLayout />,
     errorElement: <RouteErrorBoundary />,
     children: [
       {
-        index: true,
-        element: <RegistrationWizard />,
+        path: 'register',
+        element: <SimpleWizardLayout />,
+        children: [
+          {
+            index: true,
+            element: <RegistrationWizard />,
+          },
+        ],
+      },
+      {
+        path: 'verify',
+        element: <VerifyEmail />,
+      },
+      {
+        path: 'welcome',
+        element: <WelcomePage />,
       },
     ],
-  },
-  {
-    path: 'verify',
-    element: <VerifyEmail />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: 'welcome',
-    element: <WelcomePage />,
-    errorElement: <RouteErrorBoundary />,
   },
   // SECURE mentor interview routes - access token required (REMOVED OLD ROUTES)
   {
@@ -110,8 +142,9 @@ export const router = createBrowserRouter([
     element: <MentorInterviewComplete />,
     errorElement: <RouteErrorBoundary />,
   },
+  // Private routes with full authentication
   {
-    element: <AuthLayout />,
+    element: <PrivateAuthLayout />,
     errorElement: <RouteErrorBoundary />,
     children: [
       {
