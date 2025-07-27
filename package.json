@@ -38,6 +38,7 @@
     "backend:dev": "cross-env NODE_ENV=development npx nodemon api/server/index.js",
     "backend:transcription": "./start-with-transcription.sh",
     "backend:stop": "node config/stop-backend.js",
+    "build": "npm run frontend",
     "build:data-provider": "cd packages/data-provider && npm run build",
     "build:mcp": "cd packages/mcp && npm run build",
     "build:data-schemas": "cd packages/data-schemas && npm run build",
