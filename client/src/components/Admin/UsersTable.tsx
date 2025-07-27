@@ -286,18 +286,20 @@ export default function UsersTable() {
                 </Select>
               </div>
               
-              <div className="flex gap-2 justify-end">
+              <div className="flex gap-3 justify-end pt-4">
                 <Button
                   variant="outline"
                   onClick={() => setRoleModalOpen(false)}
+                  className="px-4 py-2"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleRoleChange}
-                  disabled={updateRoleMutation.isLoading || newRole === selectedUser.role}
+                  disabled={updateRoleMutation.isLoading || !newRole || newRole === selectedUser.role}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {updateRoleMutation.isLoading ? 'Updating...' : 'Update Role'}
+                  {updateRoleMutation.isLoading ? 'Updating...' : 'Save Changes'}
                 </Button>
               </div>
             </div>

@@ -7,6 +7,7 @@ import MentorQuestionsTable from './MentorQuestionsTable';
 import MentorAnswersTable from './MentorAnswersTable';
 import MentorInterviewModal from './MentorInterviewModal';
 import UsersTable from './UsersTable';
+import UserInterestTable from './UserInterestTable';
 
 interface SelectedMentor {
   mentor_id: string;
@@ -69,6 +70,12 @@ export default function AdminModal({ open, onOpenChange }: { open: boolean; onOp
             >
               Questions
             </TabsTrigger>
+            <TabsTrigger
+              className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-base font-medium text-gray-700 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900 whitespace-nowrap"
+              value="user-interest"
+            >
+              User Interest
+            </TabsTrigger>
             {isAdmin && (
               <TabsTrigger
                 className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-base font-medium text-gray-700 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900 whitespace-nowrap"
@@ -86,6 +93,9 @@ export default function AdminModal({ open, onOpenChange }: { open: boolean; onOp
           </TabsContent>
           <TabsContent className="p-0" value="mentor-questions">
             <MentorQuestionsTable />
+          </TabsContent>
+          <TabsContent className="p-0" value="user-interest">
+            <UserInterestTable />
           </TabsContent>
           {isAdmin && (
             <TabsContent className="p-0" value="users">

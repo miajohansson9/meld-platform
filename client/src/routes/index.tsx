@@ -28,6 +28,7 @@ import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
 import MentorInterestForm from '~/components/MentorInterest/MentorInterestForm';
+import UserInterestForm from '~/components/UserInterest/UserInterestForm';
 import MentorInterview from './Layouts/MentorInterview';
 import MentorInterviewStart from '~/components/MentorInterview/MentorInterviewStart';
 import MentorInterviewQuestion from '~/components/MentorInterview/MentorInterviewQuestion';
@@ -92,6 +93,10 @@ export const router = createBrowserRouter([
       {
         path: 'mentors/signup',
         element: <MentorInterestForm />,
+      },
+      {
+        path: 'users/signup',
+        element: <UserInterestForm />,
       },
     ],
   },
