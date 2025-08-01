@@ -4,7 +4,8 @@ const { checkAdmin } = require('~/server/middleware/roles');
 const { 
   submitUserInterest,
   getUserInterests,
-  deleteUserInterest
+  deleteUserInterest,
+  updateSubstackSignup
 } = require('../controllers/UserInterestController');
 
 const router = express.Router();
@@ -26,6 +27,13 @@ router.get('/', requireJwtAuth, checkAdmin, getUserInterests);
  * @access Private (requires JWT + Admin)
  */
 router.delete('/:id', requireJwtAuth, checkAdmin, deleteUserInterest);
+
+/**
+ * @route PATCH /api/user-interest/:id/newsletter-signup
+ * @desc Mark user as having completed newsletter signup (ADMIN or PUBLIC for self-reporting)
+ * @access Mixed (Public for user self-reporting, Admin for manual marking)
+ */
+router.patch('/:id/newsletter-signup', updateSubstackSignup);
 
 // ============================================
 // PUBLIC ROUTES (no authentication required)

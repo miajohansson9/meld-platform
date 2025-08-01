@@ -1,5 +1,5 @@
 /* eslint-disable i18next/no-literal-string */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,7 +35,11 @@ export default function UserInterestForm() {
   const [submitStatus, setSubmitStatus] = useState<'error' | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
+  const [submittedUserId, setSubmittedUserId] = useState('');
   const [showOtherReferral, setShowOtherReferral] = useState(false);
+  const [newsletterCompleted, setNewsletterCompleted] = useState(false);
+  const [isUpdatingNewsletter, setIsUpdatingNewsletter] = useState(false);
+  const substackIframeRef = useRef<HTMLIFrameElement>(null);
 
   const {
     register,
@@ -67,14 +71,33 @@ export default function UserInterestForm() {
       
       const result = await response.json();
       
-      // Show thank you page
+      // Show newsletter signup step
       setSubmittedEmail(data.email);
+      setSubmittedUserId(result._id);
       setIsSubmitted(true);
       
     } catch (error) {
       console.error(error);
       setSubmitStatus('error');
       setIsSubmitting(false);
+    }
+  };
+
+  const handleNewsletterSignupConfirm = async () => {
+    setIsUpdatingNewsletter(true);
+    try {
+      await fetch(`/api/user-interest/${submittedUserId}/newsletter-signup`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      setNewsletterCompleted(true);
+    } catch (error) {
+      console.error('Failed to update newsletter status:', error);
+      // Still proceed to thank you page - don't block user
+      setNewsletterCompleted(true);
+    } finally {
+      setIsUpdatingNewsletter(false);
     }
   };
 
@@ -92,7 +115,7 @@ export default function UserInterestForm() {
           aria-label={label}
           {...register(id)}
           aria-invalid={!!errors[id]}
-          className="webkit-dark-styles transition-all duration-200 peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-white shadow-sm"
+          className="webkit-dark-styles transition-all duration-200 peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg focus:border-green-500 focus:outline-none focus:ring-green-500/20 focus:bg-white shadow-sm"
           placeholder=" "
           {...extraProps}
         />
@@ -143,7 +166,7 @@ export default function UserInterestForm() {
   );
 
   return (
-    <div className="flex flex-col items-center justify-center bg-[#F8F4EB] min-h-screen">
+    <div className="flex flex-col items-center justify-center bg-[#F8F4EB]">
       <div className="w-full max-w-4xl bg-[#F8F4EB] p-6 sm:bg-white sm:rounded-2xl sm:shadow-lg sm:p-12 sm:m-12">
         {!isSubmitted ? (
           <>
@@ -180,7 +203,7 @@ export default function UserInterestForm() {
                      id="referralSource"
                      {...register('referralSource')}
                      aria-invalid={!!errors.referralSource}
-                     className="webkit-dark-styles transition-all duration-200 peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-white shadow-sm"
+                     className="webkit-dark-styles transition-all duration-200 peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg focus:border-green-500 focus:outline-none focus:ring-green-500/20 focus:bg-white shadow-sm"
                      defaultValue=""
                    >
                      <option value="" disabled hidden>Select from list</option>
@@ -204,6 +227,8 @@ export default function UserInterestForm() {
                  )}
                </div>
             
+               {showOtherReferral && renderInput('referralSourceOther', 'Please specify')}
+
               {/* Current Situation - Always Required */}
               <div className="mb-6">
                 <div className="relative">
@@ -211,7 +236,7 @@ export default function UserInterestForm() {
                     id="currentSituation"
                     {...register('currentSituation')}
                     aria-invalid={!!errors.currentSituation}
-                    className="webkit-dark-styles transition-all duration-200 peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-white shadow-sm"
+                    className="webkit-dark-styles transition-all duration-200 peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg focus:border-green-500 focus:outline-none focus:ring-green-500/20 focus:bg-white shadow-sm"
                     defaultValue=""
                   >
                     <option value="" disabled hidden>Select from list</option>
@@ -234,8 +259,6 @@ export default function UserInterestForm() {
                   </span>
                 )}
               </div>
-
-              {showOtherReferral && renderInput('referralSourceOther', 'Please specify')}
 
               {/* Conditional Fields Based on Current Situation */}
               {watchCurrentSituation === 'In college' && (
@@ -260,7 +283,7 @@ export default function UserInterestForm() {
                 <div className="mt-8 space-y-6">
                   {renderInput('jobTitle', 'What is your job title? *')}
                   {renderInput('company', 'What company do you work at?')}
-                  {renderInput('workCity', 'What city are you based in?')}
+                  {renderInput('workCity', 'What city and state are you based in?')}
                   <div className="mb-6">
                     <label className="flex items-start space-x-4 rounded-xl p-5 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
                       <input
@@ -277,14 +300,14 @@ export default function UserInterestForm() {
               {watchCurrentSituation === 'Recently graduated / job searching' && (
                 <div className="mt-8 space-y-6">
                   {renderInput('studiedField', 'What did you study? *')}
-                  {renderInput('currentCity', 'What city are you currently living in?')}
+                  {renderInput('currentCity', 'What city and state are you currently living in?')}
                   <div className="mb-6">
                     <div className="relative">
                                               <select
                           id="activelyApplying"
                           {...register('activelyApplying')}
                           aria-invalid={!!errors.activelyApplying}
-                          className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg duration-200 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-white shadow-sm"
+                          className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-gray-300 bg-white px-4 pb-3 pt-4 text-gray-900 text-lg duration-200 focus:border-green-500 focus:outline-none focus:ring-green-500/20 focus:bg-white shadow-sm"
                           defaultValue=""
                         >
                         <option value="" disabled hidden>Select from list</option>
@@ -320,7 +343,7 @@ export default function UserInterestForm() {
                        id="currentFocus"
                        {...register('currentFocus')}
                        aria-invalid={!!errors.currentFocus}
-                       className="webkit-dark-styles transition-color w-full rounded-2xl border border-gray-300 bg-white px-4 py-4 text-gray-900 text-lg duration-200 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-white min-h-[120px] resize-y shadow-sm"
+                       className="webkit-dark-styles transition-color w-full rounded-2xl border border-gray-300 bg-white px-4 py-4 text-gray-900 text-lg duration-200 focus:border-green-500 focus:outline-none focus:ring-green-500/20 focus:bg-white min-h-[120px] resize-y shadow-sm"
                        placeholder=" "
                      />
                     {errors.currentFocus && (
@@ -343,7 +366,7 @@ export default function UserInterestForm() {
                     id="motivation"
                     {...register('motivation')}
                     aria-invalid={!!errors.motivation}
-                    className="webkit-dark-styles transition-color w-full rounded-2xl border border-gray-300 bg-white px-4 py-4 text-gray-900 text-lg duration-200 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-white min-h-[120px] resize-y shadow-sm"
+                    className="webkit-dark-styles transition-color w-full rounded-2xl border border-gray-300 bg-white px-4 py-4 text-gray-900 text-lg duration-200 focus:border-green-500 focus:outline-none focus:ring-green-500/20 focus:bg-white min-h-[120px] resize-y shadow-sm"
                     placeholder=" "
                   />
                   {errors.motivation && (
@@ -365,23 +388,94 @@ export default function UserInterestForm() {
               </button>
             </form>
           </>
-        ) : (
-          <div className="mx-auto max-w-prose text-center shadow-sm">
-            <div className="mx-auto max-w-prose rounded-lg border border-green-200 bg-[#F0F7F3] p-4">
-              <div className="mb-4 flex justify-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#B04A2F] text-xl text-white">
+        ) : !newsletterCompleted ? (
+          /* Newsletter Signup Step */
+          <div className="text-center">
+            <div className="mb-8">
+              <div className="mb-6 flex justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#B04A2F] text-xl text-white">
                   ✓
                 </div>
               </div>
-              <h2 className="font-serif mb-2 text-xl text-[#B04A2F]">
-                Thanks for signing up! 🎉
+              <h2 className="font-serif mb-4 text-2xl text-[#B04A2F]">
+                Almost there! 🎉
               </h2>
-              <p className="text-base leading-relaxed text-gray-700">
-                We&apos;ve received your information and will be in touch soon at{' '}
+              <p className="text-lg leading-relaxed text-gray-700 mb-6">
+                We&apos;ve saved your information for{' '}
                 <span className="font-semibold text-black">{submittedEmail}</span>.
-                We&apos;re excited to support your journey!
               </p>
+              
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-8">
+                <h3 className="text-lg font-semibold text-orange-800 mb-2">
+                  ⏰ One final step to complete your signup
+                </h3>
+                <p className="text-orange-700">
+                  To receive updates about MELD&apos;s launch and exclusive mentorship opportunities, 
+                  please subscribe to our newsletter below. This ensures you&apos;ll be first to know when we go live!
+                </p>
+              </div>
             </div>
+
+            {/* Substack Newsletter Signup */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6 mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                Subscribe to MELD Updates
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Get notified about our launch, early access opportunities, and featured mentors.
+              </p>
+              
+              <iframe
+                ref={substackIframeRef}
+                src="https://letsmeld.substack.com/embed"
+                width="100%"
+                height="300"
+                style={{ 
+                  border: 'none',
+                  borderRadius: '12px'
+                }}
+                frameBorder="0"
+                scrolling="no"
+                title="MELD Newsletter Signup"
+                className="w-full"
+              />
+            </div>
+
+                         <div className="space-y-3">
+               <button
+                 onClick={handleNewsletterSignupConfirm}
+                 disabled={isUpdatingNewsletter}
+                 className="w-full bg-[#B04A2F] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#8a3a23] transition-colors duration-200 disabled:opacity-50"
+               >
+                 {isUpdatingNewsletter ? 'Confirming...' : '✅ I signed up for the newsletter'}
+               </button>
+               
+               <button
+                 onClick={() => setNewsletterCompleted(true)}
+                 className="text-gray-500 hover:text-gray-700 underline text-sm transition-colors duration-200"
+               >
+                 Skip for now (I&apos;ll subscribe later)
+               </button>
+             </div>
+          </div>
+        ) : (
+          /* Final Thank You */
+          <div className="text-center">
+            <div className="mb-6 flex justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-xl text-white">
+                ✓
+              </div>
+            </div>
+            <h2 className="font-serif mb-4 text-2xl text-green-600">
+              Welcome to MELD! 🚀
+            </h2>
+            <p className="text-lg leading-relaxed text-gray-700 mb-4">
+              Perfect! You&apos;re all set at{' '}
+              <span className="font-semibold text-black">{submittedEmail}</span>.
+            </p>
+            <p className="text-gray-600">
+              Keep an eye on your inbox — we&apos;ll be in touch soon with exciting updates about your mentorship journey!
+            </p>
           </div>
         )}
       </div>

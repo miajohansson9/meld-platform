@@ -70,8 +70,33 @@ async function deleteUserInterest(req, res) {
   }
 }
 
+const updateSubstackSignup = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const userInterest = await UserInterest.findByIdAndUpdate(
+      id,
+      { completedSubstackSignup: true },
+      { new: true }
+    );
+
+    if (!userInterest) {
+      return handleError(res, { text: 'User interest not found' }, 404);
+    }
+
+    res.json({ 
+      message: 'Newsletter signup status updated',
+      userInterest 
+    });
+  } catch (err) {
+    logger.error('Error updating newsletter signup:', err);
+    return handleError(res, { text: 'Error updating newsletter signup status' });
+  }
+};
+
 module.exports = {
   submitUserInterest,
   getUserInterests,
   deleteUserInterest,
+  updateSubstackSignup,
 }; 

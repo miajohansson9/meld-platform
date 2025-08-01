@@ -29,6 +29,7 @@ const userInterestSchema = z.object({
   referralSource: z.string().min(1, 'Please tell us how you heard about MELD').trim(),
   referralSourceOther: z.string().trim().optional(),
   motivation: z.string().min(1, 'Please tell us what you hope to get out of MELD').trim(),
+  completedSubstackSignup: z.boolean().optional().default(false),
 }).refine((data) => {
   // Conditional validation based on current situation
   if (data.currentSituation === 'In college' && !data.currentSchool?.trim()) {

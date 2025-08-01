@@ -88,6 +88,10 @@ const userInterestSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    completedSubstackSignup: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
