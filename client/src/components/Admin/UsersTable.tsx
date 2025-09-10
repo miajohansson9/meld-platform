@@ -36,7 +36,6 @@ interface TUser {
 export default function UsersTable() {
   const { token, user: currentUser } = useAuthContext();
   const { showToast } = useToastContext();
-  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -45,9 +44,9 @@ export default function UsersTable() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [newRole, setNewRole] = useState('');
 
+  // Fetch all users without pagination
   const { data, isLoading, error } = useGetUsers(token!, {
-    page,
-    limit: 20,
+    limit: 1000, // High limit to get all users
     search,
     role: roleFilter === 'all' ? '' : roleFilter,
   });
@@ -57,7 +56,6 @@ export default function UsersTable() {
 
   const handleSearch = () => {
     setSearch(searchInput);
-    setPage(1); // Reset to first page when searching
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -164,13 +162,6 @@ export default function UsersTable() {
       ),
     },
     {
-      accessorKey: 'provider',
-      header: 'Provider',
-      cell: ({ row }: any) => (
-        <span className="text-sm capitalize">{row.original.provider}</span>
-      ),
-    },
-    {
       accessorKey: 'createdAt',
       header: 'Created',
       cell: ({ row }: any) => (
@@ -220,6 +211,13 @@ export default function UsersTable() {
 
   return (
     <div className="max-w-full overflow-x-auto">
+      {/* Header with user count */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Platform Users ({data?.users?.length || 0})
+        </h2>
+      </div>
+
       {/* Filters */}
       <div className="mb-4 flex items-center gap-4">
         <div className="flex gap-2">

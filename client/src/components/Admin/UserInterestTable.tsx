@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { Button } from '~/components/ui';
-import { Trash2, CheckCircle, Eye } from 'lucide-react';
+import { Trash2, CheckCircle, Eye, Download } from 'lucide-react';
 import { OGDialog, OGDialogContent, OGDialogTitle } from '~/components/ui/OriginalDialog';
 
 const fetchUserInterests = async (token: string) => {

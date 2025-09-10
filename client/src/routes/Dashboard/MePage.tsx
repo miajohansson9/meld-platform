@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { HeaderBar } from '~/components/figma';
 import { useAuthContext } from '~/hooks/AuthContext';
 import UsersTable from '~/components/Admin/UsersTable';
 import UserInterestTable from '~/components/Admin/UserInterestTable';
+import MentorAnswersTable from '~/components/Admin/MentorAnswersTable';
+import MentorInterviewModal from '~/components/Admin/MentorInterviewModal';
 
 // Define SystemRoles locally to match the backend
 const SystemRoles = {
@@ -11,12 +13,33 @@ const SystemRoles = {
   MENTOR: 'MENTOR',
 } as const;
 
+interface SelectedMentor {
+  mentor_id: string;
+  mentor_name: string;
+  mentor_email: string;
+  responses: any[];
+}
+
 export default function MePage() {
   const { user } = useAuthContext();
   const [activeTab, setActiveTab] = useState('users');
+  const [selectedMentor, setSelectedMentor] = useState<SelectedMentor | null>(null);
+  const [interviewModalOpen, setInterviewModalOpen] = useState(false);
   
   // Check if current user is an admin
   const isAdmin = user?.role === SystemRoles.ADMIN;
+
+  // Centralized mentor selection handler
+  const handleMentorSelect = useCallback((mentor: SelectedMentor) => {
+    setSelectedMentor(mentor);
+    setInterviewModalOpen(true);
+  }, []);
+
+  // Centralized modal close handler
+  const handleInterviewModalClose = useCallback(() => {
+    setInterviewModalOpen(false);
+    setSelectedMentor(null);
+  }, []);
 
   return (
     <div className="h-full flex flex-col h-screen">
@@ -59,6 +82,16 @@ export default function MePage() {
                   >
                     User Interest Signups
                   </button>
+                  <button
+                    onClick={() => setActiveTab('mentor-answers')}
+                    className={`${
+                      activeTab === 'mentor-answers'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    } whitespace-nowrap border-b-2 py-2 px-1 text-sm font-medium transition-colors duration-200`}
+                  >
+                    Mentor Answers
+                  </button>
                 </nav>
               </div>
 
@@ -66,6 +99,7 @@ export default function MePage() {
               <div className="mt-6">
                 {activeTab === 'users' && <UsersTable />}
                 {activeTab === 'user-interest' && <UserInterestTable />}
+                {activeTab === 'mentor-answers' && <MentorAnswersTable onMentorSelect={handleMentorSelect} />}
               </div>
             </div>
           ) : (
@@ -78,6 +112,15 @@ export default function MePage() {
           )}
         </div>
       </div>
+
+      {/* Mentor Interview Modal - only for admin users */}
+      {isAdmin && (
+        <MentorInterviewModal
+          isOpen={interviewModalOpen}
+          onClose={handleInterviewModalClose}
+          selectedMentor={selectedMentor}
+        />
+      )}
     </div>
   );
 } 

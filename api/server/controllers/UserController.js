@@ -216,8 +216,6 @@ const getAllUsersController = async (req, res) => {
     const total = await User.countDocuments(filter);
     const pages = Math.ceil(total / limitNum);
 
-    logger.info(`Admin ${req.user.email} retrieved ${users.length} users (page ${pageNum})`);
-
     res.status(200).json({
       users,
       pagination: {
@@ -228,7 +226,6 @@ const getAllUsersController = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error('[getAllUsersController]', error);
     res.status(500).json({ message: 'Failed to retrieve users' });
   }
 };
