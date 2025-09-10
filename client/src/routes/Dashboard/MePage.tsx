@@ -4,6 +4,7 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import UsersTable from '~/components/Admin/UsersTable';
 import UserInterestTable from '~/components/Admin/UserInterestTable';
 import MentorAnswersTable from '~/components/Admin/MentorAnswersTable';
+import MentorResponsesTable from '~/components/Admin/MentorResponsesTable';
 import MentorInterviewModal from '~/components/Admin/MentorInterviewModal';
 
 // Define SystemRoles locally to match the backend
@@ -92,6 +93,16 @@ export default function MePage() {
                   >
                     Mentor Answers
                   </button>
+                  <button
+                    onClick={() => setActiveTab('mentor-responses')}
+                    className={`${
+                      activeTab === 'mentor-responses'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    } whitespace-nowrap border-b-2 py-2 px-1 text-sm font-medium transition-colors duration-200`}
+                  >
+                    Mentor Responses
+                  </button>
                 </nav>
               </div>
 
@@ -100,6 +111,7 @@ export default function MePage() {
                 {activeTab === 'users' && <UsersTable />}
                 {activeTab === 'user-interest' && <UserInterestTable />}
                 {activeTab === 'mentor-answers' && <MentorAnswersTable onMentorSelect={handleMentorSelect} />}
+                {activeTab === 'mentor-responses' && <MentorResponsesTable onMentorSelect={handleMentorSelect} />}
               </div>
             </div>
           ) : (

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Trash2, Edit, Search } from 'lucide-react';
+import React, { useMemo, useState, useCallback } from 'react';
+import { Trash2, Edit, Search, Download } from 'lucide-react';
 
 // Define SystemRoles locally to avoid import issues
 const SystemRoles = {
@@ -29,8 +29,9 @@ interface TUser {
   role: string;
   provider: string;
   createdAt: string;
-  avatar?: string;
+  updatedAt?: string;
   lastLogin?: string;
+  avatar?: string;
 }
 
 export default function UsersTable() {
@@ -120,6 +121,43 @@ export default function UsersTable() {
     setDeleteModalOpen(true);
   };
 
+  // CSV Export functionality
+  const exportToCSV = useCallback(() => {
+    if (!data?.users) return;
+    
+    const headers = [
+      'Name',
+      'Email',
+      'Role',
+      'Created Date',
+      'Last Login'
+    ];
+
+    const csvData = data.users.map((user: TUser) => [
+      user.name || 'N/A',
+      user.email || '',
+      user.role || '',
+      user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '',
+      user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'No Data'
+    ]);
+
+    // Create CSV content
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `platform-users-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [data?.users]);
+
   const columns = useMemo(() => [
     {
       accessorKey: 'name',
@@ -171,6 +209,18 @@ export default function UsersTable() {
       ),
     },
     {
+      accessorKey: 'lastLogin',
+      header: 'Last Login',
+      cell: ({ row }: any) => (
+        <span className="text-sm">
+          {row.original.lastLogin 
+            ? new Date(row.original.lastLogin).toLocaleDateString()
+            : 'No Data'
+          }
+        </span>
+      ),
+    },
+    {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }: any) => {
@@ -212,10 +262,20 @@ export default function UsersTable() {
   return (
     <div className="max-w-full overflow-x-auto">
       {/* Header with user count */}
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">
           Platform Users ({data?.users?.length || 0})
         </h2>
+        <Button
+          onClick={exportToCSV}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          disabled={!data?.users?.length}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Filters */}

@@ -1,5 +1,6 @@
 const { generate2FATempToken } = require('~/server/services/twoFactorService');
 const { setAuthTokens } = require('~/server/services/AuthService');
+const { updateUser } = require('~/models/userMethods');
 const { logger } = require('~/config');
 
 const loginController = async (req, res) => {
@@ -12,6 +13,9 @@ const loginController = async (req, res) => {
       const tempToken = generate2FATempToken(req.user._id);
       return res.status(200).json({ twoFAPending: true, tempToken });
     }
+
+    // Update lastLogin timestamp
+    await updateUser(req.user._id, { lastLogin: new Date() });
 
     const { password: _p, totpSecret: _t, __v, ...user } = req.user;
     user.id = user._id.toString();

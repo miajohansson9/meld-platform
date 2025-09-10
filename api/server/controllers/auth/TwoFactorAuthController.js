@@ -5,7 +5,7 @@ const {
   getTOTPSecret,
 } = require('~/server/services/twoFactorService');
 const { setAuthTokens } = require('~/server/services/AuthService');
-const { getUserById } = require('~/models/userMethods');
+const { getUserById, updateUser } = require('~/models/userMethods');
 const { logger } = require('~/config');
 
 /**
@@ -41,6 +41,9 @@ const verify2FAWithTempToken = async (req, res) => {
     if (!isVerified) {
       return res.status(401).json({ message: 'Invalid 2FA code or backup code' });
     }
+
+    // Update lastLogin timestamp
+    await updateUser(user._id, { lastLogin: new Date() });
 
     // Prepare user data to return (omit sensitive fields).
     const userData = user.toObject ? user.toObject() : { ...user };

@@ -28,6 +28,11 @@ const oauthHandler = async (req, res) => {
     if (req.banned) {
       return;
     }
+    
+    // Update lastLogin timestamp for OAuth logins
+    const { updateUser } = require('~/models/userMethods');
+    await updateUser(req.user._id, { lastLogin: new Date() });
+    
     await setAuthTokens(req.user._id, res);
     res.redirect(domains.client);
   } catch (err) {

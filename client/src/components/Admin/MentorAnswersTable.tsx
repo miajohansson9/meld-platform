@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthContext } from '~/hooks/AuthContext';
+import { Button } from '~/components/ui';
+import { Download } from 'lucide-react';
 
 interface MentorResponse {
   _id: string;
@@ -73,11 +75,75 @@ export default function MentorAnswersTable({ onMentorSelect }: MentorAnswersTabl
     }
   };
 
+  // CSV Export functionality
+  const exportToCSV = useCallback(() => {
+    if (!responses.length) return;
+    
+    const headers = [
+      'Created At',
+      'Mentor Name',
+      'Mentor Email',
+      'Job Title',
+      'Company',
+      'Status',
+      'Question Number',
+      'Question',
+      'Answer',
+      'Preamble'
+    ];
+
+    const csvData = responses.map((response: MentorResponse) => [
+      response.createdAt ? new Date(response.createdAt).toLocaleDateString() : '',
+      response.mentor_name || '',
+      response.mentor_email || '',
+      response.mentor_jobTitle || '',
+      response.mentor_company || '',
+      response.status || '',
+      response.stage_id ? `Q${response.stage_id}` : '',
+      response.question || '',
+      response.response_text || '',
+      response.preamble || ''
+    ]);
+
+    // Create CSV content
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `mentor-answers-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [responses]);
+
   if (isLoading) return <div>Loading mentor answers...</div>;
   if (!responses.length) return <div>No mentor answers found.</div>;
 
   return (
     <div className="w-full max-w-full">
+      {/* Header with export button */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Mentor Answers ({responses.length})
+        </h2>
+        <Button
+          onClick={exportToCSV}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          disabled={responses.length === 0}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
+      </div>
+
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-y-auto h-[calc(100vh-20rem)] w-full">
           <table className="w-full">
@@ -150,7 +216,7 @@ export default function MentorAnswersTable({ onMentorSelect }: MentorAnswersTabl
             </tbody>
           </table>
         </div>
-      </div>x
+      </div>
     </div>
   );
 } 

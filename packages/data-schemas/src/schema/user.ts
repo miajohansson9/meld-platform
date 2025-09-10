@@ -30,6 +30,7 @@ export interface IUser extends Document {
   }>;
   expiresAt?: Date;
   termsAccepted?: boolean;
+  lastLogin?: Date;
   createdAt?: Date;
   updatedAt?: Date;
   onboarding?: {
@@ -184,6 +185,10 @@ const User = new Schema<IUser>(
     termsAccepted: {
       type: Boolean,
       default: false,
+    },
+    lastLogin: {
+      type: Date,
+      default: null,
     },
     onboarding: { type: OnboardingSchema, default: {} },
   },

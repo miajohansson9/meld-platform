@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DataTable from '~/components/ui/DataTable';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { Button } from '~/components/ui';
-import { Trash2, ExternalLink, Plus } from 'lucide-react';
+import { Trash2, ExternalLink, Plus, Download } from 'lucide-react';
 
 interface SelectedMentor {
   mentor_id: string;
@@ -203,6 +203,57 @@ export default function MentorResponsesTable({ onMentorSelect }: MentorResponses
     setPendingStatus(null);
   };
 
+  // CSV Export functionality
+  const exportToCSV = useCallback(() => {
+    if (!responses.length) return;
+    
+    const headers = [
+      'First Name',
+      'Last Name',
+      'Email',
+      'Status',
+      'Job Title',
+      'Company',
+      'Industry',
+      'Career Stage',
+      'Created Date',
+    ];
+
+    const csvData = responses.map((response: any) => {
+      // Get answered questions count for this mentor
+      const mentorResponses = mentorAnswers.filter((r: any) => r.mentor_id === response._id);
+      const questionCount = mentorResponses.length;
+
+      return [
+        response.firstName || '',
+        response.lastName || '',
+        response.email || '',
+        response.status || '',
+        response.jobTitle || '',
+        response.company || '',
+        response.industry || '',
+        response.careerStage || '',
+        response.createdAt ? new Date(response.createdAt).toLocaleDateString() : '',
+      ];
+    });
+
+    // Create CSV content
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `mentor-responses-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [responses, mentorAnswers]);
+
   const columns = useMemo(() => {
     if (!responses.length) return [];
     
@@ -394,6 +445,23 @@ export default function MentorResponsesTable({ onMentorSelect }: MentorResponses
 
   return (
     <div className="max-w-full overflow-x-auto">
+      {/* Header with export button */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Mentor Responses ({responses.length})
+        </h2>
+        <Button
+          onClick={exportToCSV}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          disabled={responses.length === 0}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
+      </div>
+
       <DataTable 
         columns={columns} 
         data={responses} 

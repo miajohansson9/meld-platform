@@ -86,6 +86,73 @@ export default function UserInterestTable() {
     setDeleteData({ id, email });
   }, []);
 
+  // CSV Export functionality
+  const exportToCSV = useCallback(() => {
+    const headers = [
+      'Name',
+      'Email', 
+      'Current Situation',
+      'Details',
+      'How They Heard',
+      'Motivation',
+      'Newsletter Subscription',
+      'Submitted Date'
+    ];
+
+    const csvData = userInterests.map((userInterest: any) => {
+      // Build details based on situation
+      let details = '';
+      const situation = userInterest.currentSituation;
+      if (situation === 'In college') {
+        const collegeDetails = [userInterest.currentSchool, userInterest.studyingField, userInterest.graduationYear].filter(Boolean);
+        if (userInterest.openToStudentMentorship) {
+          collegeDetails.push('Open to mentorship');
+        }
+        details = collegeDetails.join(' • ');
+      } else if (situation === 'Currently working') {
+        details = [userInterest.jobTitle, userInterest.company, userInterest.workCity].filter(Boolean).join(' • ');
+      } else if (situation === 'Recently graduated / job searching') {
+        details = [userInterest.studiedField, userInterest.currentCity, userInterest.activelyApplying].filter(Boolean).join(' • ');
+      } else if (situation === 'Taking a break' || situation === 'Other') {
+        details = [userInterest.currentFocus, userInterest.currentCity].filter(Boolean).join(' • ');
+      }
+
+      // Build referral source
+      const referralSource = userInterest.referralSource;
+      const other = userInterest.referralSourceOther;
+      const displayReferral = referralSource === 'Other' && other 
+        ? `Other: ${other}` 
+        : referralSource;
+
+      return [
+        userInterest.name || '',
+        userInterest.email || '',
+        userInterest.currentSituation || '',
+        details || 'No details',
+        displayReferral || '',
+        userInterest.motivation || '',
+        userInterest.newsletterSubscription ? 'Yes' : 'No',
+        userInterest.createdAt ? new Date(userInterest.createdAt).toLocaleDateString() : ''
+      ];
+    });
+
+    // Create CSV content
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `user-interest-signups-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [userInterests]);
+
   // Simple table component to avoid virtualization re-renders
   const renderUserRow = useCallback((userInterest: any) => {
     // Motivation logic
@@ -226,6 +293,16 @@ export default function UserInterestTable() {
         <h2 className="text-lg font-semibold text-gray-900">
           User Interest Signups ({userInterests.length})
         </h2>
+        <Button
+          onClick={exportToCSV}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          disabled={userInterests.length === 0}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Simple table without virtualization for smooth scrolling */}
